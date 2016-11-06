@@ -1,0 +1,8 @@
+deploy
+collect
+go/bin
+go/pkg
+go/src/github.com/
+go/src/labix.org/
+go/src/golang.org/
+
