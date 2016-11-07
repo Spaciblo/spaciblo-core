@@ -69,6 +69,7 @@ var APIListProperties = []Property{
 	},
 }
 
+// NewAPIListProperties generates a Property array using the default values in APIListProperties
 func NewAPIListProperties(childrenType string) []Property {
 	var props = make([]Property, len(APIListProperties))
 	for index, property := range APIListProperties {

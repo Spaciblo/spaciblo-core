@@ -42,7 +42,7 @@ clean:
 	rm -rf go/bin go/pkg deploy collect
 
 clean_deps:
-	rm -rf go/src/github.com go/src/labix.org go/src/golang.org
+	rm -rf go/src/github.com go/src/golang.org
 
 go_get_deps:
 	go get github.com/chai2010/assert
@@ -50,12 +50,12 @@ go_get_deps:
 	go get github.com/gorilla/mux
 	go get github.com/Spaciblo/qbs
 	go get github.com/lib/pq
-	go get golang.org/x/crypto/bcrypt
 	go get github.com/nu7hatch/gouuid
 	go get github.com/rs/cors
 	go get github.com/goincremental/negroni-sessions
 	go get github.com/golang/lint
 	go get github.com/nfnt/resize
+	go get golang.org/x/crypto/bcrypt
 
 lint:
 	go install github.com/golang/lint/...
@@ -75,7 +75,7 @@ install_demo:
 
 test:
 	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql
-	$(TEST_POSTGRES_ENVS) go test -v github.com/Spaciblo/qbs/... #spaciblo.org/be/...
+	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/be/...
 
 psql:
 	scripts/db_shell.sh $(POSTGRES_USER) $(POSTGRES_PASSWORD)
