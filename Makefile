@@ -16,7 +16,7 @@ SESSION_SECRET := "fr0styth3sn0wm@n"
 STATIC_DIR := $(PWD)/go/src/spaciblo.org/be/static/
 FILE_STORAGE_DIR := $(PWD)/file_storage
 
-API_PKGS := spaciblo.org/be/...
+API_PKGS := spaciblo.org/...
 
 COMMON_POSTGRES_ENVS := POSTGRES_USER=$(POSTGRES_USER) \
 						POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
@@ -64,9 +64,9 @@ lint:
 compile_api: 
 	go install -v $(API_PKGS)
 
-run_api: compile_api
+run_front: compile_api
 	-mkdir $(FILE_STORAGE_DIR)
-	$(API_RUNTIME_ENVS) go/bin/api
+	$(API_RUNTIME_ENVS) go/bin/front
 
 install_demo:
 	-echo "drop database $(POSTGRES_DB_NAME); create database $(POSTGRES_DB_NAME);" | psql
