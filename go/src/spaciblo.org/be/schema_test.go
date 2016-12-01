@@ -4,30 +4,30 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Spaciblo/qbs"
 	. "github.com/chai2010/assert"
 )
 
 func TestSchemaAPI(t *testing.T) {
-	CreateAndInitDB()
-	db, err := qbs.GetQbs()
+	err := CreateDB()
+	AssertNil(t, err)
+	dbInfo, err := InitDB()
 	AssertNil(t, err)
 	defer func() {
-		WipeDB()
-		db.Close()
+		WipeDB(dbInfo)
+		dbInfo.Connection.Close()
 	}()
 
 	testApi, err := NewTestAPI()
 	AssertNil(t, err)
 	defer testApi.Stop()
 
-	user, err := CreateUser("bronner@soap.example.com", "Dr", "Bronner", false, db)
+	user, err := CreateUser("bronner@soap.example.com", "Dr", "Bronner", false, dbInfo)
 	AssertNil(t, err)
-	_, err = CreatePassword("1234", user.Id, db)
+	_, err = CreatePassword("1234", user.Id, dbInfo)
 	AssertNil(t, err)
-	staff, err := CreateUser("mr-clean@soap.example.com", "Mr", "Clean", true, db)
+	staff, err := CreateUser("mr-clean@soap.example.com", "Mr", "Clean", true, dbInfo)
 	AssertNil(t, err)
-	_, err = CreatePassword("1234", staff.Id, db)
+	_, err = CreatePassword("1234", staff.Id, dbInfo)
 	AssertNil(t, err)
 
 	AssertGetString(t, testApi.URL()+"/schema")

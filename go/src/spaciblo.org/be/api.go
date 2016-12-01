@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Spaciblo/qbs"
 	"github.com/goincremental/negroni-sessions"
 	"github.com/gorilla/mux"
 )
@@ -116,7 +115,7 @@ APIRequest is data for a request to an API endpoint
 */
 type APIRequest struct {
 	PathValues map[string]string
-	DB         *qbs.Qbs
+	DBInfo     *DBInfo
 	FS         FileStorage
 	Session    sessions.Session
 	User       *User
@@ -175,15 +174,17 @@ type API struct {
 	Path        string
 	Version     string
 	FileStorage FileStorage
+	DBInfo      *DBInfo
 	resources   []Resource
 }
 
-func NewAPI(path string, version string, fileStorage FileStorage) *API {
+func NewAPI(path string, version string, fileStorage FileStorage, dbInfo *DBInfo) *API {
 	api := &API{
 		Mux:         mux.NewRouter(),
 		Path:        path,
 		Version:     version,
 		FileStorage: fileStorage,
+		DBInfo:      dbInfo,
 		resources:   make([]Resource, 0),
 	}
 	api.AddResource(NewSchemaResource(api), false)
@@ -196,7 +197,7 @@ func NewAPI(path string, version string, fileStorage FileStorage) *API {
 
 func (api *API) AddResource(resource Resource, versioned bool) {
 	api.resources = append(api.resources, resource)
-	api.Mux.HandleFunc(api.Path+resource.Path(), api.createHandlerFunc(resource, versioned)).Name(resource.Name())
+	api.Mux.HandleFunc(api.Path+resource.Path(), api.createHandlerFunc(resource, versioned, api.DBInfo)).Name(resource.Name())
 }
 
 func (api *API) acceptableAcceptHeader(acceptTypes []string) bool {
@@ -215,7 +216,7 @@ func (api *API) acceptableAcceptHeader(acceptTypes []string) bool {
 /*
 	Generate the http.HandlerFunc for a given Resource
 */
-func (api *API) createHandlerFunc(resource Resource, versioned bool) http.HandlerFunc {
+func (api *API) createHandlerFunc(resource Resource, versioned bool, dbInfo *DBInfo) http.HandlerFunc {
 	isMultipart := func(header http.Header) bool {
 		return strings.Index(header.Get("Content-Type"), "multipart/form-data;") == 0
 	}
@@ -279,24 +280,11 @@ func (api *API) createHandlerFunc(resource Resource, versioned bool) http.Handle
 			return
 		}
 
-		db, err := qbs.GetQbs()
-		if err != nil {
-			rw.WriteHeader(http.StatusInternalServerError)
-			jError := APIError{
-				Id:      "db_error",
-				Message: "Database error: " + err.Error(),
-			}
-			errorString, _ := json.Marshal(jError)
-			rw.Write(errorString)
-			return
-		}
-		defer db.Close()
-
 		session := sessions.GetSession(request)
 
 		apiRequest := &APIRequest{
 			PathValues: mux.Vars(request),
-			DB:         db,
+			DBInfo:     dbInfo,
 			FS:         api.FileStorage,
 			Session:    sessions.GetSession(request),
 			Version:    api.Version,
@@ -309,7 +297,7 @@ func (api *API) createHandlerFunc(resource Resource, versioned bool) http.Handle
 			sUUID := session.Get(UserUUIDKey)
 			if sUUID != nil {
 				uuid, _ := sUUID.(string)
-				user, err := FindUser(uuid, db)
+				user, err := FindUser(uuid, dbInfo)
 				if err == nil {
 					apiRequest.User = user
 				}

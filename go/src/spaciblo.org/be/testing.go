@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Spaciblo/qbs"
 	"github.com/goincremental/negroni-sessions"
 	"github.com/goincremental/negroni-sessions/cookiestore"
 	"github.com/urfave/negroni"
@@ -107,7 +106,15 @@ func NewTestAPI() (*TestAPI, error) {
 	if err != nil {
 		return nil, err
 	}
-	api := NewAPI("/api/"+TestVersion, TestVersion, fs)
+	err = CreateDB()
+	if err != nil {
+		return nil, err
+	}
+	dbInfo, err := InitDB()
+	if err != nil {
+		return nil, err
+	}
+	api := NewAPI("/api/"+TestVersion, TestVersion, fs, dbInfo)
 	negServer.UseHandler(api.Mux)
 
 	// Set up a stoppable listener so we can clean up afterwards
@@ -192,21 +199,21 @@ func TempFile(dir string, kilobytes int) (*os.File, error) {
 	return f, nil
 }
 
-func CreateTestUserAndStaffWithClients(testApi *TestAPI, db *qbs.Qbs) (userClient *Client, staffClient *Client, err error) {
-	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, db)
+func CreateTestUserAndStaffWithClients(testApi *TestAPI, dbInfo *DBInfo) (userClient *Client, staffClient *Client, err error) {
+	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, dbInfo)
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = CreatePassword("1234", user.Id, db)
+	_, err = CreatePassword("1234", user.Id, dbInfo)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	staff, err := CreateUser("sherona@monk.example.com", "Sherona", "Smith", true, db)
+	staff, err := CreateUser("sherona@monk.example.com", "Sherona", "Smith", true, dbInfo)
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = CreatePassword("1234", staff.Id, db)
+	_, err = CreatePassword("1234", staff.Id, dbInfo)
 	if err != nil {
 		return nil, nil, err
 	}

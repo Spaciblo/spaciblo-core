@@ -130,7 +130,7 @@ func (resource CurrentUserImageResource) PutForm(request *APIRequest) (int, inte
 
 	oldFileKey := request.User.Image
 	request.User.Image = fileKey
-	err = UpdateUser(request.User, request.DB)
+	err = UpdateUser(request.User, request.DBInfo)
 	if err != nil {
 		return http.StatusInternalServerError, &APIError{
 			Id:      "database_error",
@@ -206,7 +206,7 @@ func (resource CurrentUserResource) Post(request *APIRequest) (int, interface{},
 	if loginData.Email == "" || loginData.Password == "" {
 		return 400, UnprocessableError, responseHeader
 	}
-	user, err := FindUserByEmail(loginData.Email, request.DB)
+	user, err := FindUserByEmail(loginData.Email, request.DBInfo)
 	if err != nil {
 		return 400, APIError{
 			Id:      "no_such_user",
@@ -214,7 +214,7 @@ func (resource CurrentUserResource) Post(request *APIRequest) (int, interface{},
 			Error:   err.Error(),
 		}, responseHeader
 	}
-	if PasswordMatches(user.Id, loginData.Password, request.DB) == false {
+	if PasswordMatches(user.Id, loginData.Password, request.DBInfo) == false {
 		return 400, APIError{
 			Id:      "incorrect_password",
 			Message: "Incorrect password",
@@ -252,7 +252,7 @@ func (resource UserResource) Get(request *APIRequest) (int, interface{}, http.He
 	}
 
 	uuid, _ := request.PathValues["uuid"]
-	user, err := FindUser(uuid, request.DB)
+	user, err := FindUser(uuid, request.DBInfo)
 	if err != nil {
 		return 404, APIError{
 			Id:      "no_such_user",
@@ -270,7 +270,7 @@ func (resource UserResource) Put(request *APIRequest) (int, interface{}, http.He
 		return 401, NotLoggedInError, responseHeader
 	}
 	uuid, _ := request.PathValues["uuid"]
-	user, err := FindUser(uuid, request.DB)
+	user, err := FindUser(uuid, request.DBInfo)
 	if err != nil {
 		return 404, APIError{
 			Id:      "no_such_user",
@@ -301,7 +301,7 @@ func (resource UserResource) Put(request *APIRequest) (int, interface{}, http.He
 		updatedUser.Staff = user.Staff
 		updatedUser.Email = user.Email
 	}
-	err = UpdateUser(&updatedUser, request.DB)
+	err = UpdateUser(&updatedUser, request.DBInfo)
 	if err != nil {
 		return 400, BadRequestError, responseHeader
 	}
@@ -336,7 +336,7 @@ func (resource UsersResource) Get(request *APIRequest) (int, interface{}, http.H
 	}
 
 	offset, limit := GetOffsetAndLimit(request.Raw.Form)
-	users, err := FindUsers(offset, limit, request.DB)
+	users, err := FindUsers(offset, limit, request.DBInfo)
 	if err != nil {
 		return 500, APIError{
 			Id:      "db_error",

@@ -2,75 +2,85 @@ package be
 
 import (
 	"time"
-
-	"github.com/Spaciblo/qbs"
 )
 
+const UserTable = "users"
+
 type User struct {
-	Id        int64     `json:"id" qbs:"pk"`
-	UUID      string    `json:"uuid" qbs:"unique,index"`
-	Email     string    `json:"email"`
-	FirstName string    `json:"first-name"`
-	LastName  string    `json:"last-name"`
-	Staff     bool      `json:"staff"`
-	Image     string    `json:"image"`
-	Created   time.Time `json:"created"`
-	Updated   time.Time `json:"updated"`
+	Id        int64     `json:"id" db:"id, primarykey, autoincrement"`
+	UUID      string    `json:"uuid" db:"u_u_i_d"`
+	Email     string    `json:"email" db:"email"`
+	FirstName string    `json:"first-name" db:"first_name"`
+	LastName  string    `json:"last-name" db:"last_name"`
+	Staff     bool      `json:"staff" db:"staff"`
+	Image     string    `json:"image" db:"image"`
+	Created   time.Time `json:"created" db:"created"`
+	Updated   time.Time `json:"updated" db:"updated"`
 }
 
-func CreateUser(email string, firstName string, lastName string, staff bool, db *qbs.Qbs) (*User, error) {
+func CreateUser(email string, firstName string, lastName string, staff bool, dbInfo *DBInfo) (*User, error) {
 	user := new(User)
 	user.UUID = UUID()
 	user.Email = email
 	user.FirstName = firstName
 	user.LastName = lastName
 	user.Staff = staff
-	_, err := db.Save(user)
+	err := dbInfo.Map.Insert(user)
 	if err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
-func UpdateUser(user *User, db *qbs.Qbs) error {
-	_, err := db.Save(user)
+func UpdateUser(user *User, dbInfo *DBInfo) error {
+	err := dbInfo.Connection.Ping()
+	if err != nil {
+		logger.Printf("Ping error %s", err)
+		return err
+	}
+	_, err = dbInfo.Map.Update(user)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func FindUsers(offset int, limit int, q *qbs.Qbs) ([]*User, error) {
-	var users []*User
-	err := q.Limit(limit).Offset(offset).FindAll(&users)
+func FindUsers(offset int, limit int, dbInfo *DBInfo) ([]User, error) {
+	var users []User
+	_, err := dbInfo.Map.Select(&users, "select * from "+UserTable+" order by id desc limit $1 offset $2", limit, offset)
 	return users, err
 }
 
-func FindUser(uuid string, db *qbs.Qbs) (*User, error) {
-	return findUserByField("u_u_i_d", uuid, db)
+func FindAllUsers(dbInfo *DBInfo) ([]*User, error) {
+	var users []*User
+	_, err := dbInfo.Map.Select(&users, "select * from "+UserTable+" order by id desc")
+	return users, err
 }
 
-func FindUserByEmail(email string, db *qbs.Qbs) (*User, error) {
-	return findUserByField("email", email, db)
+func FindUser(uuid string, dbInfo *DBInfo) (*User, error) {
+	return findUserByField("u_u_i_d", uuid, dbInfo)
 }
 
-func findUserByField(fieldName string, value string, db *qbs.Qbs) (*User, error) {
+func FindUserByEmail(email string, dbInfo *DBInfo) (*User, error) {
+	return findUserByField("email", email, dbInfo)
+}
+
+func findUserByField(fieldName string, value string, dbInfo *DBInfo) (*User, error) {
 	user := new(User)
-	err := db.WhereEqual(fieldName, value).Find(user)
+	err := dbInfo.Map.SelectOne(user, "select * from "+UserTable+" where "+fieldName+"=$1", value)
 	if err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
-func DeleteAllUsers(db *qbs.Qbs) error {
-	var users []*User
-	err := db.FindAll(&users)
+func DeleteAllUsers(dbInfo *DBInfo) error {
+	users, err := FindAllUsers(dbInfo)
 	if err != nil {
 		return err
 	}
 	for _, user := range users {
-		_, err = db.Delete(user)
+		_, err = dbInfo.Map.Delete(user)
 		if err != nil {
 			return err
 		}

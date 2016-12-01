@@ -1,13 +1,14 @@
 package be
 
 import (
-	"github.com/Spaciblo/qbs"
 	"golang.org/x/crypto/bcrypt"
 )
 
+const PasswordTable = "passwords"
+
 type Password struct {
-	Id     int64 `qbs:"pk"`
-	UserId int64 `qbs:"fk:User,unique"`
+	Id     int64 `db:", primarykey, autoincrement"`
+	UserId int64 `db:"user_id"`
 	Hash   string
 }
 
@@ -28,50 +29,55 @@ func (password *Password) Matches(plaintext string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(password.Hash), []byte(plaintext)) == nil
 }
 
-func CreatePassword(plaintext string, userId int64, db *qbs.Qbs) (*Password, error) {
+func CreatePassword(plaintext string, userId int64, dbInfo *DBInfo) (*Password, error) {
 	password := new(Password)
 	password.UserId = userId
 	password.Encode(plaintext)
-	_, err := db.Save(password)
+	err := dbInfo.Map.Insert(password)
 	if err != nil {
 		return nil, err
 	}
 	return password, nil
 }
 
-func UpdatePassword(password *Password, db *qbs.Qbs) error {
-	_, err := db.Save(password)
+func UpdatePassword(password *Password, dbInfo *DBInfo) error {
+	_, err := dbInfo.Map.Update(password)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func FindPasswordByUserId(userId int64, db *qbs.Qbs) (*Password, error) {
+func FindAllPasswords(dbInfo *DBInfo) ([]*Password, error) {
+	var passwords []*Password
+	_, err := dbInfo.Map.Select(passwords, "select * from "+PasswordTable+" order by id desc")
+	return passwords, err
+}
+
+func FindPasswordByUserId(userId int64, dbInfo *DBInfo) (*Password, error) {
 	password := new(Password)
-	err := db.WhereEqual("user_id", userId).Find(password)
+	err := dbInfo.Map.SelectOne(password, "select * from "+PasswordTable+" where user_id=$1", userId)
 	if err != nil {
 		return nil, err
 	}
 	return password, nil
 }
 
-func PasswordMatches(userId int64, plaintext string, db *qbs.Qbs) bool {
-	password, err := FindPasswordByUserId(userId, db)
+func PasswordMatches(userId int64, plaintext string, dbInfo *DBInfo) bool {
+	password, err := FindPasswordByUserId(userId, dbInfo)
 	if err != nil {
 		return false
 	}
 	return password.Matches(plaintext)
 }
 
-func DeleteAllPasswords(db *qbs.Qbs) error {
-	var passwords []*Password
-	err := db.FindAll(&passwords)
+func DeleteAllPasswords(dbInfo *DBInfo) error {
+	passwords, err := FindAllPasswords(dbInfo)
 	if err != nil {
 		return err
 	}
 	for _, password := range passwords {
-		_, err = db.Delete(password)
+		_, err = dbInfo.Map.Delete(password)
 		if err != nil {
 			return err
 		}

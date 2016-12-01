@@ -4,34 +4,49 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Spaciblo/qbs"
 	. "github.com/chai2010/assert"
 )
 
 func TestUserAPI(t *testing.T) {
-	CreateAndInitDB()
-	db, err := qbs.GetQbs()
+	err := CreateDB()
+	AssertNil(t, err)
+	dbInfo, err := InitDB()
 	AssertNil(t, err)
 	defer func() {
-		WipeDB()
-		db.Close()
+		WipeDB(dbInfo)
+		dbInfo.Connection.Close()
 	}()
 
 	testApi, err := NewTestAPI()
 	AssertNil(t, err)
 	defer testApi.Stop()
 
-	users, err := FindUsers(0, 100, db)
+	users, err := FindUsers(0, 100, dbInfo)
 	AssertNil(t, err)
 	AssertEqual(t, 0, len(users), "Need to have 0 users when starting")
 
-	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, db)
+	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, dbInfo)
 	AssertNil(t, err)
-	_, err = CreatePassword("1234", user.Id, db)
+	_, err = CreatePassword("1234", user.Id, dbInfo)
 	AssertNil(t, err)
-	staff, err := CreateUser("sherona@monk.example.com", "Sherona", "Smith", true, db)
+	staff, err := CreateUser("sherona@monk.example.com", "Sherona", "Smith", true, dbInfo)
 	AssertNil(t, err)
-	_, err = CreatePassword("1234", staff.Id, db)
+	_, err = CreatePassword("1234", staff.Id, dbInfo)
+	AssertNil(t, err)
+
+	user1, err := FindUser(user.UUID, dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, user1.Id, user.Id)
+	AssertEqual(t, user1.FirstName, user.FirstName)
+	user1.FirstName = "Flowers"
+	err = UpdateUser(user1, dbInfo)
+	AssertNil(t, err)
+	user1, err = FindUser(user.UUID, dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, user1.Id, user.Id)
+	AssertEqual(t, user1.FirstName, "Flowers")
+	user1.FirstName = user.FirstName
+	err = UpdateUser(user1, dbInfo)
 	AssertNil(t, err)
 
 	AssertStatus(t, 401, "GET", testApi.URL()+"/user/")
@@ -43,7 +58,7 @@ func TestUserAPI(t *testing.T) {
 	err = userClient.GetJSON("/user/current", user2)
 	AssertNotNil(t, err, "Unauthenticated fetch")
 	reader, err := userClient.GetFile("/user/current/image")
-	AssertNotNil(t, err)
+	AssertNotNil(t, err, "Unauthenticated image fetch")
 	err = userClient.Authenticate(user.Email, "")
 	AssertNotNil(t, err, "Should have failed with empty password")
 	err = userClient.Authenticate("", "1234")
@@ -112,31 +127,32 @@ func TestUserAPI(t *testing.T) {
 }
 
 func TestUser(t *testing.T) {
-	CreateAndInitDB()
-	db, err := qbs.GetQbs()
+	err := CreateDB()
+	AssertNil(t, err)
+	dbInfo, err := InitDB()
 	AssertNil(t, err)
 	defer func() {
-		WipeDB()
-		db.Close()
+		WipeDB(dbInfo)
+		dbInfo.Connection.Close()
 	}()
 
-	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, db)
+	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, dbInfo)
 	AssertNil(t, err)
 	AssertNotEqual(t, user.UUID, "")
 
-	_, err = FindUser("not-a-uuid", db)
+	_, err = FindUser("not-a-uuid", dbInfo)
 	AssertNotNil(t, err)
 
-	user2, err := FindUser(user.UUID, db)
+	user2, err := FindUser(user.UUID, dbInfo)
 	AssertNil(t, err)
 	AssertEqual(t, user2.UUID, user.UUID)
 	AssertEqual(t, user2.Email, user.Email)
 
 	user2.Email = "crosby@bing.example.com"
-	err = UpdateUser(user2, db)
+	err = UpdateUser(user2, dbInfo)
 	AssertNil(t, err)
 	AssertEqual(t, user2.UUID, user.UUID)
-	user3, err := FindUser(user2.UUID, db)
+	user3, err := FindUser(user2.UUID, dbInfo)
 	AssertNil(t, err)
 	AssertEqual(t, user2.Email, user3.Email)
 }

@@ -48,9 +48,9 @@ func main() {
 	logger.Print("FILE_STORAGE_DIR:\t", fsDir)
 	logger.Print("DB host: ", be.DBHost, ":", be.DBPort)
 
-	err = be.InitDB()
+	dbInfo, err := be.InitDB()
 	if err != nil {
-		logger.Panic("DB Registration Error: " + err.Error())
+		logger.Panic("DB Initialization Error: " + err.Error())
 		return
 	}
 
@@ -74,7 +74,7 @@ func main() {
 	static.Prefix = "/api/static"
 	server.Use(static)
 
-	api := be.NewAPI("/api/"+VERSION, VERSION, fs)
+	api := be.NewAPI("/api/"+VERSION, VERSION, fs, dbInfo)
 
 	server.UseHandler(api.Mux)
 	server.Run(":" + strconv.FormatInt(port, 10))
