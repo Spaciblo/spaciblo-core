@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package sim;
+
+service SimHost {
+  rpc SendPing (Ping) returns (Ack) {}
+  rpc ListSimInfos (ListSimInfosParams) returns (SimInfoList) {}
+}
+
+message ListSimInfosParams {}
+
+message SimInfo {
+	string name = 1;
+	string uuid = 2;
+}
+
+message SimInfoList {
+	repeated SimInfo infos = 1;
+}
+
+message Ping {
+  string name = 1;
+}
+
+message Ack {
+  string message = 1;
+}

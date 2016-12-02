@@ -7,7 +7,7 @@ import (
 const PasswordTable = "passwords"
 
 type Password struct {
-	Id     int64 `db:", primarykey, autoincrement"`
+	Id     int64 `db:"id, primarykey, autoincrement"`
 	UserId int64 `db:"user_id"`
 	Hash   string
 }
@@ -50,7 +50,7 @@ func UpdatePassword(password *Password, dbInfo *DBInfo) error {
 
 func FindAllPasswords(dbInfo *DBInfo) ([]*Password, error) {
 	var passwords []*Password
-	_, err := dbInfo.Map.Select(passwords, "select * from "+PasswordTable+" order by id desc")
+	_, err := dbInfo.Map.Select(&passwords, "select * from "+PasswordTable+" order by id desc")
 	return passwords, err
 }
 

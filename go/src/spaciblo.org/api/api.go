@@ -1,6 +1,7 @@
-package main
+package api
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -18,54 +19,48 @@ var VERSION = "0.1.0"
 
 var logger = log.New(os.Stdout, "[api] ", 0)
 
-func main() {
+func StartAPI() error {
 	// Get the required environment variables
-	port, err := strconv.ParseInt(os.Getenv("PORT"), 10, 64)
+	port, err := strconv.ParseInt(os.Getenv("API_PORT"), 10, 64)
 	if err != nil {
-		logger.Panic("No PORT env variable")
-		return
+		return err
 	}
 	staticDir := os.Getenv("STATIC_DIR")
 	if staticDir == "" {
-		logger.Panic("No STATIC_DIR env variable")
-		return
+		return errors.New("No STATIC_DIR env variable")
 	}
 	fsDir := os.Getenv("FILE_STORAGE_DIR")
 	if fsDir == "" {
-		logger.Panic("No FILE_STORAGE_DIR env variable")
-		return
+		return errors.New("No FILE_STORAGE_DIR env variable")
 	}
 	sessionSecret := os.Getenv("SESSION_SECRET")
 	if sessionSecret == "" {
-		logger.Panic("No SESSION_SECRET env variable")
-		return
+		return errors.New("No SESSION_SECRET env variable")
 	}
-	frontEndDir := os.Getenv("FRONT_END_DIR") // Optional
+	docrootEndDir := os.Getenv("DOCROOT_DIR") // Optional
 
-	logger.Print("PORT:\t\t", port)
+	logger.Print("API_PORT:\t\t", port)
 	logger.Print("STATIC_DIR:\t", staticDir)
-	logger.Print("FRONT_END_DIR:\t", frontEndDir)
+	logger.Print("DOCROOT_DIR:\t", docrootEndDir)
 	logger.Print("FILE_STORAGE_DIR:\t", fsDir)
 	logger.Print("DB host: ", be.DBHost, ":", be.DBPort)
 
 	dbInfo, err := be.InitDB()
 	if err != nil {
-		logger.Panic("DB Initialization Error: " + err.Error())
-		return
+		return errors.New("DB Initialization Error: " + err.Error())
 	}
 
 	fs, err := be.NewLocalFileStorage(fsDir)
 	if err != nil {
-		logger.Panic("Could not open file storage directory: " + fsDir)
-		return
+		return errors.New("Could not open file storage directory: " + fsDir)
 	}
 
 	server := negroni.New()
 	store := cookiestore.New([]byte(sessionSecret))
 	server.Use(sessions.Sessions(be.AuthCookieName, store))
 
-	if frontEndDir != "" {
-		feStatic := negroni.NewStatic(http.Dir(frontEndDir))
+	if docrootEndDir != "" {
+		feStatic := negroni.NewStatic(http.Dir(docrootEndDir))
 		feStatic.Prefix = ""
 		server.Use(feStatic)
 	}
@@ -78,4 +73,5 @@ func main() {
 
 	server.UseHandler(api.Mux)
 	server.Run(":" + strconv.FormatInt(port, 10))
+	return nil
 }
