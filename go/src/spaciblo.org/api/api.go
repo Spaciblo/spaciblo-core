@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/negroni"
 
 	"spaciblo.org/be"
+	"spaciblo.org/db"
 )
 
 // VERSION is the API version
@@ -45,7 +46,7 @@ func StartAPI() error {
 	logger.Print("FILE_STORAGE_DIR:\t", fsDir)
 	logger.Print("DB host: ", be.DBHost, ":", be.DBPort)
 
-	dbInfo, err := be.InitDB()
+	dbInfo, err := db.InitDB()
 	if err != nil {
 		return errors.New("DB Initialization Error: " + err.Error())
 	}
@@ -70,8 +71,13 @@ func StartAPI() error {
 	server.Use(static)
 
 	api := be.NewAPI("/api/"+VERSION, VERSION, fs, dbInfo)
+	addApiResources(api)
 
 	server.UseHandler(api.Mux)
 	server.Run(":" + strconv.FormatInt(port, 10))
 	return nil
+}
+
+func addApiResources(api *be.API) {
+	api.AddResource(NewSpacesResource(), true)
 }

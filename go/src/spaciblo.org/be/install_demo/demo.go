@@ -8,13 +8,15 @@ import (
 	"log"
 	"os"
 
+	apiDB "spaciblo.org/api/db"
 	"spaciblo.org/be"
+	"spaciblo.org/db"
 )
 
 var logger = log.New(os.Stdout, "[demo] ", 0)
 
 func main() {
-	dbInfo, err := be.InitDB()
+	dbInfo, err := db.InitDB()
 	if err != nil {
 		logger.Panic("DB Initialization Error: " + err.Error())
 		return
@@ -30,16 +32,27 @@ func main() {
 		logger.Fatal("Could not delete users: ", err)
 		return
 	}
-
-	_, err = createUser("alice@example.com", "Alice", "Smith", true, "1234", dbInfo)
+	err = apiDB.DeleteAllSpaceRecords(dbInfo)
 	if err != nil {
+		logger.Fatal("Could not delete space records: ", err)
 		return
 	}
 
-	_, err = createUser("bob@example.com", "Bob", "Garvey", false, "1234", dbInfo)
+	createSpaceRecord("Space 0", dbInfo)
+	createSpaceRecord("Space 1", dbInfo)
+	createSpaceRecord("Space 2", dbInfo)
+
+	createUser("alice@example.com", "Alice", "Smith", true, "1234", dbInfo)
+	createUser("bob@example.com", "Bob", "Garvey", false, "1234", dbInfo)
+}
+
+func createSpaceRecord(name string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, error) {
+	record, err := apiDB.CreateSpaceRecord(name, dbInfo)
 	if err != nil {
-		return
+		logger.Fatal("Could not create user", err)
+		return nil, err
 	}
+	return record, nil
 }
 
 func createUser(email string, firstName string, lastName string, staff bool, password string, dbInfo *be.DBInfo) (*be.User, error) {

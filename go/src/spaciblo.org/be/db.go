@@ -67,7 +67,10 @@ func migrateDB(dbInfo *DBInfo) error {
 }
 
 func WipeDB(dbInfo *DBInfo) error {
-	dbInfo.Map.DropTables()
+	err := dbInfo.Map.DropTables()
+	if err != nil {
+		logger.Printf("Could not wipe db: %s", err)
+	}
 	return nil
 }
 

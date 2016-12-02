@@ -41,7 +41,6 @@ func TestPassword(t *testing.T) {
 }
 
 func TestUUID(t *testing.T) {
-	// Test the stuff
 	// TODO actually test this
 	AssertNotEqual(t, UUID(), UUID())
 }
