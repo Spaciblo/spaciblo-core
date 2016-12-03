@@ -1,3 +1,5 @@
+// TODO Rewrite this in ES6 with PotassiumJS
+
 var be = be || {};
 be.api = be.api || {};
 be.schema = be.schema || {};

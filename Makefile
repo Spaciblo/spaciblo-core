@@ -62,10 +62,11 @@ go_get_deps:
 	go get github.com/goincremental/negroni-sessions
 	go get github.com/golang/lint
 	go get github.com/nfnt/resize
+	go get github.com/gorilla/websocket
+	go get github.com/golang/protobuf/{proto,protoc-gen-go}
 	go get golang.org/x/crypto/bcrypt
 	go get gopkg.in/gorp.v2
 	go get google.golang.org/grpc
-	go get github.com/golang/protobuf/{proto,protoc-gen-go}
 
 lint:
 	go install github.com/golang/lint/...
