@@ -1,3 +1,6 @@
+/*
+Package ws implements a WebSocket service for browser clients of Spaciblō spaces
+*/
 package ws
 
 import (
@@ -9,8 +12,10 @@ import (
 
 var logger = log.New(os.Stdout, "[ws] ", 0)
 
+// WebSockets connect to this service at URLs like "ws://<host>:<port>/ws"
 const WS_HTTP_PATH = "/ws"
 
+// StartWS creates the WebSocket service, then listens and serves (does not return)
 func StartWS() error {
 	port, err := strconv.ParseInt(os.Getenv("WS_PORT"), 10, 64)
 	if err != nil {

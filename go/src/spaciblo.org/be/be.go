@@ -1,3 +1,6 @@
+/*
+Package be provides the back-end functionality like the web API framework and a file storage abstraction for the api service
+*/
 package be
 
 import (

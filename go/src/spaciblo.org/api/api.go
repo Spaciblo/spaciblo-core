@@ -1,3 +1,8 @@
+/*
+Package api provides the web APIs for the Spaciblō services.
+
+This does not include the WebSocket services, which are provided by ws.
+*/
 package api
 
 import (

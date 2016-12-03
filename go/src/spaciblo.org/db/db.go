@@ -1,3 +1,8 @@
+/*
+Package db holds the service-wide database configuration functionality.
+
+It mostly calls into other <package>/db/ methods.
+*/
 package db
 
 import (

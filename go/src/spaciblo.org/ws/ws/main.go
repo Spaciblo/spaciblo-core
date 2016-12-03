@@ -1,3 +1,6 @@
+/*
+The binary for running the ws (WebSocket) service.
+*/
 package main
 
 import (

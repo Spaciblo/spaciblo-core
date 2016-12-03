@@ -1,8 +1,7 @@
-package main
-
 /*
-	Install demo data to show off the system
+Install demo data to test and show off the Spaciblō system
 */
+package main
 
 import (
 	"log"

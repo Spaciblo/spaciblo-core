@@ -1,3 +1,6 @@
+/*
+Package all_in_one provides a binary for running the api, sim, and ws service in a single process (mostly during development)
+*/
 package main
 
 import (

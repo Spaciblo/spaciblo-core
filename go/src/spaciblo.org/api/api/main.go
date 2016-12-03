@@ -1,3 +1,6 @@
+/*
+The binary for running the api service.
+*/
 package main
 
 import (

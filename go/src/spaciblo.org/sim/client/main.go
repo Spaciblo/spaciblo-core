@@ -1,3 +1,8 @@
+/*
+A binary for communicating with the sim service from the command line.
+
+This is probably going away to be replaced by gRPC commands from the api service triggered by user actions from a web browser.
+*/
 package main
 
 import (
@@ -8,7 +13,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
 
-	"spaciblo.org/sim"
+	simRPC "spaciblo.org/sim/rpc"
 )
 
 var logger = log.New(os.Stdout, "[sim-client] ", 0)
@@ -21,17 +26,17 @@ func main() {
 		grpclog.Fatalf("failed to dial: %v", err)
 	}
 	defer conn.Close()
-	client := sim.NewSimHostClient(conn)
+	client := simRPC.NewSimHostClient(conn)
 	logger.Printf("Started client...")
 
-	var ping = new(sim.Ping)
+	var ping = new(simRPC.Ping)
 	ack, err := client.SendPing(context.Background(), ping)
 	if err != nil {
 		grpclog.Fatalf("failed to ping: %v", err)
 	}
 	logger.Printf("Receved Ack: ", ack.Message)
 
-	var params = new(sim.ListSimInfosParams)
+	var params = new(simRPC.ListSimInfosParams)
 	simInfoList, err := client.ListSimInfos(context.Background(), params)
 	if err != nil {
 		grpclog.Fatalf("failed to ping: %v", err)

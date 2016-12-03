@@ -42,7 +42,7 @@ SIM_RUNTIME_ENVS := 	SIM_PORT=$(SIM_PORT) \
 
 WS_RUNTIME_ENVS := 		WS_PORT=$(WS_PORT) \
 
-SIM_DIR := go/src/spaciblo.org/sim/
+SIM_GRPC_DIR := go/src/spaciblo.org/sim/rpc/
 
 all: go_get_deps compile
 
@@ -73,7 +73,7 @@ lint:
 	golint spaciblo.org/...
 
 generate_protobuf:
-	protoc -I ${SIM_DIR} ${SIM_DIR}sim.proto --go_out=plugins=grpc:${SIM_DIR}
+	protoc -I ${SIM_GRPC_DIR} ${SIM_GRPC_DIR}sim.proto --go_out=plugins=grpc:${SIM_GRPC_DIR}
 
 compile: 
 	go install -v $(MAIN_PKGS)

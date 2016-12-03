@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package sim;
+package simRPC;
 
 service SimHost {
   rpc SendPing (Ping) returns (Ack) {}

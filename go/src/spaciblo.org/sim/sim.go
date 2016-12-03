@@ -1,3 +1,8 @@
+/*
+Package sim provides the 3D space simulations' host service.
+
+Communication with the sim service from the ws and api services is via gRPC.
+*/
 package sim
 
 import (
@@ -8,6 +13,7 @@ import (
 
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
+	simRPC "spaciblo.org/sim/rpc"
 )
 
 var logger = log.New(os.Stdout, "[sim-host] ", 0)
@@ -15,13 +21,13 @@ var logger = log.New(os.Stdout, "[sim-host] ", 0)
 type simHostServer struct {
 }
 
-func (server *simHostServer) SendPing(context.Context, *Ping) (*Ack, error) {
-	return &Ack{Message: "ACK!"}, nil
+func (server *simHostServer) SendPing(context.Context, *simRPC.Ping) (*simRPC.Ack, error) {
+	return &simRPC.Ack{Message: "ACK!"}, nil
 }
 
-func (server *simHostServer) ListSimInfos(context.Context, *ListSimInfosParams) (*SimInfoList, error) {
-	return &SimInfoList{
-		Infos: []*SimInfo{&SimInfo{"Sim 1", "UUID1"}, &SimInfo{"Sim 2", "UUID2"}},
+func (server *simHostServer) ListSimInfos(context.Context, *simRPC.ListSimInfosParams) (*simRPC.SimInfoList, error) {
+	return &simRPC.SimInfoList{
+		Infos: []*simRPC.SimInfo{&simRPC.SimInfo{"Sim 1", "UUID1"}, &simRPC.SimInfo{"Sim 2", "UUID2"}},
 	}, nil
 }
 
@@ -43,7 +49,7 @@ func StartSimHost() error {
 	}
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	RegisterSimHostServer(grpcServer, newServer())
+	simRPC.RegisterSimHostServer(grpcServer, newServer())
 	grpcServer.Serve(lis)
 	return nil
 }

@@ -1,3 +1,6 @@
+/*
+The binary for running the sim service.
+*/
 package main
 
 import (
