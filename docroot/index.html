@@ -1,27 +1,29 @@
 <html>
 	<head>
 		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+
 		<title>Spaciblō</title>
+
+		<link rel="stylesheet" href="/api/static/css/spaciblo-components.css" type='text/css'>
+
 		<script src="/api/static/js/potassium.js"></script>
-		<script src="/api/static/js/be-data.js"></script>
+		<script src="/api/static/js/three.min.js"></script>
+		<script src="/api/static/js/be-api.js"></script>
+		<script src="/api/static/js/spaciblo-api.js"></script>
+		<script src="/api/static/js/spaciblo-components.js"></script>
 	</head>
 	<body>
-		<h1>Spaciblō</h1>
+		<div id="page-component">
+			<h1>Spaciblō</h1>
+		</div>
 		<script>
-			// Temp code just to show the WS service working
-			window.rawPing = JSON.stringify({
-				'type':'Ping',
-				'message':'I like traffic lights'
-			})
-			window.ws = new WebSocket("ws://127.0.0.1:9020/ws")
-			window.ws.onopen = function (event) {
-				window.ws.send(window.rawPing)
-				console.log("Sent opening ping")
-			};
-			window.ws.onmessage = function(event) {
-				var incomingMessage = JSON.parse(event.data)
-				console.log("Incoming message", incomingMessage)
+			function initPage(){
+				window.pageComponent = new spaciblo.components.SplashPageComponent()
+				document.getElementById('page-component').appendChild(window.pageComponent.el)
+				window.pageComponent.handleAddedToDOM()
 			}
+			document.addEventListener("schema-populated", initPage)
 		</script>
 	</body>
 </html>
