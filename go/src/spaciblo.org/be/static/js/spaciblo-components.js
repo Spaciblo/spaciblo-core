@@ -10,7 +10,7 @@ spaciblo.components.SplashPageComponent = class extends k.Component {
 		super(dataObject, options)
 		this.el.addClass('splash-page-component')
 
-		this.spacesComponent = new spaciblo.components.SpacesComponent()
+		this.spacesComponent = new spaciblo.components.SpacesComponent(dataObject)
 		this.el.appendChild(this.spacesComponent.el)
 	}
 	handleAddedToDOM(){
@@ -25,6 +25,8 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('spaces-component')
+
+		// TODO show some way to enter the spaces in dataObject, which is a be.api.Spaces
 
 		this.renderer = new spaciblo.components.ThreeJSSpacesRenderer()
 		this.el.appendChild(this.renderer.el)

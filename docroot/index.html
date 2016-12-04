@@ -19,9 +19,13 @@
 		</div>
 		<script>
 			function initPage(){
-				window.pageComponent = new spaciblo.components.SplashPageComponent()
+				window.spaces = new be.api.Spaces()
+				window.pageComponent = new spaciblo.components.SplashPageComponent(window.spaces)
 				document.getElementById('page-component').appendChild(window.pageComponent.el)
 				window.pageComponent.handleAddedToDOM()
+				window.spaces.fetch().catch(err => {
+					console.error("Could not fetch spaces", err)
+				})
 			}
 			document.addEventListener("schema-populated", initPage)
 		</script>

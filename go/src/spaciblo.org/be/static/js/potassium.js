@@ -118,11 +118,20 @@ k.DataObject = k.eventMixin(class {
 		// Extending classes can override this to allow less strict equality
 		return this === obj
 	}
+	get fetchOptions(){
+		// Extending classes can override this to add headers, methods, etc to the fetch call
+		return {}
+	}
 	fetch(){
 		// Ask the server for data for this model or collection
 		return new Promise(function(resolve, reject){
 			this.trigger("fetching", this)
-			fetch(this.url).then(response => response.json()).then(data => {
+			fetch(this.url, this.fetchOptions).then(response => {
+				if(response.status != 200){
+					throw 'Fetch failed with status ' + response.status
+				}
+				return response.json() 
+			}).then(data => {
 				data = this.parse(data)
 				this.reset(data)
 				this.trigger("fetched", this, data, null)
@@ -249,6 +258,7 @@ k.DataModel = class extends k.DataObject {
 k.DataCollection = class extends k.DataObject {
 	constructor(data=[], options={}){
 		super(options)
+		if(data == null) data = []
 		this._inReset = false
 		this._inAddBatch = false
 		this._boundRelayListener = this._relayListener.bind(this)
