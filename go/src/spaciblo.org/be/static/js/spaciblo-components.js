@@ -1,5 +1,8 @@
 var spaciblo = spaciblo || {}
+spaciblo.events = spaciblo.events || {}
 spaciblo.components = spaciblo.components || {}
+
+spaciblo.events.SpaceSelected = 'spaciblo-space-selected'
 
 /*
 SplashPageComponent wraps all of the logic for index.html
@@ -26,12 +29,28 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		super(dataObject, options)
 		this.el.addClass('spaces-component')
 
-		// TODO show some way to enter the spaces in dataObject, which is a be.api.Spaces
-
 		this.renderer = new spaciblo.components.ThreeJSSpacesRenderer()
 		this.el.appendChild(this.renderer.el)
+
+		this.dataObject.addListener(this.handleReset.bind(this), "reset")
+		if(this.dataObject.length > 0){
+			this.handleReset()
+		}
+
 		this.updateSize()
 		window.addEventListener('resize', () => { this.updateSize() })
+		this.renderer.addListener(this.handleSpaceSelected.bind(this), spaciblo.events.SpaceSelected)
+	}
+	handleSpaceSelected(eventName, space){
+		console.log("Space selected", space)
+		// TODO Load the space
+	}
+	handleReset(){
+		this.renderer.clearSpacesMenu()
+		for(let space of this.dataObject){
+			this.renderer.addSpaceToMenu(space, false)
+		}
+		this.renderer.layoutSpaceMenu()
 	}
 	updateSize(){
 		this.renderer.setSize(this.el.offsetWidth, this.el.offsetHeight)
@@ -41,32 +60,143 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 /*
 ThreeJSSpacesRenderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
-spaciblo.components.ThreeJSSpacesRenderer = class {
+spaciblo.components.ThreeJSSpacesRenderer = k.eventMixin(class {
 	constructor(background=new THREE.Color(0x99DDff)){
 		this.scene = new THREE.Scene()
 		this.scene.background = background
 		this.camera = new THREE.PerspectiveCamera(75, 1, 1, 10000)
+
+		var light = new THREE.DirectionalLight(0xffffff, 1)
+		light.position.set(1, 1, 1).normalize()
+		this.scene.add(light)
+
+		this.raycaster = new THREE.Raycaster()
+		this.mouse = new THREE.Vector2()
+		this.intersectedObj = null
+
 		this.renderer = new THREE.WebGLRenderer()
+		this.renderer.sortObjects = false
+		this.renderer.setClearColor(0xffffff)
+		this.renderer.setPixelRatio(window.devicePixelRatio)
 		this.renderer.domElement.setAttribute('class', 'three-js-spaces-renderer spaces-renderer')
 
-		this._boundAnimate = this._animate.bind(this)
+		// A list of spaces to show when no space is loaded
+		this.spaces = []
+		this.spaceMenuMeshes = []
+		this.spaceMenu = new THREE.Group()
+		this.spaceMenu.position.z = -5
+		this.scene.add(this.spaceMenu)
+
+		this.el.addEventListener('mousemove', this.onDocumentMouseMove.bind(this), false)
+		this.el.addEventListener('click', this.onClick.bind(this), false)
+		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
 		this._animate()
+	}
+	onClick(ev){
+		ev.preventDefault()
+		if(this.intersectedObj == null) return
+		console.log("Clicked", this.intersectedObj.space)
+		if(typeof this.intersectedObj.space !== "undefined"){
+			this.trigger(spaciblo.events.SpaceSelected, this.intersectedObj.space)
+		}
+	}
+	onDocumentMouseMove(ev){
+		ev.preventDefault()
+		let [offsetX, offsetY] = k.documentOffset(this.renderer.domElement)
+		this.mouse.x = ((ev.clientX - offsetX) / this.el.offsetWidth) * 2 - 1
+		this.mouse.y = - ((ev.clientY - offsetY) / this.el.offsetHeight) * 2 + 1
 	}
 	setSize(width, height){
 		this.camera.aspect = width / height
 		this.camera.updateProjectionMatrix()
 		this.renderer.setSize(width, height)
 	}
-	_animate() {
+	clearSpacesMenu(){
+		while(this.spaceMenuMeshes.length > 0){
+			this._removeSpaceMesh(0, false)
+		}
+	}
+	removeSpaceFromMenu(space, layout=true){
+		const index = this._indexOfSpaceInMenu(space)
+		if(index === -1) return
+		this._removeSpaceMesh(index, layout)
+	}
+	_removeSpaceMesh(index, layout=true){
+		this.spaceMenu.remove(this.spaceMenuMeshes[index])
+		this.spaceMenuMeshes[index].space = null
+		this.spaceMenuMeshes.splice(index, 1)
+		if(layout){
+			this.layoutSpaceMenu()
+		}
+	}
+	_indexOfSpaceInMenu(space){
+		for(let i in this.spaceMenuMeshes){
+			if(this.spaceMenuMeshes[i].space.equals(space)){
+				return i
+			}
+		}
+		return -1
+	}
+	addSpaceToMenu(space, layout=true){
+		if(this._indexOfSpaceInMenu(space) !== -1) return
+		const geometry = new THREE.BoxBufferGeometry(1, 1, 1)
+		const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(0xFFDD99) })
+		const mesh = this._addGeometry(geometry, material)
+		mesh.space = space
+		this.spaceMenuMeshes.push(mesh)
+		this.spaceMenu.add(mesh)
+		if(layout){
+			this.layoutSpaceMenu()
+		}
+	}
+	layoutSpaceMenu(){
+		if(this.spaceMenuMeshes.length == 0) return
+		const distanceBetweenSpaceMenuItems = 2
+		let currentX = (this.spaceMenuMeshes.length / 2) * distanceBetweenSpaceMenuItems * -1
+		for(let mesh of this.spaceMenuMeshes){
+			mesh.position.x = currentX
+			mesh.position.y = 0
+			mesh.position.z = 0
+			currentX += distanceBetweenSpaceMenuItems
+		}
+	}
+	_animateSpaceMenu(){
+		for(let mesh of this.spaceMenuMeshes){
+			mesh.rotation.y += 0.005
+			mesh.rotation.x -= 0.005
+		}
+	}
+	_animate(){
 		requestAnimationFrame(this._boundAnimate)
+		this._animateSpaceMenu()
+		this.camera.updateMatrixWorld()
+
+		this.raycaster.setFromCamera(this.mouse, this.camera)
+		var intersects = this.raycaster.intersectObjects(this.scene.children, true)
+		if(intersects.length > 0){
+			if(this.intersectedObj !== intersects[0].object){
+				if(this.intersectedObj !== null){
+					this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
+				}
+				this.intersectedObj = intersects[0].object
+				this.intersectedObj.currentHex = this.intersectedObj.material.emissive.getHex()
+				this.intersectedObj.material.emissive.setHex(0xff0000)
+			}
+		} else {
+			if(this.intersectedObj !== null){
+				this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
+				this.intersectedObj = null
+			}
+		}
+
 		this.renderer.render(this.scene, this.camera)
 	}
 	_addGeometry(geometry, material){
-		var mesh = new THREE.Mesh( geometry, material )
+		var mesh = new THREE.Mesh(geometry, material)
 		this.scene.add(mesh)
 		return mesh
 	}
 	get el(){
 		return this.renderer.domElement
 	}
-}
+})

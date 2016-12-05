@@ -559,6 +559,20 @@ k.defaultComparator = function(el1, el2){
 	return 1
 }
 
+k.documentOffset = function(el){
+	let left = 0
+	let top = 0
+	var findPos = function(obj) {
+		left += obj.offsetLeft
+		top += obj.offsetTop
+		if(obj.offsetParent){
+			findPos(obj.offsetParent)
+		}
+	}
+	findPos(el)
+	return [left, top]
+}
+
 /*
 	domElementFunction is the behind the scenes logic for the functions like k.el.div(...)
 	Below you will find the loop that uses domElementFunction
@@ -594,6 +608,10 @@ k.el.domElementFunction = function(tagName, ...params){
 			this.appendChild(child)
 		}
 		return this
+	}
+
+	el.documentPosition = function(){
+		return k.documentOffset(this)
 	}
 
 	/*
