@@ -28,6 +28,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('spaces-component')
+		this.client = null // Will be a spaciblo.api.Client when a Space is selected
 
 		this.renderer = new spaciblo.components.ThreeJSSpacesRenderer()
 		this.el.appendChild(this.renderer.el)
@@ -42,8 +43,20 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.renderer.addListener(this.handleSpaceSelected.bind(this), spaciblo.events.SpaceSelected)
 	}
 	handleSpaceSelected(eventName, space){
-		console.log("Space selected", space)
-		// TODO Load the space
+		if(this.client != null){
+			console.error("Oops, can't open a second space, yet")
+			return
+		}
+		this.client = new spaciblo.api.Client() 
+		this.client.addListener(this.handleClientMessages.bind(this), spaciblo.events.ClientMessageReceived)
+		this.client.open().then(() => {
+			this.client.joinSpace(space)
+		}).catch(err => {
+			console.error("Error connecting to the WS service", err)
+		})
+	}
+	handleClientMessages(eventName, message){
+		console.log("Client message", message)
 	}
 	handleReset(){
 		this.renderer.clearSpacesMenu()
@@ -62,6 +75,7 @@ ThreeJSSpacesRenderer holds a Three.js scene and is used by SpacesComponent to r
 */
 spaciblo.components.ThreeJSSpacesRenderer = k.eventMixin(class {
 	constructor(background=new THREE.Color(0x99DDff)){
+		this.clock = new THREE.Clock()
 		this.scene = new THREE.Scene()
 		this.scene.background = background
 		this.camera = new THREE.PerspectiveCamera(75, 1, 1, 10000)
@@ -160,19 +174,20 @@ spaciblo.components.ThreeJSSpacesRenderer = k.eventMixin(class {
 			currentX += distanceBetweenSpaceMenuItems
 		}
 	}
-	_animateSpaceMenu(){
+	_animateSpaceMenu(delta){
 		for(let mesh of this.spaceMenuMeshes){
-			mesh.rotation.y += 0.005
-			mesh.rotation.x -= 0.005
+			mesh.rotation.y += 0.5 * delta
+			mesh.rotation.x -= 0.5 * delta
 		}
 	}
 	_animate(){
+		let delta = this.clock.getDelta()
 		requestAnimationFrame(this._boundAnimate)
-		this._animateSpaceMenu()
+		this._animateSpaceMenu(delta)
 		this.camera.updateMatrixWorld()
 
 		this.raycaster.setFromCamera(this.mouse, this.camera)
-		var intersects = this.raycaster.intersectObjects(this.scene.children, true)
+		let intersects = this.raycaster.intersectObjects(this.scene.children, true)
 		if(intersects.length > 0){
 			if(this.intersectedObj !== intersects[0].object){
 				if(this.intersectedObj !== null){

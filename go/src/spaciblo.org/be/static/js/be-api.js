@@ -116,9 +116,11 @@ be.schema.BaseEndpointDataObject = class extends k.DataCollection {
 // The abstract class extended by all collections in be.api
 be.schema.BaseEndpointCollection = class extends be.schema.BaseEndpointDataObject {
 	constructor(data=[], options={}){
-		super(data, options)
-		// TODO figure out how to set the dataObject before data is parsed
+		super([], options)
 		this.options.dataObject = this.dataObjectClass
+		if(data !== null && data.length > 0){
+			this.reset(data)
+		}
 	}
 	get dataObjectClass(){
 		var childrenType = this.schema.childrenType

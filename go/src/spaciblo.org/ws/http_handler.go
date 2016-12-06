@@ -2,7 +2,6 @@ package ws
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -27,7 +26,7 @@ func NewWebSocketHandler() *WebSocketHandler {
 func (wsh WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		logger.Println(err)
 		return
 	}
 
@@ -40,7 +39,7 @@ func (wsh WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		typedMessage, err := ParseMessageJson(string(rawMessage))
 		if err != nil {
-			log.Println(err)
+			logger.Println(err)
 			continue
 		}
 		responseMessage, err := RouteClientMessage(typedMessage)
@@ -49,7 +48,7 @@ func (wsh WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else if responseMessage != nil {
 			rawResponse, err := json.Marshal(responseMessage)
 			if err = conn.WriteMessage(messageType, rawResponse); err != nil {
-				log.Println(err)
+				logger.Println(err)
 			}
 		}
 	}

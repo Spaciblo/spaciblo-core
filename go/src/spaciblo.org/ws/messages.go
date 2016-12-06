@@ -9,6 +9,7 @@ import (
 
 const PingType = "Ping"
 const AckType = "Ack"
+const UnknownMessageType = "Unknown-Message-Type"
 
 // All messages passed via WebSocket between the browser and the ws service must be of type ClientMessage
 type ClientMessage interface {
@@ -25,28 +26,41 @@ func (message TypedMessage) MessageType() string {
 }
 
 // Ping is a ClientMessage used to test a round trip between the browser and the ws service
-type Ping struct {
+type PingMessage struct {
 	TypedMessage
 	Message string `json:"message"`
 }
 
-func NewPing(message string) *Ping {
-	return &Ping{
+func NewPingMessage(message string) *PingMessage {
+	return &PingMessage{
 		TypedMessage{Type: PingType},
 		message,
 	}
 }
 
 // Ack is a ClientMessage used to test a round trip between the browser and the ws service
-type Ack struct {
+type AckMessage struct {
 	TypedMessage
 	Message string `json:"message"`
 }
 
-func NewAck(message string) *Ack {
-	return &Ack{
+func NewAckMessage(message string) *AckMessage {
+	return &AckMessage{
 		TypedMessage{Type: AckType},
 		message,
+	}
+}
+
+// UnknownMessageTypeMessage is sent when an incoming message's type value can not be mapped to a message struct
+type UnknownMessageTypeMessage struct {
+	TypedMessage
+	UnknownType string `json:"unknownType"`
+}
+
+func NewUnknownMessageTypeMessage(unknownType string) *UnknownMessageTypeMessage {
+	return &UnknownMessageTypeMessage{
+		TypedMessage{Type: UnknownMessageType},
+		unknownType,
 	}
 }
 
@@ -62,14 +76,13 @@ func ParseMessageJson(rawMessage string) (ClientMessage, error) {
 	}
 	switch typedMessage.Type {
 	case PingType:
-		ping := new(Ping)
+		ping := new(PingMessage)
 		err := json.NewDecoder(strings.NewReader(rawMessage)).Decode(ping)
 		if err != nil {
 			return nil, err
 		}
 		return ping, nil
 	default:
-		logger.Printf("Unknown message type: %s: %s", typedMessage.Type, rawMessage)
 		return typedMessage, nil
 	}
 }
