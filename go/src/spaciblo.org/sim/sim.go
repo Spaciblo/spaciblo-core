@@ -21,8 +21,14 @@ var logger = log.New(os.Stdout, "[sim-host] ", 0)
 type simHostServer struct {
 }
 
-func (server *simHostServer) SendPing(context.Context, *simRPC.Ping) (*simRPC.Ack, error) {
+func (server *simHostServer) SendPing(ctxt context.Context, ping *simRPC.Ping) (*simRPC.Ack, error) {
 	return &simRPC.Ack{Message: "ACK!"}, nil
+}
+
+func (server *simHostServer) RequestJoinSpace(ctxt context.Context, joinSpace *simRPC.JoinSpace) (*simRPC.JoinedSpace, error) {
+	// TODO Actually host a space and send replication events
+	logger.Printf("Join space: %s", joinSpace)
+	return &simRPC.JoinedSpace{Uuid: joinSpace.Uuid}, nil
 }
 
 func (server *simHostServer) ListSimInfos(context.Context, *simRPC.ListSimInfosParams) (*simRPC.SimInfoList, error) {

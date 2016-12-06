@@ -2,9 +2,13 @@ package ws
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/websocket"
+	"google.golang.org/grpc"
+	simRPC "spaciblo.org/sim/rpc"
 )
 
 var upgrader = websocket.Upgrader{
@@ -17,10 +21,24 @@ var upgrader = websocket.Upgrader{
 }
 
 type WebSocketHandler struct {
+	SimHostClient simRPC.SimHostClient
 }
 
-func NewWebSocketHandler() *WebSocketHandler {
-	return &WebSocketHandler{}
+func NewWebSocketHandler(simHost string, simPort int64) (*WebSocketHandler, error) {
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithInsecure())
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", simHost, strconv.FormatInt(simPort, 10)), opts...)
+	if err != nil {
+		logger.Printf("Failed to dial the sim host: %v", err)
+		return nil, err
+	}
+	client := simRPC.NewSimHostClient(conn)
+
+	// TODO make it possible to clean up the SimHostClient when we make this a StoppableListener
+
+	return &WebSocketHandler{
+		client,
+	}, nil
 }
 
 func (wsh WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +60,7 @@ func (wsh WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			logger.Println(err)
 			continue
 		}
-		responseMessage, err := RouteClientMessage(typedMessage)
+		responseMessage, err := RouteClientMessage(typedMessage, wsh.SimHostClient)
 		if err != nil {
 			logger.Printf("Error routing client message: %s", err)
 		} else if responseMessage != nil {

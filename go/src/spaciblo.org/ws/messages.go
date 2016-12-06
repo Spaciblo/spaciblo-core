@@ -10,6 +10,8 @@ import (
 const PingType = "Ping"
 const AckType = "Ack"
 const UnknownMessageType = "Unknown-Message-Type"
+const JoinSpaceType = "Join-Space"
+const JoinedSpaceType = "Joined-Space"
 
 // All messages passed via WebSocket between the browser and the ws service must be of type ClientMessage
 type ClientMessage interface {
@@ -51,6 +53,33 @@ func NewAckMessage(message string) *AckMessage {
 	}
 }
 
+// JoinSpace is sent by a client when it wants to receive space replication events from a sim
+type JoinSpaceMessage struct {
+	TypedMessage
+	UUID string `json:"uuid"`
+}
+
+func NewJoinSpaceMessage(uuid string) *JoinSpaceMessage {
+	return &JoinSpaceMessage{
+		TypedMessage{Type: JoinSpaceType},
+		uuid,
+	}
+}
+
+// JoinedSpace is sent by a sim to a single client when it accepts that client to the space
+type JoinedSpaceMessage struct {
+	TypedMessage
+	UUID string `json:"uuid"`
+	// TODO Send the initial state of the space for the client
+}
+
+func NewJoinedSpaceMessage(uuid string) *JoinedSpaceMessage {
+	return &JoinedSpaceMessage{
+		TypedMessage{Type: JoinedSpaceType},
+		uuid,
+	}
+}
+
 // UnknownMessageTypeMessage is sent when an incoming message's type value can not be mapped to a message struct
 type UnknownMessageTypeMessage struct {
 	TypedMessage
@@ -74,15 +103,18 @@ func ParseMessageJson(rawMessage string) (ClientMessage, error) {
 	if err != nil {
 		return nil, err
 	}
+	var parsedMessage ClientMessage
 	switch typedMessage.Type {
 	case PingType:
-		ping := new(PingMessage)
-		err := json.NewDecoder(strings.NewReader(rawMessage)).Decode(ping)
-		if err != nil {
-			return nil, err
-		}
-		return ping, nil
+		parsedMessage = new(PingMessage)
+	case JoinSpaceType:
+		parsedMessage = new(JoinSpaceMessage)
 	default:
 		return typedMessage, nil
 	}
+	err = json.NewDecoder(strings.NewReader(rawMessage)).Decode(parsedMessage)
+	if err != nil {
+		return nil, err
+	}
+	return parsedMessage, nil
 }

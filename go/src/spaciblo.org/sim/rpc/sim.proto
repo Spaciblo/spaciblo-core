@@ -4,6 +4,7 @@ package simRPC;
 
 service SimHost {
   rpc SendPing (Ping) returns (Ack) {}
+  rpc RequestJoinSpace (JoinSpace) returns (JoinedSpace) {}
   rpc ListSimInfos (ListSimInfosParams) returns (SimInfoList) {}
 }
 
@@ -24,4 +25,12 @@ message Ping {
 
 message Ack {
   string message = 1;
+}
+
+message JoinSpace {
+	string uuid = 1;
+}
+
+message JoinedSpace {
+	string uuid = 1;
 }
