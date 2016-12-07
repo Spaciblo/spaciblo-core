@@ -99,22 +99,8 @@ be.schema.EndpointCollection = class extends k.DataCollection {
 	}
 }
 
-// Common functionality used by extending classes BaseEndpointCollection and BaseEndpointModel
-be.schema.BaseEndpointDataObject = class extends k.DataCollection {
-	get fetchOptions(){
-		var headers = new Headers()
-		headers.set('Accept', be.schema.acceptFormat + be.API_VERSION)
-		return {
-			headers: headers
-		}
-	}
-	get url(){
-		return be.schema._generateURL(this.schema.get('path'), this.options);
-	}
-}
-
 // The abstract class extended by all collections in be.api
-be.schema.BaseEndpointCollection = class extends be.schema.BaseEndpointDataObject {
+be.schema.BaseEndpointCollection = class extends k.DataCollection {
 	constructor(data=[], options={}){
 		super([], options)
 		this.options.dataObject = this.dataObjectClass
@@ -134,10 +120,31 @@ be.schema.BaseEndpointCollection = class extends be.schema.BaseEndpointDataObjec
 		this.limit = response.limit;
 		return response.objects;
 	}
+	get fetchOptions(){
+		var headers = new Headers()
+		headers.set('Accept', be.schema.acceptFormat + be.API_VERSION)
+		return {
+			headers: headers
+		}
+	}
+	get url(){
+		return be.schema._generateURL(this.schema.get('path'), this.options);
+	}
 }
 
 // The abstract class extended by all models in be.api
-be.schema.BaseEndpointModel = class extends be.schema.BaseEndpointDataObject {}
+be.schema.BaseEndpointModel = class extends k.DataModel {
+	get fetchOptions(){
+		var headers = new Headers()
+		headers.set('Accept', be.schema.acceptFormat + be.API_VERSION)
+		return {
+			headers: headers
+		}
+	}
+	get url(){
+		return be.schema._generateURL(this.schema.get('path'), this.options);
+	}
+}
 
 be.schema._objectifyName = function(name){
 	if(!name) return null

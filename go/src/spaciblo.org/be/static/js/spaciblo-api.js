@@ -17,7 +17,6 @@ spaciblo.events.ClientMessageReceived = 'spaciblo-client-message-received'
 
 spaciblo.api.Client = k.eventMixin(class {
 	constructor(serviceURL=spaciblo.api.Client.ServiceURL){
-		console.log("URL", serviceURL)
 		this.serviceURL = serviceURL
 		this.socket = null
 		this.space = null

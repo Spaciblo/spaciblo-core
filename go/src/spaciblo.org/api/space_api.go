@@ -44,7 +44,7 @@ func (resource SpacesResource) Properties() []be.Property {
 func (resource SpacesResource) Get(request *be.APIRequest) (int, interface{}, http.Header) {
 	responseHeader := map[string][]string{}
 	offset, limit := be.GetOffsetAndLimit(request.Raw.Form)
-	users, err := apiDB.FindSpaceRecords(offset, limit, request.DBInfo)
+	records, err := apiDB.FindSpaceRecords(offset, limit, request.DBInfo)
 	if err != nil {
 		return 500, be.APIError{
 			Id:      "db_error",
@@ -55,7 +55,7 @@ func (resource SpacesResource) Get(request *be.APIRequest) (int, interface{}, ht
 	list := &be.APIList{
 		Offset:  offset,
 		Limit:   limit,
-		Objects: users,
+		Objects: records,
 	}
 	return 200, list, responseHeader
 }

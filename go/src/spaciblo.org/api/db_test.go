@@ -46,3 +46,52 @@ func TestSpaceRecords(t *testing.T) {
 	AssertEqual(t, spaceRecords[0].UUID, spaceRecord3.UUID)
 	AssertEqual(t, spaceRecords[1].UUID, spaceRecord.UUID)
 }
+
+func TestTemplateRecords(t *testing.T) {
+	err := be.CreateDB()
+	AssertNil(t, err)
+	dbInfo, err := db.InitDB()
+	AssertNil(t, err)
+	defer func() {
+		be.WipeDB(dbInfo)
+		dbInfo.Connection.Close()
+	}()
+
+	records, err := apiDB.FindAllTemplateRecords(dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, 0, len(records))
+
+	record, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", dbInfo)
+	AssertNil(t, err)
+	record2, err := apiDB.FindTemplateRecord(record.UUID, dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, record.Id, record2.Id)
+	AssertEqual(t, record.UUID, record2.UUID)
+	AssertEqual(t, record.Name, record2.Name)
+	_, err = apiDB.FindTemplateRecord("bogusUUID", dbInfo)
+	AssertNotNil(t, err)
+
+	records, err = apiDB.FindAllTemplateRecords(dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, 1, len(records))
+	AssertEqual(t, records[0].UUID, record.UUID)
+	record3, err := apiDB.CreateTemplateRecord("Template 3", "test.gltf", dbInfo)
+	AssertNil(t, err)
+	records, err = apiDB.FindAllTemplateRecords(dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, 2, len(records))
+	AssertEqual(t, records[0].UUID, record3.UUID)
+	AssertEqual(t, records[1].UUID, record.UUID)
+
+	dataRecords, err := apiDB.FindAllTemplateDataRecords(dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, 0, len(dataRecords))
+
+	data1, err := apiDB.CreateTemplateDataRecord(record.Id, "test.gltf", "key1234", dbInfo)
+	AssertNil(t, err)
+	data2, err := apiDB.FindTemplateDataRecord(data1.Template, "bogus name", dbInfo)
+	AssertNotNil(t, err)
+	data2, err = apiDB.FindTemplateDataRecord(data1.Template, "test.gltf", dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, data1.Id, data2.Id)
+}

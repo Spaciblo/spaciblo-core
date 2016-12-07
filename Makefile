@@ -32,6 +32,9 @@ MAIN_POSTGRES_ENVS :=	$(COMMON_POSTGRES_ENVS) \
 TEST_POSTGRES_ENVS := 	$(COMMON_POSTGRES_ENVS) \
 						POSTGRES_DB_NAME=$(POSTGRES_TEST_DB_NAME) 
 
+DEMO_RUNTIME_ENVS := 	$(MAIN_POSTGRES_ENVS) \
+						FILE_STORAGE_DIR=$(FILE_STORAGE_DIR)
+
 API_RUNTIME_ENVS := 	API_PORT=$(API_PORT) \
 						STATIC_DIR=$(STATIC_DIR) \
 						FILE_STORAGE_DIR=$(FILE_STORAGE_DIR) \
@@ -96,7 +99,7 @@ run_all: compile
 install_demo:
 	-echo "drop database $(POSTGRES_DB_NAME); create database $(POSTGRES_DB_NAME);" | psql
 	go install -v spaciblo.org/be/install_demo
-	$(MAIN_POSTGRES_ENVS) $(GOBIN)/install_demo
+	$(DEMO_RUNTIME_ENVS) $(GOBIN)/install_demo
 
 test:
 	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql

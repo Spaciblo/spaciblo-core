@@ -1,5 +1,6 @@
 deploy
 collect
+file_storage/
 go/bin
 go/pkg
 go/src/github.com/

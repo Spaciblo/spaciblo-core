@@ -352,21 +352,21 @@ func (api *API) createHandlerFunc(resource Resource, versioned bool, dbInfo *DBI
 }
 
 /*
-ServeImage responds to the request with the image in imageFile
+ServeFile responds to the request with the data in file
 
 Callers within API resource method funcs (e.g. Get) should return an internally handled status:
 	return StatusInternallyHandled, nil, nil
 */
-func (request *APIRequest) ServeImage(imageFile File) error {
-	name, err := imageFile.Name()
+func (request *APIRequest) ServeFile(file File) error {
+	name, err := file.Name()
 	if err != nil {
 		return err
 	}
-	size, err := imageFile.Size()
+	size, err := file.Size()
 	if err != nil {
 		return err
 	}
-	reader, err := imageFile.Reader()
+	reader, err := file.Reader()
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (request *APIRequest) ServeImage(imageFile File) error {
 	request.Raw.Header.Add("Content-Length", strconv.FormatInt(size, 10))
 	_, err = io.Copy(request.Writer, reader)
 	if err != nil {
-		logger.Printf("Error serving an image but too late to recover %v", err)
+		logger.Printf("Error serving an file but too late to recover %v", err)
 	}
 	return nil
 }

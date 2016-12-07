@@ -4,8 +4,10 @@ Install demo data to test and show off the Spaciblō system
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
+	"path"
 
 	apiDB "spaciblo.org/api/db"
 	"spaciblo.org/be"
@@ -14,7 +16,21 @@ import (
 
 var logger = log.New(os.Stdout, "[demo] ", 0)
 
+const DEMO_DATA_DIR = "demo_data"
+const DEMO_TEMPLATES_DIR = "templates"
+
 func main() {
+	fsDir := os.Getenv("FILE_STORAGE_DIR")
+	if fsDir == "" {
+		logger.Panic("No FILE_STORAGE_DIR end variable")
+		return
+	}
+	fs, err := be.NewLocalFileStorage(fsDir)
+	if err != nil {
+		logger.Panic("Could not open file storage directory: " + fsDir)
+		return
+	}
+
 	dbInfo, err := db.InitDB()
 	if err != nil {
 		logger.Panic("DB Initialization Error: " + err.Error())
@@ -31,6 +47,11 @@ func main() {
 		logger.Fatal("Could not delete users: ", err)
 		return
 	}
+	err = apiDB.DeleteAllTemplateRecords(dbInfo)
+	if err != nil {
+		logger.Fatal("Could not delete template records: ", err)
+		return
+	}
 	err = apiDB.DeleteAllSpaceRecords(dbInfo)
 	if err != nil {
 		logger.Fatal("Could not delete space records: ", err)
@@ -41,8 +62,55 @@ func main() {
 	createSpaceRecord("Space 1", dbInfo)
 	createSpaceRecord("Space 2", dbInfo)
 
+	templatesDir := path.Join(DEMO_DATA_DIR, DEMO_TEMPLATES_DIR)
+	templatesFileInfos, err := ioutil.ReadDir(templatesDir)
+	if err != nil {
+		logger.Fatal("Could not read templates dir %s: %s", templatesDir, err)
+		return
+	}
+	for _, info := range templatesFileInfos {
+		createTemplate(path.Join(templatesDir, info.Name()), info.Name(), dbInfo, fs)
+	}
+
 	createUser("alice@example.com", "Alice", "Smith", true, "1234", dbInfo)
 	createUser("bob@example.com", "Bob", "Garvey", false, "1234", dbInfo)
+}
+
+func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.LocalFileStorage) (*apiDB.TemplateRecord, error) {
+	logger.Printf("Creating template: %s", name)
+	template, err := apiDB.CreateTemplateRecord(name, name+".gltf", dbInfo)
+	if err != nil {
+		logger.Fatal("Could not create a template: ", err)
+		return nil, err
+	}
+	dataFileInfos, err := ioutil.ReadDir(directory)
+	if err != nil {
+		logger.Fatal("Could not read a template dir %s: %s", directory, err)
+		return nil, err
+	}
+	for _, dataInfo := range dataFileInfos {
+		logger.Printf("\t\tData %s", dataInfo.Name())
+
+		dataPath := path.Join(directory, dataInfo.Name())
+		dataFile, err := os.Open(dataPath)
+		if err != nil {
+			logger.Fatal("Could not open a data file %s:", err)
+			return nil, err
+		}
+
+		key, err := fs.Put(dataInfo.Name(), dataFile)
+		if err != nil {
+			logger.Fatal("Store a data file %s:", err)
+			return nil, err
+		}
+
+		_, err = apiDB.CreateTemplateDataRecord(template.Id, dataInfo.Name(), key, dbInfo)
+		if err != nil {
+			logger.Fatal("Could not create a template data record %s:", err)
+			return nil, err
+		}
+	}
+	return template, nil
 }
 
 func createSpaceRecord(name string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, error) {

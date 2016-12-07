@@ -92,6 +92,8 @@ spaciblo.components.ThreeJSSpacesRenderer = k.eventMixin(class {
 		this.renderer.sortObjects = false
 		this.renderer.setClearColor(0xffffff)
 		this.renderer.setPixelRatio(window.devicePixelRatio)
+		this.renderer.shadowMap.enabled = true
+		this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
 		this.renderer.domElement.setAttribute('class', 'three-js-spaces-renderer spaces-renderer')
 
 		// A list of spaces to show when no space is loaded
@@ -109,7 +111,6 @@ spaciblo.components.ThreeJSSpacesRenderer = k.eventMixin(class {
 	onClick(ev){
 		ev.preventDefault()
 		if(this.intersectedObj == null) return
-		console.log("Clicked", this.intersectedObj.space)
 		if(typeof this.intersectedObj.space !== "undefined"){
 			this.trigger(spaciblo.events.SpaceSelected, this.intersectedObj.space)
 		}
@@ -154,7 +155,10 @@ spaciblo.components.ThreeJSSpacesRenderer = k.eventMixin(class {
 	addSpaceToMenu(space, layout=true){
 		if(this._indexOfSpaceInMenu(space) !== -1) return
 		const geometry = new THREE.BoxBufferGeometry(1, 1, 1)
-		const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(0xFFDD99) })
+		const material = new THREE.MeshPhongMaterial({ 
+			color: new THREE.Color(0xFFDD99),
+			shading: THREE.SmoothShading
+		})
 		const mesh = this._addGeometry(geometry, material)
 		mesh.space = space
 		this.spaceMenuMeshes.push(mesh)
@@ -204,6 +208,8 @@ spaciblo.components.ThreeJSSpacesRenderer = k.eventMixin(class {
 			}
 		}
 
+		THREE.GLTFLoader.Animations.update();
+		THREE.GLTFLoader.Shaders.update(this.scene, this.camera);		
 		this.renderer.render(this.scene, this.camera)
 	}
 	_addGeometry(geometry, material){
@@ -215,3 +221,24 @@ spaciblo.components.ThreeJSSpacesRenderer = k.eventMixin(class {
 		return this.renderer.domElement
 	}
 })
+
+spaciblo.components.GLTFLoader = class {
+	static load(url){
+		return new Promise(function(resolve, reject){
+			let loader = new THREE.GLTFLoader()
+			loader.load(url, (gltf) => {
+				/*
+				if (gltf.animations && gltf.animations.length) {
+					var i, len = gltf.animations.length;
+					for (i = 0; i < len; i++) {
+						var animation = gltf.animations[i];
+						animation.loop = true;
+						animation.play();
+					}
+				}
+				*/
+				resolve(gltf)
+			})
+		})
+	}
+}
