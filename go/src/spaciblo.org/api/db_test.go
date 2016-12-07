@@ -1,6 +1,10 @@
 package api
 
 import (
+	"bytes"
+	"flag"
+	"os"
+	"path"
 	"testing"
 
 	apiDB "spaciblo.org/api/db"
@@ -9,6 +13,80 @@ import (
 
 	. "github.com/chai2010/assert"
 )
+
+var (
+	CWD = flag.String("cwd", "", "set cwd") // Sets the current working directory because otherwise the testing CWD is wherever go test puts the test binary
+)
+
+func init() {
+	flag.Parse()
+	if *CWD != "" {
+		if err := os.Chdir(*CWD); err != nil {
+			logger.Println("Chdir error", err)
+		}
+	}
+}
+
+func TestSpaceStateFile(t *testing.T) {
+	filePath := path.Join(apiDB.TEST_DATA_DIR, apiDB.SPACES_DATA_DIR, "TestSpace1", "space.json")
+	file, err := os.Open(filePath)
+	AssertNil(t, err)
+
+	testState := func(stateFile *apiDB.SpaceStateFile) {
+		AssertNil(t, err)
+		AssertEqual(t, "Test Space 1", stateFile.Name)
+		AssertEqual(t, "#DDDDDD", stateFile.Settings["background-color"])
+		AssertEqual(t, 3, len(stateFile.Nodes))
+
+		// Test a mostly blank node
+		AssertEqual(t, 0, len(stateFile.Nodes[0].Name))
+		AssertEqual(t, 0, len(stateFile.Nodes[0].Nodes))
+		AssertEqual(t, 0, len(stateFile.Nodes[0].Position))
+		AssertEqual(t, 0, len(stateFile.Nodes[0].Rotation))
+		AssertEqual(t, 0, len(stateFile.Nodes[0].Scale))
+		AssertEqual(t, "Box", stateFile.Nodes[0].TemplateName)
+		AssertEqual(t, "", stateFile.Nodes[0].TemplateUUID)
+
+		// Test a top level node with all of the attributes
+		AssertEqual(t, "Top Level Node", stateFile.Nodes[1].Name)
+		AssertEqual(t, "brown", stateFile.Nodes[1].Settings["foxy"])
+		AssertEqual(t, 3, len(stateFile.Nodes[1].Position))
+		AssertEqual(t, 3, len(stateFile.Nodes[1].Rotation))
+		AssertEqual(t, 3, len(stateFile.Nodes[1].Scale))
+		AssertEqual(t, "Box", stateFile.Nodes[1].TemplateName)
+		AssertEqual(t, "", stateFile.Nodes[1].TemplateUUID)
+		AssertEqual(t, 0, len(stateFile.Nodes[1].Nodes))
+
+		// Test a group node with children
+		AssertEqual(t, "Box Group", stateFile.Nodes[2].Name)
+		AssertEqual(t, 3, len(stateFile.Nodes[2].Position))
+		AssertEqual(t, 0, len(stateFile.Nodes[2].Rotation))
+		AssertEqual(t, 0, len(stateFile.Nodes[2].Scale))
+		AssertEqual(t, "", stateFile.Nodes[2].TemplateName)
+		AssertEqual(t, "", stateFile.Nodes[2].TemplateUUID)
+		AssertEqual(t, 3, len(stateFile.Nodes[2].Nodes))
+		// Test a child
+		AssertEqual(t, "Box 2", stateFile.Nodes[2].Nodes[1].Name)
+		AssertEqual(t, "made of people", stateFile.Nodes[2].Nodes[1].Settings["soylent"])
+		AssertEqual(t, 3, len(stateFile.Nodes[2].Nodes[1].Position))
+		AssertEqual(t, 0, len(stateFile.Nodes[2].Nodes[1].Rotation))
+		AssertEqual(t, 0, len(stateFile.Nodes[2].Nodes[1].Scale))
+		AssertEqual(t, "Box", stateFile.Nodes[2].Nodes[1].TemplateName)
+		AssertEqual(t, "", stateFile.Nodes[2].Nodes[1].TemplateUUID)
+		AssertEqual(t, 0, len(stateFile.Nodes[2].Nodes[1].Nodes))
+	}
+
+	// Test decoding JSON
+	state, err := apiDB.DecodeSpaceStateFile(file)
+	testState(state)
+
+	// Test that we encode equivalent JSON
+	buff := bytes.NewBufferString("")
+	err = state.Encode(buff)
+	AssertNil(t, err)
+	state2, err := apiDB.DecodeSpaceStateFile(buff)
+	testState(state2)
+}
 
 func TestSpaceRecords(t *testing.T) {
 	err := be.CreateDB()

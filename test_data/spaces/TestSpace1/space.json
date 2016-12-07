@@ -1,0 +1,45 @@
+{
+	"name": "Test Space 1",
+	"settings": {
+		"background-color": "#DDDDDD"
+	},
+	"nodes": [
+		{
+			"template-name": "Box"
+		},
+		{
+			"name": "Top Level Node",
+			"settings": {
+				"foxy": "brown"
+			},
+			"template-name": "Box",
+			"position": [0, 0.5, -5],
+			"rotation": [0, 1, 0],
+			"scale": [0.25, 0.25, 0.25]
+		},
+		{
+			"name": "Box Group",
+			"position": [0, 0, -20],
+			"nodes": [
+				{
+					"name": "Box 1",
+					"position": [-2, 0, 0],
+					"template-name": "Box"
+				},
+				{
+					"name": "Box 2",
+					"settings": {
+						"soylent": "made of people"
+					},
+					"position": [0, 0, 0],
+					"template-name": "Box"
+				},
+				{
+					"name": "Box 3",
+					"position": [2, 0, 0],
+					"template-name": "Box"
+				}
+			]
+		}
+	]
+}

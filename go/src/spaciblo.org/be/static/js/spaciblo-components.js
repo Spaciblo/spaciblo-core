@@ -193,7 +193,7 @@ spaciblo.components.ThreeJSSpacesRenderer = k.eventMixin(class {
 		this.raycaster.setFromCamera(this.mouse, this.camera)
 		let intersects = this.raycaster.intersectObjects(this.scene.children, true)
 		if(intersects.length > 0){
-			if(this.intersectedObj !== intersects[0].object){
+			if(this.intersectedObj !== intersects[0].object && intersects[0].object.material.emissive){
 				if(this.intersectedObj !== null){
 					this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
 				}
@@ -227,16 +227,12 @@ spaciblo.components.GLTFLoader = class {
 		return new Promise(function(resolve, reject){
 			let loader = new THREE.GLTFLoader()
 			loader.load(url, (gltf) => {
-				/*
 				if (gltf.animations && gltf.animations.length) {
-					var i, len = gltf.animations.length;
-					for (i = 0; i < len; i++) {
-						var animation = gltf.animations[i];
-						animation.loop = true;
-						animation.play();
+					for (let i = 0; i < gltf.animations.length; i++) {
+						gltf.animations[i].loop = true;
+						gltf.animations[i].play();
 					}
 				}
-				*/
 				resolve(gltf)
 			})
 		})

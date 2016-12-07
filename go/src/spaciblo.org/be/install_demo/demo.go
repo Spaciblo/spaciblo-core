@@ -47,6 +47,11 @@ func main() {
 		logger.Fatal("Could not delete users: ", err)
 		return
 	}
+	err = apiDB.DeleteAllTemplateDataRecords(dbInfo)
+	if err != nil {
+		logger.Fatal("Could not delete template datarecords: ", err)
+		return
+	}
 	err = apiDB.DeleteAllTemplateRecords(dbInfo)
 	if err != nil {
 		logger.Fatal("Could not delete template records: ", err)
@@ -77,8 +82,8 @@ func main() {
 }
 
 func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.LocalFileStorage) (*apiDB.TemplateRecord, error) {
-	logger.Printf("Creating template: %s", name)
 	template, err := apiDB.CreateTemplateRecord(name, name+".gltf", dbInfo)
+	logger.Printf("Creating template: %s: %s", name, template.UUID)
 	if err != nil {
 		logger.Fatal("Could not create a template: ", err)
 		return nil, err

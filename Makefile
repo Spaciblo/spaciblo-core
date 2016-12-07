@@ -103,7 +103,7 @@ install_demo:
 
 test:
 	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql
-	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/api/... spaciblo.org/sim/... spaciblo.org/ws/...
+	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/api/... spaciblo.org/sim/... spaciblo.org/ws/... -cwd="$(PWD)"
 	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/be/...
 
 psql:

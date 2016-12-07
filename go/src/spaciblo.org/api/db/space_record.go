@@ -1,6 +1,8 @@
 package db
 
 import (
+	"encoding/json"
+	"io"
 	"spaciblo.org/be"
 )
 
@@ -61,4 +63,38 @@ func findSpaceByField(fieldName string, value string, dbInfo *be.DBInfo) (*Space
 		return nil, err
 	}
 	return record, nil
+}
+
+/*
+SpaceStateFile is used to serialize and parse a JSON file that holds a space's initialization state
+*/
+type SpaceStateFile struct {
+	Name     string            `json:"name,omitempty"`     // A non-unique, human readable name
+	Settings map[string]string `json:"settings,omitempty"` // Contains space-wide settings like <background-color, #44DDFF>
+	Nodes    []SpaceStateNode  `json:"nodes,omitempty"`    // An array of positioned templates to be added to the scene on initialization
+}
+
+func (stateFile *SpaceStateFile) Encode(writer io.Writer) error {
+	return json.NewEncoder(writer).Encode(stateFile)
+}
+
+type SpaceStateNode struct {
+	Name         string            `json:"name,omitempty"`          // A non-unique, human readable name
+	Settings     map[string]string `json:"settings,omitempty"`      // Contains node specific settings like <background-color, #44DDFF>
+	Position     []float64         `json:"position,omitempty"`      // x,y,z
+	Rotation     []float64         `json:"rotation,omitempty"`      // three numbers or four numbers in this array are parsed as euler or quaternion values, respectively
+	Scale        []float64         `json:"scale,omitempty"`         // x,y,z
+	TemplateName string            `json:"template-name,omitempty"` // Templates can be referenced by names (which are not unique) or by UUID (which are)
+	TemplateUUID string            `json:"template-uuid,omitempty"`
+
+	Nodes []SpaceStateNode `json:"nodes,omitempty"`
+}
+
+func DecodeSpaceStateFile(jsonFile io.Reader) (*SpaceStateFile, error) {
+	state := new(SpaceStateFile)
+	err := json.NewDecoder(jsonFile).Decode(state)
+	if err != nil {
+		return nil, err
+	}
+	return state, nil
 }
