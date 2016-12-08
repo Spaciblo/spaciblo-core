@@ -41,7 +41,7 @@ func DeleteAllTemplateRecords(dbInfo *be.DBInfo) error {
 }
 
 func FindTemplateRecord(uuid string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
-	return findTemplateByField("u_u_i_d", uuid, dbInfo)
+	return FindTemplateRecordByField("u_u_i_d", uuid, dbInfo)
 }
 
 func FindTemplateRecords(offset int, limit int, dbInfo *be.DBInfo) ([]TemplateRecord, error) {
@@ -56,7 +56,7 @@ func FindAllTemplateRecords(dbInfo *be.DBInfo) ([]*TemplateRecord, error) {
 	return records, err
 }
 
-func findTemplateByField(fieldName string, value string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
+func FindTemplateRecordByField(fieldName string, value string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
 	record := new(TemplateRecord)
 	err := dbInfo.Map.SelectOne(record, "select * from "+TemplateTable+" where "+fieldName+"=$1", value)
 	if err != nil {

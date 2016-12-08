@@ -34,7 +34,7 @@ func TestSpaceAPI(t *testing.T) {
 	arr := list.Objects.([]interface{})
 	AssertEqual(t, 0, len(arr))
 
-	spaceRecord0, err := apiDB.CreateSpaceRecord("Space 0", dbInfo)
+	spaceRecord0, err := apiDB.CreateSpaceRecord("Space 0", "{}", dbInfo)
 	AssertNil(t, err)
 
 	list, err = client.GetList("/space/")

@@ -4,6 +4,7 @@ Install demo data to test and show off the Spaciblō system
 package main
 
 import (
+	"bytes"
 	"io/ioutil"
 	"log"
 	"os"
@@ -18,6 +19,8 @@ var logger = log.New(os.Stdout, "[demo] ", 0)
 
 const DEMO_DATA_DIR = "demo_data"
 const DEMO_TEMPLATES_DIR = "templates"
+const DEMO_SPACES_DIR = "spaces"
+const DEMO_SPACE_FILE_NAME = "space.json"
 
 func main() {
 	fsDir := os.Getenv("FILE_STORAGE_DIR")
@@ -63,9 +66,8 @@ func main() {
 		return
 	}
 
-	createSpaceRecord("Space 0", dbInfo)
-	createSpaceRecord("Space 1", dbInfo)
-	createSpaceRecord("Space 2", dbInfo)
+	createUser("alice@example.com", "Alice", "Smith", true, "1234", dbInfo)
+	createUser("bob@example.com", "Bob", "Garvey", false, "1234", dbInfo)
 
 	templatesDir := path.Join(DEMO_DATA_DIR, DEMO_TEMPLATES_DIR)
 	templatesFileInfos, err := ioutil.ReadDir(templatesDir)
@@ -77,8 +79,46 @@ func main() {
 		createTemplate(path.Join(templatesDir, info.Name()), info.Name(), dbInfo, fs)
 	}
 
-	createUser("alice@example.com", "Alice", "Smith", true, "1234", dbInfo)
-	createUser("bob@example.com", "Bob", "Garvey", false, "1234", dbInfo)
+	spacesDir := path.Join(DEMO_DATA_DIR, DEMO_SPACES_DIR)
+	spacesFileInfos, err := ioutil.ReadDir(spacesDir)
+	if err != nil {
+		logger.Fatal("Could not read spaces dir %s: %s", spacesDir, err)
+		return
+	}
+	for _, info := range spacesFileInfos {
+		createSpace(path.Join(spacesDir, info.Name()), info.Name(), dbInfo)
+	}
+}
+
+func createSpace(directory string, name string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, error) {
+	spaceFilePath := path.Join(directory, DEMO_SPACE_FILE_NAME)
+	file, err := os.Open(spaceFilePath)
+	if err != nil {
+		logger.Fatal("Could not open space file", err)
+		return nil, err
+	}
+	defer func() {
+		file.Close()
+	}()
+	state, err := apiDB.DecodeSpaceStateFile(file)
+	if err != nil {
+		logger.Fatal("Could not parse space file: "+spaceFilePath+": ", err)
+		return nil, err
+	}
+	if err != nil {
+		logger.Fatal("Could not read JSON from space file", err)
+		return nil, err
+	}
+	buff := bytes.NewBufferString("")
+	state.Encode(buff)
+
+	record, err := apiDB.CreateSpaceRecord(name, buff.String(), dbInfo)
+	logger.Println("Created space", name+":", record.UUID)
+	if err != nil {
+		logger.Fatal("Could not create user", err)
+		return nil, err
+	}
+	return record, nil
 }
 
 func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.LocalFileStorage) (*apiDB.TemplateRecord, error) {
@@ -116,15 +156,6 @@ func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.Loc
 		}
 	}
 	return template, nil
-}
-
-func createSpaceRecord(name string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, error) {
-	record, err := apiDB.CreateSpaceRecord(name, dbInfo)
-	if err != nil {
-		logger.Fatal("Could not create user", err)
-		return nil, err
-	}
-	return record, nil
 }
 
 func createUser(email string, firstName string, lastName string, staff bool, password string, dbInfo *be.DBInfo) (*be.User, error) {

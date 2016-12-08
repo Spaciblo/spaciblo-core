@@ -12,7 +12,6 @@ func RouteClientMessage(clientMessage ClientMessage, simHostClient simRPC.SimHos
 		return NewAckMessage(ping.Message), nil
 	case JoinSpaceType:
 		joinSpace := clientMessage.(*JoinSpaceMessage)
-
 		var joinSpaceRPM = new(simRPC.JoinSpace)
 		joinSpaceRPM.Uuid = joinSpace.UUID
 		joinedSpace, err := simHostClient.RequestJoinSpace(context.Background(), joinSpaceRPM)
@@ -20,7 +19,7 @@ func RouteClientMessage(clientMessage ClientMessage, simHostClient simRPC.SimHos
 			logger.Printf("Failed to join space: %v", err)
 			return nil, err
 		}
-		return NewJoinedSpaceMessage(joinedSpace.Uuid), nil
+		return NewJoinedSpaceMessage(joinedSpace.Uuid, joinedSpace.State), nil
 	default:
 		logger.Printf("Unknown message type: %s", clientMessage)
 		return NewUnknownMessageTypeMessage(clientMessage.MessageType()), nil

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"spaciblo.org/be"
@@ -9,15 +10,21 @@ import (
 const SpaceTable = "spaces"
 
 type SpaceRecord struct {
-	Id   int64  `json:"id" db:"id, primarykey, autoincrement"`
-	UUID string `json:"uuid" db:"u_u_i_d"`
-	Name string `json:"name" db:"name"`
+	Id    int64  `json:"id" db:"id, primarykey, autoincrement"`
+	UUID  string `json:"uuid" db:"u_u_i_d"`
+	Name  string `json:"name" db:"name"`
+	State string `json:"-"` // A JSON blob that stores a serialized SpaceStateFile scene graph and settings to initialize a space in a sim
 }
 
-func CreateSpaceRecord(name string, dbInfo *be.DBInfo) (*SpaceRecord, error) {
+func (record *SpaceRecord) DecodeState() (*SpaceStateFile, error) {
+	return DecodeSpaceStateFile(bytes.NewBufferString(record.State))
+}
+
+func CreateSpaceRecord(name string, state string, dbInfo *be.DBInfo) (*SpaceRecord, error) {
 	record := &SpaceRecord{
-		Name: name,
-		UUID: be.UUID(),
+		Name:  name,
+		UUID:  be.UUID(),
+		State: state,
 	}
 	err := dbInfo.Map.Insert(record)
 	if err != nil {
@@ -78,6 +85,9 @@ func (stateFile *SpaceStateFile) Encode(writer io.Writer) error {
 	return json.NewEncoder(writer).Encode(stateFile)
 }
 
+/*
+SpaceStateNode is a node in the SpaceStateFile hierarchy of groups, templates, and settings
+*/
 type SpaceStateNode struct {
 	Name         string            `json:"name,omitempty"`          // A non-unique, human readable name
 	Settings     map[string]string `json:"settings,omitempty"`      // Contains node specific settings like <background-color, #44DDFF>

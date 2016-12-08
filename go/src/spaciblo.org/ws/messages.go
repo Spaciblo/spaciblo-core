@@ -69,14 +69,15 @@ func NewJoinSpaceMessage(uuid string) *JoinSpaceMessage {
 // JoinedSpace is sent by a sim to a single client when it accepts that client to the space
 type JoinedSpaceMessage struct {
 	TypedMessage
-	UUID string `json:"uuid"`
-	// TODO Send the initial state of the space for the client
+	UUID  string `json:"uuid"`
+	State string `json:"state"` // TODO stop using JSON data encoded as a string
 }
 
-func NewJoinedSpaceMessage(uuid string) *JoinedSpaceMessage {
+func NewJoinedSpaceMessage(uuid string, state string) *JoinedSpaceMessage {
 	return &JoinedSpaceMessage{
 		TypedMessage{Type: JoinedSpaceType},
 		uuid,
+		state,
 	}
 }
 

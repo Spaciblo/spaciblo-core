@@ -55,6 +55,9 @@ func StartAPI() error {
 	if err != nil {
 		return errors.New("DB Initialization Error: " + err.Error())
 	}
+	defer func() {
+		dbInfo.Connection.Close()
+	}()
 
 	fs, err := be.NewLocalFileStorage(fsDir)
 	if err != nil {
