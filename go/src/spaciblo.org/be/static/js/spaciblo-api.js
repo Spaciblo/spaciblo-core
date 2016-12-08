@@ -66,3 +66,10 @@ spaciblo.api.Client = k.eventMixin(class {
 		this.trigger(spaciblo.events.ClientMessageReceived, JSON.parse(event.data))
 	}
 })
+
+spaciblo.api.handleSchemaPopulated = function(){
+	be.api.Template.prototype.gltfURL = function(){
+		return `/api/${be.API_VERSION}/template/${this.get("uuid")}/data/${this.get("name")}.gltf`
+	}
+}
+document.addEventListener("schema-populated", spaciblo.api.handleSchemaPopulated)

@@ -142,7 +142,7 @@ be.schema.BaseEndpointModel = class extends k.DataModel {
 		}
 	}
 	get url(){
-		return be.schema._generateURL(this.schema.get('path'), this.options);
+		return be.schema._generateURL(this.schema.get('path'), this.data);
 	}
 }
 

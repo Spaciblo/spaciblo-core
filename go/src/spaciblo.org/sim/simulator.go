@@ -44,7 +44,7 @@ func NewRootNode(initialState *apiDB.SpaceStateFile, dbInfo *be.DBInfo) (*SceneN
 		Settings: make(map[string]*StringTuple),
 		Position: NewVector3([]float64{0, 0, 0}),
 		Rotation: NewQuaternion([]float64{0, 0, 0, 1}),
-		Scale:    NewVector3([]float64{0, 0, 0}),
+		Scale:    NewVector3([]float64{1, 1, 1}),
 	}
 	rootNode.Settings["Name"] = NewStringTuple("Name", initialState.Name)
 	for _, stateNode := range initialState.Nodes {
@@ -89,9 +89,18 @@ func NewSceneNode(stateNode apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode
 		Settings: make(map[string]*StringTuple),
 		Position: NewVector3(stateNode.Position),
 		Rotation: NewQuaternion(stateNode.Rotation),
-		Scale:    NewVector3(stateNode.Position),
+		Scale:    NewVector3(stateNode.Scale),
 		Nodes:    []*SceneNode{},
 	}
+	if stateNode.Name != "" {
+		sceneNode.Settings["Name"] = NewStringTuple("Name", stateNode.Name)
+	}
+	for i := range sceneNode.Scale.Data {
+		if sceneNode.Scale.Data[i] == 0 {
+			sceneNode.Scale.Data[i] = 1
+		}
+	}
+
 	if templateRecord != nil {
 		sceneNode.TemplateUUID = templateRecord.UUID
 	}
