@@ -5,35 +5,40 @@
 	},
 	"nodes": [
 		{
-			"name": "Top Level Node",
+			"settings": {
+				"name": "Top Level Node"
+			},
 			"template-name": "Box",
 			"position": [0, 2.5, -5],
 			"rotation": [0, 1, 0],
 			"scale": [0.25, 1, 0.25]
 		},
 		{
-			"name": "Cesium Man",
-			"template-name": "CesiumMan",
-			"position": [0, -1, -2]
-		},
-		{
-			"name": "Box Group",
+			"settings": {
+				"name": "Box Group"
+			},
 			"position": [-1, 0, -4],
 			"nodes": [
 				{
-					"name": "Box 1",
+					"settings": {
+						"name": "Box 1"
+					},
 					"position": [-2, 1, 0],
 					"rotation": [0, 2, 0],
 					"template-name": "Box"
 				},
 				{
-					"name": "Box 2",
+					"settings": {
+						"name": "Box 2"
+					},
 					"position": [0, 0, 0],
 					"rotation": [0, 2, 0],
 					"template-name": "Box"
 				},
 				{
-					"name": "Box 3",
+					"settings": {
+						"name": "Box 3"
+					},
 					"position": [2, -1, 0],
 					"rotation": [0, 2, 0],
 					"template-name": "Box"

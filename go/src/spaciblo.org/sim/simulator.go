@@ -46,7 +46,6 @@ func NewRootNode(initialState *apiDB.SpaceStateFile, dbInfo *be.DBInfo) (*SceneN
 		Rotation: NewQuaternion([]float64{0, 0, 0, 1}),
 		Scale:    NewVector3([]float64{1, 1, 1}),
 	}
-	rootNode.Settings["Name"] = NewStringTuple("Name", initialState.Name)
 	for key, value := range initialState.Settings {
 		rootNode.Settings[key] = NewStringTuple(key, value)
 	}
@@ -62,7 +61,7 @@ func NewRootNode(initialState *apiDB.SpaceStateFile, dbInfo *be.DBInfo) (*SceneN
 
 type SceneNode struct {
 	Id           int64                   `json:"id"`
-	Settings     map[string]*StringTuple `json:"settings"` // Includes Name
+	Settings     map[string]*StringTuple `json:"settings"`
 	Position     *Vector3                `json:"position"`
 	Rotation     *Quaternion             `json:"rotation"`
 	Scale        *Vector3                `json:"scale"`
@@ -94,9 +93,6 @@ func NewSceneNode(stateNode apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode
 		Rotation: NewQuaternion(stateNode.Rotation),
 		Scale:    NewVector3(stateNode.Scale),
 		Nodes:    []*SceneNode{},
-	}
-	if stateNode.Name != "" {
-		sceneNode.Settings["Name"] = NewStringTuple("Name", stateNode.Name)
 	}
 	for key, value := range stateNode.Settings {
 		sceneNode.Settings[key] = NewStringTuple(key, value)

@@ -76,7 +76,6 @@ func findSpaceByField(fieldName string, value string, dbInfo *be.DBInfo) (*Space
 SpaceStateFile is used to serialize and parse a JSON file that holds a space's initialization state
 */
 type SpaceStateFile struct {
-	Name     string            `json:"name,omitempty"`     // A non-unique, human readable name
 	Settings map[string]string `json:"settings,omitempty"` // Contains space-wide settings like <background-color, #44DDFF>
 	Nodes    []SpaceStateNode  `json:"nodes,omitempty"`    // An array of positioned templates to be added to the scene on initialization
 }
@@ -89,7 +88,6 @@ func (stateFile *SpaceStateFile) Encode(writer io.Writer) error {
 SpaceStateNode is a node in the SpaceStateFile hierarchy of groups, templates, and settings
 */
 type SpaceStateNode struct {
-	Name         string            `json:"name,omitempty"`          // A non-unique, human readable name
 	Settings     map[string]string `json:"settings,omitempty"`      // Contains node specific settings like <background-color, #44DDFF>
 	Position     []float64         `json:"position,omitempty"`      // x,y,z
 	Rotation     []float64         `json:"rotation,omitempty"`      // three numbers or four numbers in this array are parsed as euler or quaternion values, respectively

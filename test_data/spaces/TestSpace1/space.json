@@ -1,6 +1,6 @@
 {
-	"name": "Test Space 1",
 	"settings": {
+		"name": "Test Space 1",
 		"background-color": "#DDDDDD"
 	},
 	"nodes": [
@@ -8,8 +8,8 @@
 			"template-name": "Box"
 		},
 		{
-			"name": "Top Level Node",
 			"settings": {
+				"name": "Top Level Node",
 				"foxy": "brown"
 			},
 			"template-name": "Box",
@@ -18,16 +18,22 @@
 			"scale": [0.25, 0.25, 0.25]
 		},
 		{
-			"name": "Box Group",
+			"settings": {
+				"name": "Box Group"
+			},
 			"position": [0, 0, -20],
 			"nodes": [
 				{
-					"name": "Box 1",
+					"settings": {
+						"name": "Box 1"
+					},
 					"position": [-2, 0, 0],
 					"template-name": "Box"
 				},
 				{
-					"name": "Box 2",
+					"settings": {
+						"name": "Box 2"
+					},
 					"settings": {
 						"soylent": "made of people"
 					},
@@ -35,7 +41,9 @@
 					"template-name": "Box"
 				},
 				{
-					"name": "Box 3",
+					"settings": {
+						"name": "Box 3"
+					},
 					"position": [2, 0, 0],
 					"template-name": "Box"
 				}

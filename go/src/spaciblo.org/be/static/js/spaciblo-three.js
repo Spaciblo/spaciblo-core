@@ -85,8 +85,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		group.renderer = this
 		group.state = state
 		group.state.parent = parentState
-		if(state.settings && state.settings.Name && state.settings.Name.value){
-			group.name = state.settings.Name.value
+		if(state.settings && state.settings.name && state.settings.name.value){
+			group.name = state.settings.name.value
+		} else if(parentState == null){
+			group.name = "root"
 		}
 		if(state.rotation){
 			group.rotation.set(...state.rotation.data)
