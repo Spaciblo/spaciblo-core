@@ -67,15 +67,17 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.camera.updateProjectionMatrix()
 		this.renderer.setSize(width, height)
 	}
-	showSpace(spaceUUID, initialState){
+	showSpace(spaceUUID, state){
 		if(this.spaceUUID !== null){
 			console.logger("TODO switch from one space to another")
 			return
 		}
 		this.hideSpaceMenu()
 		this.spaceUUID = spaceUUID
-		this.rootGroup = this._createGroupFromState(initialState)
-		console.log("Root group", this.rootGroup)
+		if(state.settings && state.settings["background-color"] && state.settings["background-color"].value){
+			this.scene.background = new THREE.Color(state.settings["background-color"].value)
+		}
+		this.rootGroup = this._createGroupFromState(state)
 		this.scene.add(this.rootGroup)
 	}
 	_createGroupFromState(state, parentState=null){
@@ -112,7 +114,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					spaciblo.three.GLTFLoader.load(group.template.gltfURL()).then(gltf => {
 						group.setGLTF(gltf)
 					}).catch(err => {
-						console.log("Could not fetch gltf", err)
+						console.error("Could not fetch gltf", err)
 					})
 				}
 			} else {
@@ -124,7 +126,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						spaciblo.three.GLTFLoader.load(group.template.gltfURL()).then(gltf => {
 							group.setGLTF(gltf)
 						}).catch(err => {
-							console.log("Could not fetch gltf", err)
+							console.error("Could not fetch gltf", err)
 						})
 					}
 				}, spaciblo.three.events.GLTFLoaded, true)

@@ -123,7 +123,13 @@ func (resource TemplateDataResource) Get(request *be.APIRequest) (int, interface
 		}, responseHeader
 	}
 
-	err = request.ServeFile(file)
+	responseHeader["Etag"] = etagForTemplateData(templateData, request.Version)
+	// Check whether the client's If-None-Match and the response header's ETag match
+	if responseHeader["Etag"][0] == request.Raw.Header.Get("If-None-Match") {
+		return 200, nil, responseHeader
+	}
+
+	err = request.ServeFile(file, responseHeader)
 	if err != nil {
 		return 500, &be.APIError{
 			Id:      be.InternalServerError.Id,
@@ -131,4 +137,8 @@ func (resource TemplateDataResource) Get(request *be.APIRequest) (int, interface
 		}, responseHeader
 	}
 	return be.StatusInternallyHandled, nil, nil
+}
+
+func etagForTemplateData(templateData *apiDB.TemplateDataRecord, version string) []string {
+	return []string{"template-data-" + version + "-" + templateData.Key}
 }

@@ -357,7 +357,7 @@ ServeFile responds to the request with the data in file
 Callers within API resource method funcs (e.g. Get) should return an internally handled status:
 	return StatusInternallyHandled, nil, nil
 */
-func (request *APIRequest) ServeFile(file File) error {
+func (request *APIRequest) ServeFile(file File, header map[string][]string) error {
 	name, err := file.Name()
 	if err != nil {
 		return err
@@ -370,8 +370,13 @@ func (request *APIRequest) ServeFile(file File) error {
 	if err != nil {
 		return err
 	}
-	request.Raw.Header.Add("Content-Type", MimeTypeFromFileName(name))
-	request.Raw.Header.Add("Content-Length", strconv.FormatInt(size, 10))
+	for name, values := range header {
+		for _, value := range values {
+			request.Writer.Header().Set(name, value)
+		}
+	}
+	request.Writer.Header().Set("Content-Type", MimeTypeFromFileName(name))
+	request.Writer.Header().Set("Content-Length", strconv.FormatInt(size, 10))
 	_, err = io.Copy(request.Writer, reader)
 	if err != nil {
 		logger.Printf("Error serving an file but too late to recover %v", err)

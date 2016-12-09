@@ -47,6 +47,9 @@ func NewRootNode(initialState *apiDB.SpaceStateFile, dbInfo *be.DBInfo) (*SceneN
 		Scale:    NewVector3([]float64{1, 1, 1}),
 	}
 	rootNode.Settings["Name"] = NewStringTuple("Name", initialState.Name)
+	for key, value := range initialState.Settings {
+		rootNode.Settings[key] = NewStringTuple(key, value)
+	}
 	for _, stateNode := range initialState.Nodes {
 		childNode, err := NewSceneNode(stateNode, dbInfo)
 		if err != nil {
@@ -94,6 +97,9 @@ func NewSceneNode(stateNode apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode
 	}
 	if stateNode.Name != "" {
 		sceneNode.Settings["Name"] = NewStringTuple("Name", stateNode.Name)
+	}
+	for key, value := range stateNode.Settings {
+		sceneNode.Settings[key] = NewStringTuple(key, value)
 	}
 	for i := range sceneNode.Scale.Data {
 		if sceneNode.Scale.Data[i] == 0 {

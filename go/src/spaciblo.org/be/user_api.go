@@ -95,7 +95,7 @@ func (resource CurrentUserImageResource) Get(request *APIRequest) (int, interfac
 			Message: "Error reading user image: " + request.User.Image + ": " + err.Error(),
 		}, responseHeader
 	}
-	err = request.ServeFile(imageFile)
+	err = request.ServeFile(imageFile, responseHeader)
 	if err != nil {
 		return 500, &APIError{
 			Id:      InternalServerError.Id,
