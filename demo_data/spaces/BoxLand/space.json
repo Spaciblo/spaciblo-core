@@ -9,7 +9,7 @@
 				"name": "Top Level Node"
 			},
 			"template-name": "Box",
-			"position": [0, 2.5, -5],
+			"position": [0, 2.5, -4],
 			"rotation": [0, 1, 0],
 			"scale": [0.25, 1, 0.25]
 		},
