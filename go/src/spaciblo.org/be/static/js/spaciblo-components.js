@@ -58,6 +58,8 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	handleClientMessages(eventName, message){
 		switch(message.type){
 			case 'Joined-Space':
+				console.log("Event data", JSON.parse(message.state))
+
 				this.renderer.showSpace(message.uuid, JSON.parse(message.state))
 				break
 			default:

@@ -27,63 +27,63 @@ func init() {
 	}
 }
 
-func TestSpaceStateFile(t *testing.T) {
+func TestSpaceStateNode(t *testing.T) {
 	filePath := path.Join(apiDB.TEST_DATA_DIR, apiDB.SPACES_DATA_DIR, "TestSpace1", "space.json")
 	file, err := os.Open(filePath)
 	AssertNil(t, err)
 
-	testState := func(stateFile *apiDB.SpaceStateFile) {
+	testState := func(stateNode *apiDB.SpaceStateNode) {
 		AssertNil(t, err)
-		AssertEqual(t, "Test Space 1", stateFile.Settings["name"])
-		AssertEqual(t, "#DDDDDD", stateFile.Settings["background-color"])
-		AssertEqual(t, 3, len(stateFile.Nodes))
+		AssertEqual(t, "Test Space 1", stateNode.Settings["name"])
+		AssertEqual(t, "#DDDDDD", stateNode.Settings["background-color"])
+		AssertEqual(t, 3, len(stateNode.Nodes))
 
 		// Test a mostly blank node
-		AssertEqual(t, 0, len(stateFile.Nodes[0].Nodes))
-		AssertEqual(t, 0, len(stateFile.Nodes[0].Position))
-		AssertEqual(t, 0, len(stateFile.Nodes[0].Rotation))
-		AssertEqual(t, 0, len(stateFile.Nodes[0].Scale))
-		AssertEqual(t, "Box", stateFile.Nodes[0].TemplateName)
-		AssertEqual(t, "", stateFile.Nodes[0].TemplateUUID)
+		AssertEqual(t, 0, len(stateNode.Nodes[0].Nodes))
+		AssertEqual(t, 0, len(stateNode.Nodes[0].Position))
+		AssertEqual(t, 0, len(stateNode.Nodes[0].Rotation))
+		AssertEqual(t, 0, len(stateNode.Nodes[0].Scale))
+		AssertEqual(t, "Box", stateNode.Nodes[0].TemplateName)
+		AssertEqual(t, "", stateNode.Nodes[0].TemplateUUID)
 
 		// Test a top level node with all of the attributes
-		AssertEqual(t, "Top Level Node", stateFile.Nodes[1].Settings["name"])
-		AssertEqual(t, "brown", stateFile.Nodes[1].Settings["foxy"])
-		AssertEqual(t, 3, len(stateFile.Nodes[1].Position))
-		AssertEqual(t, 3, len(stateFile.Nodes[1].Rotation))
-		AssertEqual(t, 3, len(stateFile.Nodes[1].Scale))
-		AssertEqual(t, "Box", stateFile.Nodes[1].TemplateName)
-		AssertEqual(t, "", stateFile.Nodes[1].TemplateUUID)
-		AssertEqual(t, 0, len(stateFile.Nodes[1].Nodes))
+		AssertEqual(t, "Top Level Node", stateNode.Nodes[1].Settings["name"])
+		AssertEqual(t, "brown", stateNode.Nodes[1].Settings["foxy"])
+		AssertEqual(t, 3, len(stateNode.Nodes[1].Position))
+		AssertEqual(t, 3, len(stateNode.Nodes[1].Rotation))
+		AssertEqual(t, 3, len(stateNode.Nodes[1].Scale))
+		AssertEqual(t, "Box", stateNode.Nodes[1].TemplateName)
+		AssertEqual(t, "", stateNode.Nodes[1].TemplateUUID)
+		AssertEqual(t, 0, len(stateNode.Nodes[1].Nodes))
 
 		// Test a group node with children
-		AssertEqual(t, "Box Group", stateFile.Nodes[2].Settings["name"])
-		AssertEqual(t, 3, len(stateFile.Nodes[2].Position))
-		AssertEqual(t, 0, len(stateFile.Nodes[2].Rotation))
-		AssertEqual(t, 0, len(stateFile.Nodes[2].Scale))
-		AssertEqual(t, "", stateFile.Nodes[2].TemplateName)
-		AssertEqual(t, "", stateFile.Nodes[2].TemplateUUID)
-		AssertEqual(t, 3, len(stateFile.Nodes[2].Nodes))
+		AssertEqual(t, "Box Group", stateNode.Nodes[2].Settings["name"])
+		AssertEqual(t, 3, len(stateNode.Nodes[2].Position))
+		AssertEqual(t, 0, len(stateNode.Nodes[2].Rotation))
+		AssertEqual(t, 0, len(stateNode.Nodes[2].Scale))
+		AssertEqual(t, "", stateNode.Nodes[2].TemplateName)
+		AssertEqual(t, "", stateNode.Nodes[2].TemplateUUID)
+		AssertEqual(t, 3, len(stateNode.Nodes[2].Nodes))
 		// Test a child
-		AssertEqual(t, "Box 2", stateFile.Nodes[2].Nodes[1].Settings["name"])
-		AssertEqual(t, "made of people", stateFile.Nodes[2].Nodes[1].Settings["soylent"])
-		AssertEqual(t, 3, len(stateFile.Nodes[2].Nodes[1].Position))
-		AssertEqual(t, 0, len(stateFile.Nodes[2].Nodes[1].Rotation))
-		AssertEqual(t, 0, len(stateFile.Nodes[2].Nodes[1].Scale))
-		AssertEqual(t, "Box", stateFile.Nodes[2].Nodes[1].TemplateName)
-		AssertEqual(t, "", stateFile.Nodes[2].Nodes[1].TemplateUUID)
-		AssertEqual(t, 0, len(stateFile.Nodes[2].Nodes[1].Nodes))
+		AssertEqual(t, "Box 2", stateNode.Nodes[2].Nodes[1].Settings["name"])
+		AssertEqual(t, "made of people", stateNode.Nodes[2].Nodes[1].Settings["soylent"])
+		AssertEqual(t, 3, len(stateNode.Nodes[2].Nodes[1].Position))
+		AssertEqual(t, 0, len(stateNode.Nodes[2].Nodes[1].Rotation))
+		AssertEqual(t, 0, len(stateNode.Nodes[2].Nodes[1].Scale))
+		AssertEqual(t, "Box", stateNode.Nodes[2].Nodes[1].TemplateName)
+		AssertEqual(t, "", stateNode.Nodes[2].Nodes[1].TemplateUUID)
+		AssertEqual(t, 0, len(stateNode.Nodes[2].Nodes[1].Nodes))
 	}
 
 	// Test decoding JSON
-	state, err := apiDB.DecodeSpaceStateFile(file)
+	state, err := apiDB.DecodeSpaceStateNode(file)
 	testState(state)
 
 	// Test that we encode equivalent JSON
 	buff := bytes.NewBufferString("")
 	err = state.Encode(buff)
 	AssertNil(t, err)
-	state2, err := apiDB.DecodeSpaceStateFile(buff)
+	state2, err := apiDB.DecodeSpaceStateNode(buff)
 	testState(state2)
 }
 

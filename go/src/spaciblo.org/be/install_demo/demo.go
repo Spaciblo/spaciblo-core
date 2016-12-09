@@ -100,7 +100,7 @@ func createSpace(directory string, name string, dbInfo *be.DBInfo) (*apiDB.Space
 	defer func() {
 		file.Close()
 	}()
-	state, err := apiDB.DecodeSpaceStateFile(file)
+	state, err := apiDB.DecodeSpaceStateNode(file)
 	if err != nil {
 		logger.Fatal("Could not parse space file: "+spaceFilePath+": ", err)
 		return nil, err

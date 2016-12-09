@@ -24,7 +24,7 @@ type SpaceSimulator struct {
 	RootNode *SceneNode
 }
 
-func NewSpaceSimulator(name string, uuid string, initialState *apiDB.SpaceStateFile, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
+func NewSpaceSimulator(name string, uuid string, initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
 	rootNode, err := NewRootNode(initialState, dbInfo)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (spaceSim *SpaceSimulator) InitialState() string {
 	return buff.String()
 }
 
-func NewRootNode(initialState *apiDB.SpaceStateFile, dbInfo *be.DBInfo) (*SceneNode, error) {
+func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode, error) {
 	rootNode := &SceneNode{
 		Id:       nextSceneId(),
 		Settings: make(map[string]*StringTuple),

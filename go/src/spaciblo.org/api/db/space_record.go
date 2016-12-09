@@ -13,11 +13,11 @@ type SpaceRecord struct {
 	Id    int64  `json:"id" db:"id, primarykey, autoincrement"`
 	UUID  string `json:"uuid" db:"u_u_i_d"`
 	Name  string `json:"name" db:"name"`
-	State string `json:"-"` // A JSON blob that stores a serialized SpaceStateFile scene graph and settings to initialize a space in a sim
+	State string `json:"-"` // A JSON blob that stores a serialized SpaceStateNode scene graph and settings to initialize a space in a sim
 }
 
-func (record *SpaceRecord) DecodeState() (*SpaceStateFile, error) {
-	return DecodeSpaceStateFile(bytes.NewBufferString(record.State))
+func (record *SpaceRecord) DecodeState() (*SpaceStateNode, error) {
+	return DecodeSpaceStateNode(bytes.NewBufferString(record.State))
 }
 
 func CreateSpaceRecord(name string, state string, dbInfo *be.DBInfo) (*SpaceRecord, error) {
@@ -73,19 +73,10 @@ func findSpaceByField(fieldName string, value string, dbInfo *be.DBInfo) (*Space
 }
 
 /*
-SpaceStateFile is used to serialize and parse a JSON file that holds a space's initialization state
-*/
-type SpaceStateFile struct {
-	Settings map[string]string `json:"settings,omitempty"` // Contains space-wide settings like <background-color, #44DDFF>
-	Nodes    []SpaceStateNode  `json:"nodes,omitempty"`    // An array of positioned templates to be added to the scene on initialization
-}
-
-func (stateFile *SpaceStateFile) Encode(writer io.Writer) error {
-	return json.NewEncoder(writer).Encode(stateFile)
-}
-
-/*
-SpaceStateNode is a node in the SpaceStateFile hierarchy of groups, templates, and settings
+SpaceStateNode is used to serialize and parse a JSON file that holds a space's initialization state
+Its serialized form is IDENTICAL to a serialized hierarchy of simulator SceneNode instances.
+Use SpaceStateNode when reading space.json files into the DB or passing around initialization state.
+Use SceneNode when in the simulator.
 */
 type SpaceStateNode struct {
 	Settings     map[string]string `json:"settings,omitempty"`      // Contains node specific settings like <background-color, #44DDFF>
@@ -98,8 +89,12 @@ type SpaceStateNode struct {
 	Nodes []SpaceStateNode `json:"nodes,omitempty"`
 }
 
-func DecodeSpaceStateFile(jsonFile io.Reader) (*SpaceStateFile, error) {
-	state := new(SpaceStateFile)
+func (stateNode *SpaceStateNode) Encode(writer io.Writer) error {
+	return json.NewEncoder(writer).Encode(stateNode)
+}
+
+func DecodeSpaceStateNode(jsonFile io.Reader) (*SpaceStateNode, error) {
+	state := new(SpaceStateNode)
 	err := json.NewDecoder(jsonFile).Decode(state)
 	if err != nil {
 		return nil, err
