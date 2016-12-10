@@ -81,12 +81,22 @@ Use SceneNode when in the simulator.
 type SpaceStateNode struct {
 	Settings     map[string]string `json:"settings,omitempty"`      // Contains node specific settings like <background-color, #44DDFF>
 	Position     []float64         `json:"position,omitempty"`      // x,y,z
-	Rotation     []float64         `json:"rotation,omitempty"`      // three numbers or four numbers in this array are parsed as euler or quaternion values, respectively
+	Orientation  []float64         `json:"orientation,omitempty"`   // x, y, z, w
 	Scale        []float64         `json:"scale,omitempty"`         // x,y,z
 	TemplateName string            `json:"template-name,omitempty"` // Templates can be referenced by names (which are not unique) or by UUID (which are)
 	TemplateUUID string            `json:"template-uuid,omitempty"`
 
 	Nodes []SpaceStateNode `json:"nodes,omitempty"`
+}
+
+func NewSpaceStateNode(position []float64, orientation []float64, templateUUID string) *SpaceStateNode {
+	return &SpaceStateNode{
+		Settings:     make(map[string]string),
+		Position:     position,
+		Orientation:  orientation,
+		Scale:        []float64{1, 1, 1},
+		TemplateUUID: templateUUID,
+	}
 }
 
 func (stateNode *SpaceStateNode) Encode(writer io.Writer) error {

@@ -3,6 +3,7 @@ spaciblo.events = spaciblo.events || {}
 spaciblo.components = spaciblo.components || {}
 
 spaciblo.events.SpaceSelected = 'spaciblo-space-selected'
+spaciblo.events.AvatarMotionChanged = 'spaciblo-avatar-motion-changed'
 
 /*
 SplashPageComponent wraps all of the logic for index.html
@@ -42,6 +43,13 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.updateSize()
 		window.addEventListener('resize', () => { this.updateSize() })
 		this.renderer.addListener(this.handleSpaceSelected.bind(this), spaciblo.events.SpaceSelected)
+		this.renderer.addListener(this.handleAvatarMotion.bind(this), spaciblo.events.AvatarMotionChanged)
+	}
+	handleAvatarMotion(eventName, position, orientation, translationVector, rotationVector){
+		if(this.client === null){
+			return
+		}
+		this.client.sendAvatarUpdate(position, orientation, translationVector, rotationVector)
 	}
 	handleSpaceSelected(eventName, space){
 		if(this.client != null){
@@ -88,8 +96,8 @@ spaciblo.components.KeyMap.set("down-arrow", 40)
 spaciblo.components.InputManager = k.eventMixin(class {
 	constructor(){
 		this.keysDown = new Set()
-		this.keyboardRotationDelta = 1.2
-		this.keyboardTranslationDelta = 1.9
+		this.keyboardRotationDelta = 1.2 // Radians per second
+		this.keyboardTranslationDelta = 1.9 // Meters per second
 		document.onkeydown = this.handleKeyDown.bind(this)
 		document.onkeyup = this.handleKeyUp.bind(this)
 	}

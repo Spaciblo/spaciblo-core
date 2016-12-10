@@ -32,15 +32,42 @@ func (server *simHostServer) SendPing(ctxt context.Context, ping *simRPC.Ping) (
 	return &simRPC.Ack{Message: "ACK!"}, nil
 }
 
+func (server *simHostServer) HandleAvatarMotion(ctx context.Context, avatarMotion *simRPC.AvatarMotion) (*simRPC.Ack, error) {
+	spaceSim, ok := server.SpaceSimulators[avatarMotion.SpaceUUID]
+	if ok == false {
+		return nil, errors.New("Unknown space UUID: " + avatarMotion.SpaceUUID)
+	}
+	avatarNode, ok := spaceSim.Avatars[avatarMotion.ClientUUID]
+	if ok == false {
+		_, err := spaceSim.AddAvatar(avatarMotion.ClientUUID, avatarMotion.Position, avatarMotion.Orientation)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		avatarNode.Position.Set(avatarMotion.Position)
+		avatarNode.Orientation.Set(avatarMotion.Orientation)
+		// TODO handle motion
+	}
+
+	return &simRPC.Ack{Message: "ACK!"}, nil
+}
+
 func (server *simHostServer) RequestJoinSpace(ctxt context.Context, joinSpace *simRPC.JoinSpace) (*simRPC.JoinedSpace, error) {
-	spaceSim, ok := server.SpaceSimulators[joinSpace.Uuid]
+	spaceSim, ok := server.SpaceSimulators[joinSpace.SpaceUUID]
 	if ok == false {
 		return nil, errors.New("Join space denied")
 	}
 	return &simRPC.JoinedSpace{
-		Uuid:  joinSpace.Uuid,
+		Uuid:  joinSpace.SpaceUUID,
 		State: spaceSim.InitialState(),
 	}, nil
+}
+
+func (server *simHostServer) HandleClientDisconnected(ctx context.Context, clientDisconnected *simRPC.ClientDisconnected) (*simRPC.Ack, error) {
+	for _, spaceSim := range server.SpaceSimulators {
+		spaceSim.RemoveAvatar(clientDisconnected.ClientUUID)
+	}
+	return &simRPC.Ack{Message: "OK"}, nil
 }
 
 func (server *simHostServer) ListSimInfos(context.Context, *simRPC.ListSimInfosParams) (*simRPC.SimInfoList, error) {

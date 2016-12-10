@@ -14,7 +14,7 @@
 			},
 			"template-name": "Box",
 			"position": [0, 0.5, -5],
-			"rotation": [0, 1, 0],
+			"orientation": [0, 1, 0, 0],
 			"scale": [0.25, 0.25, 0.25]
 		},
 		{

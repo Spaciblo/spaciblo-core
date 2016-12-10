@@ -11,7 +11,9 @@ const PingType = "Ping"
 const AckType = "Ack"
 const UnknownMessageType = "Unknown-Message-Type"
 const JoinSpaceType = "Join-Space"
+const ClientDisconnectedType = "Client-Disconnected"
 const JoinedSpaceType = "Joined-Space"
+const AvatarMotionType = "Avatar-Motion"
 
 // All messages passed via WebSocket between the browser and the ws service must be of type ClientMessage
 type ClientMessage interface {
@@ -81,6 +83,37 @@ func NewJoinedSpaceMessage(uuid string, state string) *JoinedSpaceMessage {
 	}
 }
 
+type ClientDisconnectedMessage struct {
+	TypedMessage
+}
+
+func NewClientDisconnectedMessage() *ClientDisconnectedMessage {
+	return &ClientDisconnectedMessage{
+		TypedMessage{Type: ClientDisconnectedType},
+	}
+}
+
+// AvatarMotion is sent by a client when the user moves their avatar
+type AvatarMotionMessage struct {
+	TypedMessage
+	SpaceUUID   string    `json:"spaceUUID"`
+	Position    []float64 `json:"position"`
+	Orientation []float64 `json:"orientation"`
+	Translation []float64 `json:"translation"`
+	Rotation    []float64 `json:"rotation"`
+}
+
+func NewAvatarMotionMessage(spaceUUID string, position []float64, orientation []float64, translation []float64, rotation []float64) *AvatarMotionMessage {
+	return &AvatarMotionMessage{
+		TypedMessage{Type: AvatarMotionType},
+		spaceUUID,
+		position,
+		orientation,
+		translation,
+		rotation,
+	}
+}
+
 // UnknownMessageTypeMessage is sent when an incoming message's type value can not be mapped to a message struct
 type UnknownMessageTypeMessage struct {
 	TypedMessage
@@ -110,6 +143,8 @@ func ParseMessageJson(rawMessage string) (ClientMessage, error) {
 		parsedMessage = new(PingMessage)
 	case JoinSpaceType:
 		parsedMessage = new(JoinSpaceMessage)
+	case AvatarMotionType:
+		parsedMessage = new(AvatarMotionMessage)
 	default:
 		return typedMessage, nil
 	}

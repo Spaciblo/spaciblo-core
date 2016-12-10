@@ -3,6 +3,9 @@ package sim
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+
 	apiDB "spaciblo.org/api/db"
 	"spaciblo.org/be"
 )
@@ -19,17 +22,38 @@ SpaceSimulator holds all of the state for a space and can step the simulation fo
 It does not handle any of the communication with clients. That's the job of the SimHostServer.
 */
 type SpaceSimulator struct {
-	Name     string // The Name of the SpaceRecord
-	UUID     string // The UUID of the SpaceRecord
-	RootNode *SceneNode
+	Name              string                // The Name of the SpaceRecord
+	UUID              string                // The UUID of the SpaceRecord
+	RootNode          *SceneNode            // The scene graph, including SceneNodes for avatars
+	Avatars           map[string]*SceneNode // <clientUUID, avatar node>
+	Additions         []*SceneAddition      // Nodes added to the scene since the last tick
+	Deletions         []int64               // Node IDs removed from the scene since the last tick
+	DefaultAvatarUUID string
+	DBInfo            *be.DBInfo
 }
 
-func NewSpaceSimulator(name string, uuid string, initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
+func NewSpaceSimulator(name string, spaceUUID string, initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
 	rootNode, err := NewRootNode(initialState, dbInfo)
 	if err != nil {
 		return nil, err
 	}
-	return &SpaceSimulator{name, uuid, rootNode}, nil
+
+	templateRecord, err := apiDB.FindTemplateRecordByField("name", "Box", dbInfo) // TODO Stop hard coding Box
+	if err != nil {
+		logger.Println("Error searching for default avatar template: Box: ", err)
+		return nil, err
+	}
+
+	return &SpaceSimulator{
+		Name:              name,
+		UUID:              spaceUUID,
+		RootNode:          rootNode,
+		Avatars:           make(map[string]*SceneNode),
+		Additions:         []*SceneAddition{},
+		Deletions:         []int64{},
+		DefaultAvatarUUID: templateRecord.UUID,
+		DBInfo:            dbInfo,
+	}, nil
 }
 
 func (spaceSim *SpaceSimulator) InitialState() string {
@@ -38,23 +62,54 @@ func (spaceSim *SpaceSimulator) InitialState() string {
 	return buff.String()
 }
 
+func (spaceSim *SpaceSimulator) AddAvatar(clientUUID string, position []float64, orientation []float64) (*SceneNode, error) {
+	node, ok := spaceSim.Avatars[clientUUID]
+	if ok == true {
+		return node, nil
+	}
+	state := apiDB.NewSpaceStateNode(position, orientation, spaceSim.DefaultAvatarUUID)
+	node, err := NewSceneNode(state, spaceSim.DBInfo)
+	if err != nil {
+		return nil, err
+	}
+	node.Transient = true
+	node.Settings["clientUUID"] = NewStringTuple("clientUUID", clientUUID)
+	spaceSim.Avatars[clientUUID] = node
+	spaceSim.RootNode.Add(node)
+	spaceSim.Additions = append(spaceSim.Additions, &SceneAddition{node, spaceSim.RootNode.Id})
+	return node, nil
+}
+
+func (spaceSim *SpaceSimulator) RemoveAvatar(clientUUID string) {
+	node, ok := spaceSim.Avatars[clientUUID]
+	if ok == false {
+		// Unknown avatar, ignoring
+		return
+	}
+	delete(spaceSim.Avatars, clientUUID)
+	spaceSim.Deletions = append(spaceSim.Deletions, node.Id)
+	spaceSim.RootNode.Remove(node)
+}
+
 func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode, error) {
 	rootNode := &SceneNode{
-		Id:       nextSceneId(),
-		Settings: make(map[string]*StringTuple),
-		Position: NewVector3([]float64{0, 0, 0}),
-		Rotation: NewQuaternion([]float64{0, 0, 0, 1}),
-		Scale:    NewVector3([]float64{1, 1, 1}),
+		Id:          nextSceneId(),
+		Settings:    make(map[string]*StringTuple),
+		Position:    NewVector3([]float64{0, 0, 0}),
+		Orientation: NewQuaternion([]float64{0, 0, 0, 1}),
+		Scale:       NewVector3([]float64{1, 1, 1}),
 	}
 	for key, value := range initialState.Settings {
 		rootNode.Settings[key] = NewStringTuple(key, value)
 	}
 	for _, stateNode := range initialState.Nodes {
-		childNode, err := NewSceneNode(stateNode, dbInfo)
+		childNode, err := NewSceneNode(&stateNode, dbInfo)
 		if err != nil {
 			return nil, err
 		}
-		rootNode.Nodes = append(rootNode.Nodes, childNode)
+		if childNode.Transient == false {
+			rootNode.Nodes = append(rootNode.Nodes, childNode)
+		}
 	}
 	return rootNode, nil
 }
@@ -63,13 +118,14 @@ type SceneNode struct {
 	Id           int64                   `json:"id"`
 	Settings     map[string]*StringTuple `json:"settings"`
 	Position     *Vector3                `json:"position"`
-	Rotation     *Quaternion             `json:"rotation"`
+	Orientation  *Quaternion             `json:"orientation"`
 	Scale        *Vector3                `json:"scale"`
 	TemplateUUID string                  `json:"templateUUID"`
 	Nodes        []*SceneNode            `json:"nodes,omitempty"`
+	Transient    bool                    `json:"transient"` // True if should be ignored when initializing a space (e.g. Avatar node)
 }
 
-func NewSceneNode(stateNode apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode, error) {
+func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode, error) {
 	var templateRecord *apiDB.TemplateRecord
 	var err error
 	// We'd rather find a template by UUID, but use the (possibly non-unique) Name in a pinch
@@ -87,12 +143,12 @@ func NewSceneNode(stateNode apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode
 		}
 	}
 	sceneNode := &SceneNode{
-		Id:       nextSceneId(),
-		Settings: make(map[string]*StringTuple),
-		Position: NewVector3(stateNode.Position),
-		Rotation: NewQuaternion(stateNode.Rotation),
-		Scale:    NewVector3(stateNode.Scale),
-		Nodes:    []*SceneNode{},
+		Id:          nextSceneId(),
+		Settings:    make(map[string]*StringTuple),
+		Position:    NewVector3(stateNode.Position),
+		Orientation: NewQuaternion(stateNode.Orientation),
+		Scale:       NewVector3(stateNode.Scale),
+		Nodes:       []*SceneNode{},
 	}
 	for key, value := range stateNode.Settings {
 		sceneNode.Settings[key] = NewStringTuple(key, value)
@@ -107,13 +163,46 @@ func NewSceneNode(stateNode apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode
 		sceneNode.TemplateUUID = templateRecord.UUID
 	}
 	for _, childStateNode := range stateNode.Nodes {
-		childNode, err := NewSceneNode(childStateNode, dbInfo)
+		childNode, err := NewSceneNode(&childStateNode, dbInfo)
 		if err != nil {
 			return nil, err
 		}
-		sceneNode.Nodes = append(sceneNode.Nodes, childNode)
+		if childNode.Transient == false {
+			sceneNode.Nodes = append(sceneNode.Nodes, childNode)
+		}
 	}
 	return sceneNode, nil
+}
+
+func (node *SceneNode) SettingValue(name string) string {
+	setting, ok := node.Settings[name]
+	if ok == false {
+		return ""
+	} else {
+		return setting.Value
+	}
+}
+
+func (node *SceneNode) Add(childNode *SceneNode) {
+	node.Nodes = append(node.Nodes, childNode)
+}
+
+func (node *SceneNode) Remove(childNode *SceneNode) {
+	for i, n := range node.Nodes {
+		if n.Id == childNode.Id {
+			if i == len(node.Nodes)-1 {
+				node.Nodes = node.Nodes[:i]
+			} else {
+				node.Nodes = append(node.Nodes[:i], node.Nodes[i+i:]...)
+			}
+			return
+		}
+	}
+}
+
+type SceneAddition struct {
+	Node     *SceneNode `json:"node"`
+	ParentId int64      `json:"parent"`
 }
 
 type StringTuple struct {
@@ -139,7 +228,7 @@ type Vector3 struct {
 }
 
 func NewVector3(data []float64) *Vector3 {
-	if data == nil {
+	if data == nil || len(data) != 3 {
 		data = []float64{0, 0, 0}
 	}
 	return &Vector3{
@@ -149,6 +238,17 @@ func NewVector3(data []float64) *Vector3 {
 	}
 }
 
+func (vector *Vector3) Set(data []float64) error {
+	if len(data) != 3 {
+		return errors.New(fmt.Sprintf("incorrect data length: %s", len(data)))
+	}
+	vector.Data[0] = data[0]
+	vector.Data[1] = data[1]
+	vector.Data[2] = data[2]
+	vector.Dirty = true
+	return nil
+}
+
 type Quaternion struct {
 	Id    int64     `json:"id"`
 	Dirty bool      `json:"-"`
@@ -156,7 +256,7 @@ type Quaternion struct {
 }
 
 func NewQuaternion(data []float64) *Quaternion {
-	if data == nil {
+	if data == nil || len(data) != 4 {
 		data = []float64{0, 0, 0, 1}
 	}
 	return &Quaternion{
@@ -164,4 +264,16 @@ func NewQuaternion(data []float64) *Quaternion {
 		Dirty: true,
 		Data:  data,
 	}
+}
+
+func (quat *Quaternion) Set(data []float64) error {
+	if len(data) != 4 {
+		return errors.New(fmt.Sprintf("incorrect data length: %s", len(data)))
+	}
+	quat.Data[0] = data[0]
+	quat.Data[1] = data[1]
+	quat.Data[2] = data[2]
+	quat.Data[3] = data[3]
+	quat.Dirty = true
+	return nil
 }

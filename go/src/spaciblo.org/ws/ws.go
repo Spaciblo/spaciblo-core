@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/nu7hatch/gouuid"
 )
 
 var logger = log.New(os.Stdout, "[ws] ", 0)
@@ -45,4 +47,9 @@ func StartWS() error {
 		return err
 	}
 	return nil
+}
+
+func UUID() string {
+	u4, _ := uuid.NewV4()
+	return u4.String()
 }

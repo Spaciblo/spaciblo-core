@@ -5,7 +5,9 @@ package simRPC;
 service SimHost {
   rpc SendPing (Ping) returns (Ack) {}
   rpc RequestJoinSpace (JoinSpace) returns (JoinedSpace) {}
+  rpc HandleClientDisconnected(ClientDisconnected) returns (Ack) {}
   rpc ListSimInfos (ListSimInfosParams) returns (SimInfoList) {}
+  rpc HandleAvatarMotion (AvatarMotion) returns (Ack) {}
 }
 
 message ListSimInfosParams {}
@@ -28,10 +30,24 @@ message Ack {
 }
 
 message JoinSpace {
-	string uuid = 1;
+	string spaceUUID = 1;
+	string clientUUID = 2;
 }
 
 message JoinedSpace {
 	string uuid = 1;
 	string state = 2;
+}
+
+message AvatarMotion {
+	string spaceUUID = 1;
+	string clientUUID = 2;
+	repeated double position = 3;
+	repeated double orientation = 4;
+	repeated double translation = 5;
+	repeated double rotation = 6;
+}
+
+message ClientDisconnected {
+	string clientUUID = 1;
 }

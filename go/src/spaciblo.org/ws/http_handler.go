@@ -47,11 +47,12 @@ func (wsh WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		logger.Println(err)
 		return
 	}
-
+	clientUUID := UUID()
 	for {
 		messageType, rawMessage, err := conn.ReadMessage()
 		if err != nil {
 			logger.Printf("Error reading WS message: %s", err)
+			RouteClientMessage(NewClientDisconnectedMessage(), clientUUID, wsh.SimHostClient)
 			return
 		}
 
@@ -60,7 +61,7 @@ func (wsh WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			logger.Println(err)
 			continue
 		}
-		responseMessage, err := RouteClientMessage(typedMessage, wsh.SimHostClient)
+		responseMessage, err := RouteClientMessage(typedMessage, clientUUID, wsh.SimHostClient)
 		if err != nil {
 			logger.Printf("Error routing client message: %s", err)
 		} else if responseMessage != nil {

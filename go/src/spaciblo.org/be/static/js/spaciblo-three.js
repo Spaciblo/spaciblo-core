@@ -5,7 +5,6 @@ spaciblo.three = spaciblo.three || {}
 spaciblo.three.events = spaciblo.three.events || {}
 
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
-
 /*
 SpacesRenderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
@@ -19,7 +18,14 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.scene = new THREE.Scene()
 		this.scene.background = background
 		this.camera = new THREE.PerspectiveCamera(75, 1, 0.5, 10000)
-		this.translationVector = new THREE.Vector3() // used in _animate to calculate motion
+
+		// These variables are used in _animate to determine keyboard motion and whether or not to trigger events
+		this.translationVector = new THREE.Vector3()	// meters per second on x, y, z axis 
+		this.rotationVector = new THREE.Vector3()		// radians/second around x, y, z axis
+		this.currentTranslation = 0
+		this.currentRotation = 0
+		this.previousTranslation = 0
+		this.previousRotation = 0
 
 		var light = new THREE.DirectionalLight(0xffffff, 1)
 		light.position.set(1, 1, 1).normalize()
@@ -70,7 +76,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	showSpace(spaceUUID, state){
 		if(this.spaceUUID !== null){
-			console.logger("TODO switch from one space to another")
+			console.error("TODO switch from one space to another")
 			return
 		}
 		this.hideSpaceMenu()
@@ -91,8 +97,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		} else if(parentState == null){
 			group.name = "root"
 		}
-		if(state.rotation){
-			group.rotation.set(...state.rotation.data)
+		if(state.orientation){
+			group.quaternion.set(...state.orientation.data)
 		}
 		if(state.position){
 			group.position.set(...state.position.data)
@@ -209,22 +215,39 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		let delta = this.clock.getDelta()
 		requestAnimationFrame(this._boundAnimate)
 
+		this.previousRotation = this.currentRotation
+		this.previousTranslation = this.currentTranslation
+		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('left-arrow')) && this.inputManager.isDown(spaciblo.components.KeyMap.get('right-arrow')) == false){
+			this.currentRotation = this.inputManager.keyboardRotationDelta
+		} else if(this.inputManager.isDown(spaciblo.components.KeyMap.get('right-arrow')) && this.inputManager.isDown(spaciblo.components.KeyMap.get('left-arrow')) == false){
+			this.currentRotation = -1 * this.inputManager.keyboardRotationDelta
+		} else {
+			this.currentRotation = 0
+		}
+		if(this.currentRotation != 0){
+			this.camera.rotateY(this.currentRotation * delta)
+		}
 
-		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('left-arrow'))){
-			this.camera.rotateY(this.inputManager.keyboardRotationDelta * delta)
+		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('up-arrow')) && this.inputManager.isDown(spaciblo.components.KeyMap.get('down-arrow')) == false){
+			this.currentTranslation = this.inputManager.keyboardTranslationDelta
+		} else if(this.inputManager.isDown(spaciblo.components.KeyMap.get('down-arrow')) && this.inputManager.isDown(spaciblo.components.KeyMap.get('up-arrow')) == false){
+			this.currentTranslation = -1 * this.inputManager.keyboardTranslationDelta			
+		} else {
+			this.currentTranslation = 0
 		}
-		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('right-arrow'))){
-			this.camera.rotateY(this.inputManager.keyboardRotationDelta * -delta)
-		}
-		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('up-arrow'))){
+		if(this.currentTranslation != 0){
 			this.camera.getWorldDirection(this.translationVector)
-			this.translationVector.multiplyScalar(this.inputManager.keyboardTranslationDelta * delta)
+			this.translationVector.multiplyScalar(this.currentTranslation * delta)
 			this.camera.position.add(this.translationVector)
 		}
-		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('down-arrow'))){
+
+		// Trigger an AvatarMotionChanged event if necessary
+		if(this.currentRotation != this.previousRotation || this.currentTranslation != this.previousTranslation){
+			// Reset the translationVector to the absolute speed
 			this.camera.getWorldDirection(this.translationVector)
-			this.translationVector.multiplyScalar(this.inputManager.keyboardTranslationDelta * -delta)
-			this.camera.position.add(this.translationVector)
+			this.translationVector.multiplyScalar(this.currentTranslation)
+			this.rotationVector.set(0, this.currentRotation, 0)
+			this.trigger(spaciblo.events.AvatarMotionChanged, this.camera.position, this.camera.quaternion, this.translationVector, this.rotationVector)
 		}
 
 		this._animateSpaceMenu(delta)
