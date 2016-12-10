@@ -10,15 +10,16 @@ spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded'
 SpacesRenderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
 spaciblo.three.Renderer = k.eventMixin(class {
-	constructor(background=new THREE.Color(0x99DDff)){
+	constructor(inputManager, background=new THREE.Color(0x99DDff)){
+		this.inputManager = inputManager
 		this.spaceUUID = null; // The UUID of the currently active space
 		this.rootGroup = null; // The Three.Group at the root of the currently active space scene graph
-
 		this.templateLoader = new spaciblo.three.TemplateLoader()
 		this.clock = new THREE.Clock()
 		this.scene = new THREE.Scene()
 		this.scene.background = background
-		this.camera = new THREE.PerspectiveCamera(75, 1, 1, 10000)
+		this.camera = new THREE.PerspectiveCamera(75, 1, 0.5, 10000)
+		this.translationVector = new THREE.Vector3() // used in _animate to calculate motion
 
 		var light = new THREE.DirectionalLight(0xffffff, 1)
 		light.position.set(1, 1, 1).normalize()
@@ -207,6 +208,25 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	_animate(){
 		let delta = this.clock.getDelta()
 		requestAnimationFrame(this._boundAnimate)
+
+
+		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('left-arrow'))){
+			this.camera.rotateY(this.inputManager.keyboardRotationDelta * delta)
+		}
+		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('right-arrow'))){
+			this.camera.rotateY(this.inputManager.keyboardRotationDelta * -delta)
+		}
+		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('up-arrow'))){
+			this.camera.getWorldDirection(this.translationVector)
+			this.translationVector.multiplyScalar(this.inputManager.keyboardTranslationDelta * delta)
+			this.camera.position.add(this.translationVector)
+		}
+		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('down-arrow'))){
+			this.camera.getWorldDirection(this.translationVector)
+			this.translationVector.multiplyScalar(this.inputManager.keyboardTranslationDelta * -delta)
+			this.camera.position.add(this.translationVector)
+		}
+
 		this._animateSpaceMenu(delta)
 		this.camera.updateMatrixWorld()
 

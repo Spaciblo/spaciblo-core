@@ -33513,6 +33513,10 @@
 
 						break;
 
+					case 'SkinnedMesh':
+
+						console.warn( 'THREE.ObjectLoader.parseObject() does not support SkinnedMesh type. Instantiates Object3D instead.' );
+
 					default:
 
 						object = new Object3D();

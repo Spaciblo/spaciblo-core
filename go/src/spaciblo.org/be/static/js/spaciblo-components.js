@@ -28,9 +28,10 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('spaces-component')
+		this.inputManager = new spaciblo.components.InputManager()
 		this.client = null // Will be a spaciblo.api.Client when a Space is selected
 
-		this.renderer = new spaciblo.three.Renderer()
+		this.renderer = new spaciblo.three.Renderer(this.inputManager)
 		this.el.appendChild(this.renderer.el)
 
 		this.dataObject.addListener(this.handleReset.bind(this), "reset")
@@ -78,3 +79,27 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	}
 }
 
+spaciblo.components.KeyMap = new Map()
+spaciblo.components.KeyMap.set("left-arrow", 37)
+spaciblo.components.KeyMap.set("up-arrow", 38)
+spaciblo.components.KeyMap.set("right-arrow", 39)
+spaciblo.components.KeyMap.set("down-arrow", 40)
+
+spaciblo.components.InputManager = k.eventMixin(class {
+	constructor(){
+		this.keysDown = new Set()
+		this.keyboardRotationDelta = 1.2
+		this.keyboardTranslationDelta = 1.9
+		document.onkeydown = this.handleKeyDown.bind(this)
+		document.onkeyup = this.handleKeyUp.bind(this)
+	}
+	handleKeyDown(ev){
+		this.keysDown.add(ev.keyCode)
+	}
+	handleKeyUp(ev){
+		this.keysDown.delete(ev.keyCode)
+	}
+	isDown(keyCode){
+		return this.keysDown.has(keyCode)
+	}
+})
