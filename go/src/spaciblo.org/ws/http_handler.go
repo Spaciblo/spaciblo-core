@@ -2,9 +2,7 @@ package ws
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/grpc"
@@ -21,50 +19,102 @@ var upgrader = websocket.Upgrader{
 }
 
 type WebSocketHandler struct {
+	SimHost       string
 	SimHostClient simRPC.SimHostClient
+	Connections   map[string]*WebSocketConnection
 }
 
-func NewWebSocketHandler(simHost string, simPort int64) (*WebSocketHandler, error) {
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithInsecure())
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", simHost, strconv.FormatInt(simPort, 10)), opts...)
-	if err != nil {
-		logger.Printf("Failed to dial the sim host: %v", err)
-		return nil, err
-	}
-	client := simRPC.NewSimHostClient(conn)
-
-	// TODO make it possible to clean up the SimHostClient when we make this a StoppableListener
-
+func NewWebSocketHandler(simHost string) (*WebSocketHandler, error) {
 	return &WebSocketHandler{
-		client,
+		SimHost:       simHost,
+		SimHostClient: nil,
+		Connections:   make(map[string]*WebSocketConnection),
 	}, nil
 }
 
-func (wsh WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (handler *WebSocketHandler) Distribute(clientUUIDs []string, message ClientMessage) {
+	// TODO use channels and go routines to make this async
+	for _, clientUUID := range clientUUIDs {
+		_, ok := handler.Connections[clientUUID]
+		if ok == false {
+			continue
+		}
+		rawMessage, _ := json.Marshal(message)
+		if err := handler.Connections[clientUUID].Conn.WriteMessage(1, rawMessage); err != nil {
+			logger.Println(err)
+		}
+	}
+}
+
+func (handler *WebSocketHandler) AddWebSocketConnection(connection *WebSocketConnection) {
+	logger.Println("Adding ws connection", connection.ClientUUID)
+	handler.Connections[connection.ClientUUID] = connection
+}
+
+func (handler *WebSocketHandler) RemoveWebSocketConnection(connection *WebSocketConnection) {
+	logger.Println("Removing ws connection", connection.ClientUUID)
+	delete(handler.Connections, connection.ClientUUID)
+}
+
+func (handler *WebSocketHandler) GetSimHostClient() (simRPC.SimHostClient, error) {
+	if handler.SimHostClient == nil {
+		var opts []grpc.DialOption
+		opts = append(opts, grpc.WithInsecure())
+		conn, err := grpc.Dial(handler.SimHost, opts...)
+		if err != nil {
+			logger.Printf("Failed to dial the sim host: %v", err)
+			return nil, err
+		}
+		handler.SimHostClient = simRPC.NewSimHostClient(conn)
+	}
+	return handler.SimHostClient, nil
+}
+
+type WebSocketConnection struct {
+	ClientUUID string
+	SpaceUUID  string
+	Conn       *websocket.Conn
+}
+
+func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	simHostClient, err := handler.GetSimHostClient()
+	if err != nil {
+		logger.Println("Could not get a sim host client", err)
+		return
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		logger.Println(err)
 		return
 	}
-	clientUUID := UUID()
+	wsConnection := &WebSocketConnection{
+		ClientUUID: UUID(),
+		SpaceUUID:  "",
+		Conn:       conn,
+	}
+	handler.AddWebSocketConnection(wsConnection)
+
 	for {
-		messageType, rawMessage, err := conn.ReadMessage()
+		messageType, rawMessage, err := wsConnection.Conn.ReadMessage()
 		if err != nil {
-			logger.Printf("Error reading WS message: %s", err)
-			RouteClientMessage(NewClientDisconnectedMessage(), clientUUID, wsh.SimHostClient)
+			handler.RemoveWebSocketConnection(wsConnection)
+			RouteClientMessage(NewClientDisconnectedMessage(), wsConnection.ClientUUID, wsConnection.SpaceUUID, simHostClient)
 			return
 		}
-
+		logger.Println("Message type", messageType)
 		typedMessage, err := ParseMessageJson(string(rawMessage))
 		if err != nil {
 			logger.Println(err)
 			continue
 		}
-		responseMessage, err := RouteClientMessage(typedMessage, clientUUID, wsh.SimHostClient)
+		responseMessage, err := RouteClientMessage(typedMessage, wsConnection.ClientUUID, wsConnection.SpaceUUID, simHostClient)
 		if err != nil {
 			logger.Printf("Error routing client message: %s", err)
 		} else if responseMessage != nil {
+			if responseMessage.MessageType() == JoinedSpaceType {
+				wsConnection.SpaceUUID = responseMessage.(*JoinedSpaceMessage).UUID
+			}
 			rawResponse, err := json.Marshal(responseMessage)
 			if err = conn.WriteMessage(messageType, rawResponse); err != nil {
 				logger.Println(err)

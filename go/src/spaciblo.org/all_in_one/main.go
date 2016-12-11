@@ -17,7 +17,7 @@ var logger = log.New(os.Stdout, "[all-in-one] ", 0)
 
 func main() {
 	go func() {
-		err := sim.StartSimHost()
+		err := sim.StartSimHost(true)
 		if err != nil {
 			logger.Fatal("Error starting sim host", err)
 		}

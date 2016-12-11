@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	apiDB "spaciblo.org/api/db"
 	"spaciblo.org/be"
 )
+
+const TICK_DURATION = time.Millisecond * 1000 // TODO switch back to 10 ticks per second
 
 var currentSceneId int64 = -1
 
@@ -22,6 +25,7 @@ SpaceSimulator holds all of the state for a space and can step the simulation fo
 It does not handle any of the communication with clients. That's the job of the SimHostServer.
 */
 type SpaceSimulator struct {
+	Running           bool                  // True if the simulator should be automatically ticking
 	Name              string                // The Name of the SpaceRecord
 	UUID              string                // The UUID of the SpaceRecord
 	RootNode          *SceneNode            // The scene graph, including SceneNodes for avatars
@@ -29,10 +33,14 @@ type SpaceSimulator struct {
 	Additions         []*SceneAddition      // Nodes added to the scene since the last tick
 	Deletions         []int64               // Node IDs removed from the scene since the last tick
 	DefaultAvatarUUID string
+	SimHostServer     *SimHostServer
 	DBInfo            *be.DBInfo
+
+	ClientMembershipChannel chan *ClientMembershipNotice
+	AvatarMotionChannel     chan *AvatarMotionNotice
 }
 
-func NewSpaceSimulator(name string, spaceUUID string, initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
+func NewSpaceSimulator(name string, spaceUUID string, initialState *apiDB.SpaceStateNode, simHostServer *SimHostServer, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
 	rootNode, err := NewRootNode(initialState, dbInfo)
 	if err != nil {
 		return nil, err
@@ -45,6 +53,7 @@ func NewSpaceSimulator(name string, spaceUUID string, initialState *apiDB.SpaceS
 	}
 
 	return &SpaceSimulator{
+		Running:           false,
 		Name:              name,
 		UUID:              spaceUUID,
 		RootNode:          rootNode,
@@ -52,8 +61,105 @@ func NewSpaceSimulator(name string, spaceUUID string, initialState *apiDB.SpaceS
 		Additions:         []*SceneAddition{},
 		Deletions:         []int64{},
 		DefaultAvatarUUID: templateRecord.UUID,
+		SimHostServer:     simHostServer,
 		DBInfo:            dbInfo,
+
+		ClientMembershipChannel: make(chan *ClientMembershipNotice, 1024),
+		AvatarMotionChannel:     make(chan *AvatarMotionNotice, 1024),
 	}, nil
+}
+
+func (spaceSim *SpaceSimulator) StartTime() {
+	if spaceSim.Running {
+		return
+	}
+	spaceSim.Running = true
+	go func() {
+		for spaceSim.Running == true {
+			t := time.Now().UnixNano()
+			spaceSim.Tick(TICK_DURATION)
+			time.Sleep(TICK_DURATION - (time.Duration(time.Now().UnixNano()-t) * time.Nanosecond))
+		}
+	}()
+}
+
+/*
+Tick is where the SpaceSimulator actually simulates time passing by:
+- reading all of the channels (addition, deletion, membership, avatar motion) and updating the state
+- interpolates motion (TODO)
+- calculates physical interaction (TODO)
+*/
+func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
+	membershipNotices := spaceSim.collectMembershipNotices()
+	for _, notice := range membershipNotices {
+		logger.Println("Membership notice", notice)
+		// TODO compress duplicate membership notices
+		if notice.Member == true {
+			spaceSim.createAvatar(notice.ClientUUID, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
+		} else {
+			spaceSim.removeAvatar(notice.ClientUUID)
+		}
+	}
+
+	avatarMotionNotices := spaceSim.collectAvatarMotionNotices()
+	for _, notice := range avatarMotionNotices {
+		logger.Println("Avatar motion notice", notice)
+		// TODO compress duplicate motion notices
+	}
+
+	// Send new client initialization messages
+	if len(membershipNotices) > 0 {
+		newClientUUIDs := []string{}
+		for _, notice := range membershipNotices {
+			if notice.Member == false {
+				continue
+			}
+			newClientUUIDs = append(newClientUUIDs, notice.ClientUUID)
+		}
+		if len(newClientUUIDs) > 0 {
+			err := spaceSim.SimHostServer.SendSpaceInitialization(spaceSim.UUID, newClientUUIDs, spaceSim.InitialState())
+			if err != nil {
+				logger.Println("Error sending client initialization", err)
+			}
+		}
+	}
+
+	err := spaceSim.SimHostServer.SendClientUpdate(spaceSim.UUID, spaceSim.GetClientUUIDs())
+	if err != nil {
+		logger.Println("Error sending client update", err)
+	}
+}
+
+func (spaceSim *SpaceSimulator) GetClientUUIDs() []string {
+	result := []string{}
+	for uuid := range spaceSim.Avatars {
+		result = append(result, uuid)
+	}
+	return result
+}
+
+func (spaceSim *SpaceSimulator) collectMembershipNotices() []*ClientMembershipNotice {
+	results := []*ClientMembershipNotice{}
+	for {
+		select {
+		case item := <-spaceSim.ClientMembershipChannel:
+			results = append(results, item)
+		default:
+			return results
+		}
+	}
+}
+
+func (spaceSim *SpaceSimulator) collectAvatarMotionNotices() []*AvatarMotionNotice {
+	results := []*AvatarMotionNotice{}
+	for {
+		select {
+		case item := <-spaceSim.AvatarMotionChannel:
+			results = append(results, item)
+		default:
+			return results
+		}
+	}
 }
 
 func (spaceSim *SpaceSimulator) InitialState() string {
@@ -62,7 +168,28 @@ func (spaceSim *SpaceSimulator) InitialState() string {
 	return buff.String()
 }
 
-func (spaceSim *SpaceSimulator) AddAvatar(clientUUID string, position []float64, orientation []float64) (*SceneNode, error) {
+/*
+ChangeClientMembership is called by the SimHost when a client connects and disconnects
+It queues a notice that the simulator handles during a tick
+*/
+func (spaceSim *SpaceSimulator) ChangeClientMembership(clientUUID string, member bool) {
+	spaceSim.ClientMembershipChannel <- &ClientMembershipNotice{
+		ClientUUID: clientUUID,
+		Member:     member,
+	}
+}
+
+func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position []float64, orientation []float64, translation []float64, rotation []float64) {
+	spaceSim.AvatarMotionChannel <- &AvatarMotionNotice{
+		ClientUUID:  clientUUID,
+		Position:    position,
+		Orientation: orientation,
+		Translation: translation,
+		Rotation:    rotation,
+	}
+}
+
+func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, position []float64, orientation []float64) (*SceneNode, error) {
 	node, ok := spaceSim.Avatars[clientUUID]
 	if ok == true {
 		return node, nil
@@ -80,8 +207,9 @@ func (spaceSim *SpaceSimulator) AddAvatar(clientUUID string, position []float64,
 	return node, nil
 }
 
-func (spaceSim *SpaceSimulator) RemoveAvatar(clientUUID string) {
+func (spaceSim *SpaceSimulator) removeAvatar(clientUUID string) {
 	node, ok := spaceSim.Avatars[clientUUID]
+	logger.Println("Remove avatar", clientUUID, ok)
 	if ok == false {
 		// Unknown avatar, ignoring
 		return
@@ -203,6 +331,19 @@ func (node *SceneNode) Remove(childNode *SceneNode) {
 type SceneAddition struct {
 	Node     *SceneNode `json:"node"`
 	ParentId int64      `json:"parent"`
+}
+
+type AvatarMotionNotice struct {
+	ClientUUID  string
+	Position    []float64
+	Orientation []float64
+	Translation []float64
+	Rotation    []float64
+}
+
+type ClientMembershipNotice struct {
+	ClientUUID string
+	Member     bool
 }
 
 type StringTuple struct {

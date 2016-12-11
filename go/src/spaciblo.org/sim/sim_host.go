@@ -1,135 +1,138 @@
-/*
-Package sim provides the 3D space simulations' host service.
-
-Communication with the sim service from the ws and api services is via gRPC.
-*/
 package sim
 
 import (
 	"errors"
-	"log"
-	"net"
-	"os"
-	"strconv"
 
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
 
 	apiDB "spaciblo.org/api/db"
 	"spaciblo.org/be"
-	"spaciblo.org/db"
 	simRPC "spaciblo.org/sim/rpc"
+	wsRPC "spaciblo.org/ws/rpc"
 )
 
-var logger = log.New(os.Stdout, "[sim-host] ", 0)
-
-type simHostServer struct {
-	SpaceSimulators map[string]*SpaceSimulator // <UUID, sim>
+type SimHostServer struct {
+	SpaceSimulators map[string]*SpaceSimulator // <space UUID, sim>
+	WSHost          string                     // hostname:port
+	WSHostClient    wsRPC.WSHostClient         // an RPC client to the ws service
 	DBInfo          *be.DBInfo
 }
 
-func (server *simHostServer) SendPing(ctxt context.Context, ping *simRPC.Ping) (*simRPC.Ack, error) {
-	return &simRPC.Ack{Message: "ACK!"}, nil
-}
-
-func (server *simHostServer) HandleAvatarMotion(ctx context.Context, avatarMotion *simRPC.AvatarMotion) (*simRPC.Ack, error) {
-	spaceSim, ok := server.SpaceSimulators[avatarMotion.SpaceUUID]
-	if ok == false {
-		return nil, errors.New("Unknown space UUID: " + avatarMotion.SpaceUUID)
-	}
-	avatarNode, ok := spaceSim.Avatars[avatarMotion.ClientUUID]
-	if ok == false {
-		_, err := spaceSim.AddAvatar(avatarMotion.ClientUUID, avatarMotion.Position, avatarMotion.Orientation)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		avatarNode.Position.Set(avatarMotion.Position)
-		avatarNode.Orientation.Set(avatarMotion.Orientation)
-		// TODO handle motion
+func NewSimHostServer(wsHost string, dbInfo *be.DBInfo, run bool) (*SimHostServer, error) {
+	server := &SimHostServer{
+		SpaceSimulators: make(map[string]*SpaceSimulator),
+		WSHost:          wsHost,
+		WSHostClient:    nil,
+		DBInfo:          dbInfo,
 	}
 
-	return &simRPC.Ack{Message: "ACK!"}, nil
-}
-
-func (server *simHostServer) RequestJoinSpace(ctxt context.Context, joinSpace *simRPC.JoinSpace) (*simRPC.JoinedSpace, error) {
-	spaceSim, ok := server.SpaceSimulators[joinSpace.SpaceUUID]
-	if ok == false {
-		return nil, errors.New("Join space denied")
-	}
-	return &simRPC.JoinedSpace{
-		Uuid:  joinSpace.SpaceUUID,
-		State: spaceSim.InitialState(),
-	}, nil
-}
-
-func (server *simHostServer) HandleClientDisconnected(ctx context.Context, clientDisconnected *simRPC.ClientDisconnected) (*simRPC.Ack, error) {
-	for _, spaceSim := range server.SpaceSimulators {
-		spaceSim.RemoveAvatar(clientDisconnected.ClientUUID)
-	}
-	return &simRPC.Ack{Message: "OK"}, nil
-}
-
-func (server *simHostServer) ListSimInfos(context.Context, *simRPC.ListSimInfosParams) (*simRPC.SimInfoList, error) {
-	return &simRPC.SimInfoList{
-		Infos: []*simRPC.SimInfo{&simRPC.SimInfo{"Sim 1", "UUID1"}, &simRPC.SimInfo{"Sim 2", "UUID2"}},
-	}, nil
-}
-
-func newServer(dbInfo *be.DBInfo) (*simHostServer, error) {
-	server := &simHostServer{
-		make(map[string]*SpaceSimulator),
-		dbInfo,
-	}
+	// Right now an instance of sim host runs every space with a space record
+	// TODO Start and stop spaces across multiple sim hosts
 	records, err := apiDB.FindAllSpaceRecords(dbInfo)
 	if err != nil {
 		return nil, err
 	}
 	for _, spaceRecord := range records {
-		logger.Println("Initializing space", spaceRecord.Name+":", spaceRecord.UUID)
 		state, err := spaceRecord.DecodeState()
 		if err != nil {
 			return nil, err
 		}
-		spaceSim, err := NewSpaceSimulator(spaceRecord.Name, spaceRecord.UUID, state, dbInfo)
+		spaceSim, err := NewSpaceSimulator(spaceRecord.Name, spaceRecord.UUID, state, server, dbInfo)
 		if err != nil {
 			logger.Println("Error creating space simulator: ", spaceRecord.Name+": ", err)
 			return nil, err
 		}
 		server.SpaceSimulators[spaceRecord.UUID] = spaceSim
+		if run {
+			spaceSim.StartTime()
+		}
 	}
+
 	return server, nil
 }
 
-func StartSimHost() error {
-	port, err := strconv.ParseInt(os.Getenv("SIM_PORT"), 10, 64)
-	if err != nil {
-		logger.Panic("No SIM_PORT env variable")
-		return err
+func (server *SimHostServer) SendSpaceInitialization(spaceUUID string, clientUUIDs []string, state string) error {
+	if len(clientUUIDs) == 0 {
+		// No point in sending updates with no recipients
+		return nil
 	}
-	logger.Print("SIM_PORT:\t\t", port)
-
-	dbInfo, err := db.InitDB()
-	if err != nil {
-		return errors.New("DB Initialization Error: " + err.Error())
-	}
-	defer func() {
-		dbInfo.Connection.Close()
-	}()
-
-	simHostServer, err := newServer(dbInfo)
-	if err != nil {
-		return errors.New("SimHostServer initialization Error: " + err.Error())
-	}
-
-	lis, err := net.Listen("tcp", ":"+strconv.FormatInt(port, 10))
+	wsClient, err := server.GetWSHostClient()
 	if err != nil {
 		return err
 	}
-
-	var opts []grpc.ServerOption
-	grpcServer := grpc.NewServer(opts...)
-	simRPC.RegisterSimHostServer(grpcServer, simHostServer)
-	grpcServer.Serve(lis)
+	spaceInitialization := &wsRPC.SpaceInitialization{
+		SpaceUUID:   spaceUUID,
+		ClientUUIDs: clientUUIDs,
+		State:       state,
+	}
+	_, err = wsClient.SendSpaceInitialization(context.Background(), spaceInitialization)
+	if err != nil {
+		logger.Printf("Failed to send space initialization to ws: %v", err)
+		return err
+	}
 	return nil
+}
+
+func (server *SimHostServer) SendClientUpdate(spaceUUID string, clientUUIDs []string) error {
+	if len(clientUUIDs) == 0 {
+		// No point in sending updates with no recipients
+		return nil
+	}
+	wsClient, err := server.GetWSHostClient()
+	if err != nil {
+		return err
+	}
+	simUpdate := &wsRPC.SimUpdate{
+		SpaceUUID:   spaceUUID,
+		ClientUUIDs: clientUUIDs,
+	}
+	_, err = wsClient.SendSimUpdate(context.Background(), simUpdate)
+	if err != nil {
+		logger.Printf("Failed to send client update to ws: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (server *SimHostServer) GetWSHostClient() (wsRPC.WSHostClient, error) {
+	if server.WSHostClient == nil {
+		var opts []grpc.DialOption
+		opts = append(opts, grpc.WithInsecure())
+		conn, err := grpc.Dial(server.WSHost, opts...)
+		if err != nil {
+			logger.Printf("Failed to dial the ws host: %v", err)
+			return nil, err
+		}
+		server.WSHostClient = wsRPC.NewWSHostClient(conn)
+	}
+	return server.WSHostClient, nil
+}
+
+func (server *SimHostServer) HandlePing(ctxt context.Context, ping *simRPC.Ping) (*simRPC.Ack, error) {
+	return &simRPC.Ack{Message: "OK"}, nil
+}
+
+func (server *SimHostServer) HandleAvatarMotion(ctx context.Context, avatarMotion *simRPC.AvatarMotion) (*simRPC.Ack, error) {
+	spaceSim, ok := server.SpaceSimulators[avatarMotion.SpaceUUID]
+	if ok == false {
+		return nil, errors.New("Unknown space UUID: " + avatarMotion.SpaceUUID)
+	}
+	spaceSim.HandleAvatarMotion(avatarMotion.ClientUUID, avatarMotion.Position, avatarMotion.Orientation, avatarMotion.Translation, avatarMotion.Rotation)
+	return &simRPC.Ack{Message: "OK"}, nil
+}
+
+func (server *SimHostServer) HandleClientMembership(ctx context.Context, clientMembership *simRPC.ClientMembership) (*simRPC.Ack, error) {
+	spaceSim, ok := server.SpaceSimulators[clientMembership.SpaceUUID]
+	if ok == false {
+		return nil, errors.New("Unknown space UUID: " + clientMembership.SpaceUUID)
+	}
+	spaceSim.ChangeClientMembership(clientMembership.ClientUUID, clientMembership.Member)
+	return &simRPC.Ack{Message: "OK"}, nil
+}
+
+func (server *SimHostServer) ListSimInfos(context.Context, *simRPC.ListSimInfosParams) (*simRPC.SimInfoList, error) {
+	return &simRPC.SimInfoList{
+		Infos: []*simRPC.SimInfo{&simRPC.SimInfo{"Sim 1", "UUID1"}, &simRPC.SimInfo{"Sim 2", "UUID2"}},
+	}, nil
 }

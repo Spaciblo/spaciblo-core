@@ -28,7 +28,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.previousRotation = 0
 
 		var light = new THREE.DirectionalLight(0xffffff, 1)
-		light.position.set(1, 1, 1).normalize()
+		light.position.set(50, 50, 50).normalize()
 		this.scene.add(light)
 
 		this.raycaster = new THREE.Raycaster()

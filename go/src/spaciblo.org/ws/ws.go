@@ -4,11 +4,11 @@ Package ws implements a WebSocket service for browser clients of Spaciblō space
 package ws
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/nu7hatch/gouuid"
 )
@@ -25,22 +25,39 @@ func StartWS() error {
 		logger.Panic("No WS_PORT env variable")
 		return err
 	}
-	simInfo := strings.Split(os.Getenv("SIM_HOST"), ":")
-	simPort, err := strconv.ParseInt(simInfo[1], 10, 64)
+	rpcPort, err := strconv.ParseInt(os.Getenv("WS_RPC_PORT"), 10, 64)
 	if err != nil {
-		logger.Panic("Invalid SIM_HOST env variable")
+		logger.Panic("No WS_RPC_PORT env variable")
 		return err
 	}
 
-	logger.Print("WS_PORT:\t\t", port)
-	logger.Print("SIM_HOST:\t\t", simInfo[0])
-	logger.Print("SIM_PORT:\t\t", strconv.FormatInt(simPort, 10))
+	simHost := os.Getenv("SIM_HOST")
+	if simHost == "" {
+		logger.Panic("Invalid SIM_HOST env variable")
+		return errors.New("WS requires a SIM_HOST variable")
+	}
 
-	handler, err := NewWebSocketHandler(simInfo[0], simPort)
+	logger.Print("WS_PORT:\t\t", port)
+	logger.Print("WS_RPC_PORT:\t", rpcPort)
+	logger.Print("SIM_HOST:\t\t", simHost)
+
+	handler, err := NewWebSocketHandler(simHost)
 	if err != nil {
 		logger.Panic("Failed to create the WS service")
 		return err
 	}
+
+	hostServer, err := newHostServer(handler)
+	if err != nil {
+		return errors.New("WSHostServer initialization Error: " + err.Error())
+	}
+	go func() {
+		err := hostServer.Serve(rpcPort)
+		if err != nil {
+			logger.Fatal("Could not start WS RPC service")
+		}
+	}()
+
 	http.Handle(WS_HTTP_PATH, handler)
 	if err := http.ListenAndServe(":"+strconv.FormatInt(port, 10), nil); err != nil {
 		log.Fatal("ListenAndServe:", err)

@@ -1,26 +1,53 @@
 package ws
 
 import (
+	"errors"
+
 	"golang.org/x/net/context"
 	simRPC "spaciblo.org/sim/rpc"
 )
 
-func RouteClientMessage(clientMessage ClientMessage, clientUUID string, simHostClient simRPC.SimHostClient) (ClientMessage, error) {
+func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUID string, simHostClient simRPC.SimHostClient) (ClientMessage, error) {
 	switch clientMessage.MessageType() {
 	case PingType:
 		ping := clientMessage.(*PingMessage)
 		return NewAckMessage(ping.Message), nil
 	case JoinSpaceType:
+		if spaceUUID != "" {
+			logger.Println("Tried to join a second space")
+			return nil, errors.New("Tried to join a second space")
+		}
+		// Right now we allow any client into any space
+		// TODO implement some sort of private/public/ACL access
 		joinSpace := clientMessage.(*JoinSpaceMessage)
-		var joinSpaceRPM = new(simRPC.JoinSpace)
-		joinSpaceRPM.SpaceUUID = joinSpace.UUID
-		joinSpaceRPM.ClientUUID = clientUUID
-		joinedSpace, err := simHostClient.RequestJoinSpace(context.Background(), joinSpaceRPM)
+		rpMessage := &simRPC.ClientMembership{
+			ClientUUID: clientUUID,
+			SpaceUUID:  joinSpace.UUID,
+			Member:     true,
+		}
+		_, err := simHostClient.HandleClientMembership(context.Background(), rpMessage)
 		if err != nil {
 			logger.Printf("Failed to join space: %v", err)
 			return nil, err
 		}
-		return NewJoinedSpaceMessage(joinedSpace.Uuid, joinedSpace.State), nil
+		return NewAckMessage("Ok"), nil
+	case ClientDisconnectedType:
+		logger.Println("Client disconnect type", clientUUID, spaceUUID)
+		if spaceUUID == "" {
+			// No need to notify a sim
+			return nil, nil
+		}
+		rpMessage := &simRPC.ClientMembership{
+			ClientUUID: clientUUID,
+			SpaceUUID:  spaceUUID,
+			Member:     false,
+		}
+		_, err := simHostClient.HandleClientMembership(context.Background(), rpMessage)
+		if err != nil {
+			logger.Printf("Failed to notify sim of disconnected client: %v", err)
+			return nil, err
+		}
+		return nil, nil
 	case AvatarMotionType:
 		avatarMotion := clientMessage.(*AvatarMotionMessage)
 		var avatarMotionRPM = &simRPC.AvatarMotion{
@@ -34,16 +61,6 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, simHostC
 		_, err := simHostClient.HandleAvatarMotion(context.Background(), avatarMotionRPM)
 		if err != nil {
 			logger.Printf("Failed to handle avatar motion: %v", err)
-			return nil, err
-		}
-		return nil, nil
-	case ClientDisconnectedType:
-		clientDisconnectedRPM := &simRPC.ClientDisconnected{
-			ClientUUID: clientUUID,
-		}
-		_, err := simHostClient.HandleClientDisconnected(context.Background(), clientDisconnectedRPM)
-		if err != nil {
-			logger.Printf("Failed to handle client disconnection: %v", err)
 			return nil, err
 		}
 		return nil, nil

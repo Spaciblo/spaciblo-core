@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package wsRPC;
+
+service WSHost {
+  // Test whether a sim host is responsive
+  rpc HandlePing (Ping) returns (Ack) {}
+  // Send sim updates to WS clients
+  rpc SendSimUpdate (SimUpdate) returns (Ack) {}
+  // Send initial state to WS clients
+  rpc SendSpaceInitialization (SpaceInitialization) returns (Ack) {}
+}
+
+message Ping {
+  string name = 1;
+}
+
+message Ack {
+  string message = 1;
+}
+
+message SpaceInitialization {
+  string spaceUUID = 1;
+  repeated string clientUUIDs = 2;
+  string state = 3;
+}
+
+message SimUpdate {
+  string spaceUUID = 1;
+  repeated string clientUUIDs = 2;
+  repeated NodeUpdate nodeUpdates = 3;
+  repeated Addition additions = 4;
+  repeated int64 deletions = 5; 
+}
+
+message NodeUpdate {
+  int64 id = 1;
+  repeated double position = 2;
+  repeated double orientation = 3;
+  repeated double translation = 4;
+  repeated double rotation = 5;
+}
+
+message Addition {
+  int64 id = 1;
+  repeated double position = 2;
+  repeated double orientation = 3;
+  repeated double translation = 4;
+  repeated double rotation = 5;
+  int64 parent = 6;
+  string templateUUID = 7;
+}

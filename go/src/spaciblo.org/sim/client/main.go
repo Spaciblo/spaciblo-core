@@ -30,7 +30,7 @@ func main() {
 	logger.Printf("Started client...")
 
 	var ping = new(simRPC.Ping)
-	ack, err := client.SendPing(context.Background(), ping)
+	ack, err := client.HandlePing(context.Background(), ping)
 	if err != nil {
 		grpclog.Fatalf("failed to ping: %v", err)
 	}

@@ -3,11 +3,25 @@ syntax = "proto3";
 package simRPC;
 
 service SimHost {
-  rpc SendPing (Ping) returns (Ack) {}
-  rpc RequestJoinSpace (JoinSpace) returns (JoinedSpace) {}
-  rpc HandleClientDisconnected(ClientDisconnected) returns (Ack) {}
+  // Test whether a sim host is responsive
+  rpc HandlePing (Ping) returns (Ack) {}
+
+  // Get info about the simulations from the sim host
   rpc ListSimInfos (ListSimInfosParams) returns (SimInfoList) {}
+
+  // Tell a sim when a client enters and leaves a space
+  rpc HandleClientMembership(ClientMembership) returns (Ack) {}		
+
+  // Tell a sim when a user initiates avatar motion
   rpc HandleAvatarMotion (AvatarMotion) returns (Ack) {}
+}
+
+message Ping {
+  string name = 1;
+}
+
+message Ack {
+  string message = 1;
 }
 
 message ListSimInfosParams {}
@@ -21,22 +35,10 @@ message SimInfoList {
 	repeated SimInfo infos = 1;
 }
 
-message Ping {
-  string name = 1;
-}
-
-message Ack {
-  string message = 1;
-}
-
-message JoinSpace {
-	string spaceUUID = 1;
-	string clientUUID = 2;
-}
-
-message JoinedSpace {
-	string uuid = 1;
-	string state = 2;
+message ClientMembership {
+	string clientUUID = 1;
+	string spaceUUID = 2;
+	bool member = 3;
 }
 
 message AvatarMotion {
@@ -48,6 +50,3 @@ message AvatarMotion {
 	repeated double rotation = 6;
 }
 
-message ClientDisconnected {
-	string clientUUID = 1;
-}

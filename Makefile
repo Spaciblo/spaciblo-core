@@ -1,8 +1,9 @@
 .PHONY: clean clean_deps go_get_deps lint compile install_demo test psql
 
-API_PORT := 9000
-SIM_PORT := 9010
-WS_PORT := 9020
+API_PORT		:= 9000
+SIM_PORT 		:= 9010
+WS_PORT 		:= 9020
+WS_RPC_PORT 	:= 9030
 
 DOCROOT_DIR = $(PWD)/docroot
 
@@ -43,11 +44,14 @@ API_RUNTIME_ENVS := 	API_PORT=$(API_PORT) \
 						SIM_HOST="127.0.0.1:$(SIM_PORT)"
 
 SIM_RUNTIME_ENVS := 	SIM_PORT=$(SIM_PORT) \
+						WS_RPC_HOST="127.0.0.1:$(WS_RPC_PORT)"
 
 WS_RUNTIME_ENVS := 		WS_PORT=$(WS_PORT) \
+						WS_RPC_PORT=$(WS_RPC_PORT) \
 						SIM_HOST="127.0.0.1:$(SIM_PORT)"
 
 SIM_GRPC_DIR := go/src/spaciblo.org/sim/rpc/
+WS_GRPC_DIR := go/src/spaciblo.org/ws/rpc/
 
 all: go_get_deps compile
 
@@ -79,6 +83,7 @@ lint:
 
 generate_protobuf:
 	protoc -I ${SIM_GRPC_DIR} ${SIM_GRPC_DIR}sim.proto --go_out=plugins=grpc:${SIM_GRPC_DIR}
+	protoc -I ${WS_GRPC_DIR} ${WS_GRPC_DIR}ws.proto --go_out=plugins=grpc:${WS_GRPC_DIR}
 
 compile: 
 	go install -v $(MAIN_PKGS)
