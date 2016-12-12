@@ -63,7 +63,8 @@ spaciblo.api.Client = k.eventMixin(class {
 			position: [position.x, position.y, position.z],
 			orientation: [orientation.x, orientation.y, orientation.z, orientation.w],
 			translation: [translation.x, translation.y, translation.z],
-			rotation: [rotation.x, rotation.y, rotation.z]
+			rotation: [rotation.x, rotation.y, rotation.z],
+			scale: [1, 1, 1]
 		}))
 	}
 	static get ServiceURL(){

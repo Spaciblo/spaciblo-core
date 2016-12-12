@@ -12,8 +12,8 @@ const AckType = "Ack"
 const UnknownMessageType = "Unknown-Message-Type"
 const JoinSpaceType = "Join-Space"
 const ClientDisconnectedType = "Client-Disconnected"
-const JoinedSpaceType = "Joined-Space"
 const AvatarMotionType = "Avatar-Motion"
+const SpaceUpdateType = "Space-Update"
 
 // All messages passed via WebSocket between the browser and the ws service must be of type ClientMessage
 type ClientMessage interface {
@@ -68,19 +68,42 @@ func NewJoinSpaceMessage(uuid string) *JoinSpaceMessage {
 	}
 }
 
-// JoinedSpace is sent by a sim to a single client when it accepts that client to the space
-type JoinedSpaceMessage struct {
+type SpaceUpdateMessage struct {
 	TypedMessage
-	UUID  string `json:"uuid"`
-	State string `json:"state"` // TODO stop using JSON data encoded as a string
+	SpaceUUID   string               `json:"spaceUUID"`
+	NodeUpdates []*NodeUpdateMessage `json:"nodeUpdates"`
+	Additions   []*AdditionMessage   `json:"additions"`
+	Deletions   []int64              `json:"deletions"`
 }
 
-func NewJoinedSpaceMessage(uuid string, state string) *JoinedSpaceMessage {
-	return &JoinedSpaceMessage{
-		TypedMessage{Type: JoinedSpaceType},
-		uuid,
-		state,
+func NewSpaceUpdateMessage(spaceUUID string) *SpaceUpdateMessage {
+	return &SpaceUpdateMessage{
+		TypedMessage{Type: SpaceUpdateType},
+		spaceUUID,
+		[]*NodeUpdateMessage{},
+		[]*AdditionMessage{},
+		[]int64{},
 	}
+}
+
+type NodeUpdateMessage struct {
+	Id          int64     `json:"id"`
+	Position    []float64 `json:"position"`
+	Orientation []float64 `json:"orientation"`
+	Translation []float64 `json:"translation"`
+	Rotation    []float64 `json:"rotation"`
+	Scale       []float64 `json:"scale"`
+}
+
+type AdditionMessage struct {
+	Id           int64     `json:"id"`
+	Position     []float64 `json:"position"`
+	Orientation  []float64 `json:"orientation"`
+	Translation  []float64 `json:"translation"`
+	Rotation     []float64 `json:"rotation"`
+	Scale        []float64 `json:"scale"`
+	Parent       int64     `json:"parent"`
+	TemplateUUID string    `json:"templateUUID"`
 }
 
 type ClientDisconnectedMessage struct {
@@ -101,9 +124,10 @@ type AvatarMotionMessage struct {
 	Orientation []float64 `json:"orientation"`
 	Translation []float64 `json:"translation"`
 	Rotation    []float64 `json:"rotation"`
+	Scale       []float64 `json:"scale"`
 }
 
-func NewAvatarMotionMessage(spaceUUID string, position []float64, orientation []float64, translation []float64, rotation []float64) *AvatarMotionMessage {
+func NewAvatarMotionMessage(spaceUUID string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64) *AvatarMotionMessage {
 	return &AvatarMotionMessage{
 		TypedMessage{Type: AvatarMotionType},
 		spaceUUID,
@@ -111,6 +135,7 @@ func NewAvatarMotionMessage(spaceUUID string, position []float64, orientation []
 		orientation,
 		translation,
 		rotation,
+		scale,
 	}
 }
 

@@ -39,6 +39,9 @@ func (handler *WebSocketHandler) Distribute(clientUUIDs []string, message Client
 		if ok == false {
 			continue
 		}
+		if handler.Connections[clientUUID].SpaceUUID == "" && message.MessageType() == SpaceUpdateType {
+			handler.Connections[clientUUID].SpaceUUID = message.(*SpaceUpdateMessage).SpaceUUID
+		}
 		rawMessage, _ := json.Marshal(message)
 		if err := handler.Connections[clientUUID].Conn.WriteMessage(1, rawMessage); err != nil {
 			logger.Println(err)
@@ -47,12 +50,10 @@ func (handler *WebSocketHandler) Distribute(clientUUIDs []string, message Client
 }
 
 func (handler *WebSocketHandler) AddWebSocketConnection(connection *WebSocketConnection) {
-	logger.Println("Adding ws connection", connection.ClientUUID)
 	handler.Connections[connection.ClientUUID] = connection
 }
 
 func (handler *WebSocketHandler) RemoveWebSocketConnection(connection *WebSocketConnection) {
-	logger.Println("Removing ws connection", connection.ClientUUID)
 	delete(handler.Connections, connection.ClientUUID)
 }
 
@@ -102,7 +103,6 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 			RouteClientMessage(NewClientDisconnectedMessage(), wsConnection.ClientUUID, wsConnection.SpaceUUID, simHostClient)
 			return
 		}
-		logger.Println("Message type", messageType)
 		typedMessage, err := ParseMessageJson(string(rawMessage))
 		if err != nil {
 			logger.Println(err)
@@ -112,9 +112,6 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		if err != nil {
 			logger.Printf("Error routing client message: %s", err)
 		} else if responseMessage != nil {
-			if responseMessage.MessageType() == JoinedSpaceType {
-				wsConnection.SpaceUUID = responseMessage.(*JoinedSpaceMessage).UUID
-			}
 			rawResponse, err := json.Marshal(responseMessage)
 			if err = conn.WriteMessage(messageType, rawResponse); err != nil {
 				logger.Println(err)

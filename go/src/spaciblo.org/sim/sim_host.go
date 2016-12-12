@@ -52,7 +52,7 @@ func NewSimHostServer(wsHost string, dbInfo *be.DBInfo, run bool) (*SimHostServe
 	return server, nil
 }
 
-func (server *SimHostServer) SendSpaceInitialization(spaceUUID string, clientUUIDs []string, state string) error {
+func (server *SimHostServer) SendClientUpdate(spaceUUID string, clientUUIDs []string, additions []*SceneAddition, deletions []int64, updates []*NodeUpdate) error {
 	if len(clientUUIDs) == 0 {
 		// No point in sending updates with no recipients
 		return nil
@@ -61,33 +61,52 @@ func (server *SimHostServer) SendSpaceInitialization(spaceUUID string, clientUUI
 	if err != nil {
 		return err
 	}
-	spaceInitialization := &wsRPC.SpaceInitialization{
+	spaceUpdate := &wsRPC.SpaceUpdate{
 		SpaceUUID:   spaceUUID,
 		ClientUUIDs: clientUUIDs,
-		State:       state,
+		NodeUpdates: []*wsRPC.NodeUpdate{},
+		Additions:   []*wsRPC.Addition{},
+		Deletions:   deletions,
 	}
-	_, err = wsClient.SendSpaceInitialization(context.Background(), spaceInitialization)
-	if err != nil {
-		logger.Printf("Failed to send space initialization to ws: %v", err)
-		return err
+	for _, addition := range additions {
+		wsAddition := &wsRPC.Addition{
+			Id:           addition.Node.Id,
+			Settings:     []*wsRPC.Setting{},
+			Position:     addition.Node.Position.Data,
+			Orientation:  addition.Node.Orientation.Data,
+			Translation:  addition.Node.Translation.Data,
+			Rotation:     addition.Node.Rotation.Data,
+			Parent:       addition.ParentId,
+			TemplateUUID: addition.Node.TemplateUUID,
+		}
+		for _, setting := range addition.Node.Settings {
+			wsAddition.Settings = append(wsAddition.Settings, &wsRPC.Setting{
+				setting.Key,
+				setting.Value,
+			})
+		}
+		spaceUpdate.Additions = append(spaceUpdate.Additions, wsAddition)
 	}
-	return nil
-}
 
-func (server *SimHostServer) SendClientUpdate(spaceUUID string, clientUUIDs []string) error {
-	if len(clientUUIDs) == 0 {
-		// No point in sending updates with no recipients
-		return nil
+	for _, update := range updates {
+		wsUpdate := &wsRPC.NodeUpdate{
+			Id:          update.Id,
+			Settings:    []*wsRPC.Setting{},
+			Position:    update.Position,
+			Orientation: update.Orientation,
+			Translation: update.Translation,
+			Rotation:    update.Rotation,
+		}
+		for _, setting := range update.Settings {
+			wsUpdate.Settings = append(wsUpdate.Settings, &wsRPC.Setting{
+				setting.Key,
+				setting.Value,
+			})
+		}
+		spaceUpdate.NodeUpdates = append(spaceUpdate.NodeUpdates, wsUpdate)
 	}
-	wsClient, err := server.GetWSHostClient()
-	if err != nil {
-		return err
-	}
-	simUpdate := &wsRPC.SimUpdate{
-		SpaceUUID:   spaceUUID,
-		ClientUUIDs: clientUUIDs,
-	}
-	_, err = wsClient.SendSimUpdate(context.Background(), simUpdate)
+
+	_, err = wsClient.SendSpaceUpdate(context.Background(), spaceUpdate)
 	if err != nil {
 		logger.Printf("Failed to send client update to ws: %v", err)
 		return err
@@ -118,7 +137,7 @@ func (server *SimHostServer) HandleAvatarMotion(ctx context.Context, avatarMotio
 	if ok == false {
 		return nil, errors.New("Unknown space UUID: " + avatarMotion.SpaceUUID)
 	}
-	spaceSim.HandleAvatarMotion(avatarMotion.ClientUUID, avatarMotion.Position, avatarMotion.Orientation, avatarMotion.Translation, avatarMotion.Rotation)
+	spaceSim.HandleAvatarMotion(avatarMotion.ClientUUID, avatarMotion.Position, avatarMotion.Orientation, avatarMotion.Translation, avatarMotion.Rotation, avatarMotion.Scale)
 	return &simRPC.Ack{Message: "OK"}, nil
 }
 

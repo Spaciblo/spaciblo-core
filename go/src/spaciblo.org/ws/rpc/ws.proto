@@ -5,10 +5,8 @@ package wsRPC;
 service WSHost {
   // Test whether a sim host is responsive
   rpc HandlePing (Ping) returns (Ack) {}
-  // Send sim updates to WS clients
-  rpc SendSimUpdate (SimUpdate) returns (Ack) {}
-  // Send initial state to WS clients
-  rpc SendSpaceInitialization (SpaceInitialization) returns (Ack) {}
+  // Send space updates to WS clients
+  rpc SendSpaceUpdate (SpaceUpdate) returns (Ack) {}
 }
 
 message Ping {
@@ -19,13 +17,7 @@ message Ack {
   string message = 1;
 }
 
-message SpaceInitialization {
-  string spaceUUID = 1;
-  repeated string clientUUIDs = 2;
-  string state = 3;
-}
-
-message SimUpdate {
+message SpaceUpdate {
   string spaceUUID = 1;
   repeated string clientUUIDs = 2;
   repeated NodeUpdate nodeUpdates = 3;
@@ -33,20 +25,29 @@ message SimUpdate {
   repeated int64 deletions = 5; 
 }
 
+message Setting {
+  string key = 1;
+  string value = 2;
+}
+
 message NodeUpdate {
   int64 id = 1;
-  repeated double position = 2;
-  repeated double orientation = 3;
-  repeated double translation = 4;
-  repeated double rotation = 5;
+  repeated Setting settings = 2;
+  repeated double position = 3;
+  repeated double orientation = 4;
+  repeated double translation = 5;
+  repeated double rotation = 6;
+  repeated double scale = 7;
 }
 
 message Addition {
   int64 id = 1;
-  repeated double position = 2;
-  repeated double orientation = 3;
-  repeated double translation = 4;
-  repeated double rotation = 5;
-  int64 parent = 6;
-  string templateUUID = 7;
+  repeated Setting settings = 2;
+  repeated double position = 3;
+  repeated double orientation = 4;
+  repeated double translation = 5;
+  repeated double rotation = 6;
+  repeated double scale = 7;
+  int64 parent = 8;
+  string templateUUID = 9;
 }

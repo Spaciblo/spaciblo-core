@@ -22,7 +22,7 @@ func nextSceneId() int64 {
 
 /*
 SpaceSimulator holds all of the state for a space and can step the simulation forward through "time"
-It does not handle any of the communication with clients. That's the job of the SimHostServer.
+It does not handle any of the communication with clients. That's the job of the SimHostServer and the WS service.
 */
 type SpaceSimulator struct {
 	Running           bool                  // True if the simulator should be automatically ticking
@@ -45,6 +45,7 @@ func NewSpaceSimulator(name string, spaceUUID string, initialState *apiDB.SpaceS
 	if err != nil {
 		return nil, err
 	}
+	rootNode.SetClean(true)
 
 	templateRecord, err := apiDB.FindTemplateRecordByField("name", "Box", dbInfo) // TODO Stop hard coding Box
 	if err != nil {
@@ -69,11 +70,15 @@ func NewSpaceSimulator(name string, spaceUUID string, initialState *apiDB.SpaceS
 	}, nil
 }
 
+/*
+StartTime starts a go routine that loops until SpaceSimulator.Running is false, ticking every TICK_DURATION
+*/
 func (spaceSim *SpaceSimulator) StartTime() {
 	if spaceSim.Running {
 		return
 	}
 	spaceSim.Running = true
+	spaceSim.RootNode.SetClean(true)
 	go func() {
 		for spaceSim.Running == true {
 			t := time.Now().UnixNano()
@@ -92,7 +97,6 @@ Tick is where the SpaceSimulator actually simulates time passing by:
 func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 	membershipNotices := spaceSim.collectMembershipNotices()
 	for _, notice := range membershipNotices {
-		logger.Println("Membership notice", notice)
 		// TODO compress duplicate membership notices
 		if notice.Member == true {
 			spaceSim.createAvatar(notice.ClientUUID, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
@@ -103,11 +107,19 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 
 	avatarMotionNotices := spaceSim.collectAvatarMotionNotices()
 	for _, notice := range avatarMotionNotices {
-		logger.Println("Avatar motion notice", notice)
 		// TODO compress duplicate motion notices
+		avatarNode, ok := spaceSim.Avatars[notice.ClientUUID]
+		if ok == false {
+			continue
+		}
+		avatarNode.Position.Set(notice.Position)
+		avatarNode.Orientation.Set(notice.Orientation)
+		avatarNode.Translation.Set(notice.Translation)
+		avatarNode.Rotation.Set(notice.Rotation)
+		avatarNode.Scale.Set(notice.Scale)
 	}
 
-	// Send new client initialization messages
+	// Send new client clients full initialization updates
 	if len(membershipNotices) > 0 {
 		newClientUUIDs := []string{}
 		for _, notice := range membershipNotices {
@@ -117,17 +129,19 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 			newClientUUIDs = append(newClientUUIDs, notice.ClientUUID)
 		}
 		if len(newClientUUIDs) > 0 {
-			err := spaceSim.SimHostServer.SendSpaceInitialization(spaceSim.UUID, newClientUUIDs, spaceSim.InitialState())
+			err := spaceSim.SimHostServer.SendClientUpdate(spaceSim.UUID, newClientUUIDs, spaceSim.InitialAdditions(), []int64{}, []*NodeUpdate{})
 			if err != nil {
 				logger.Println("Error sending client initialization", err)
 			}
 		}
 	}
 
-	err := spaceSim.SimHostServer.SendClientUpdate(spaceSim.UUID, spaceSim.GetClientUUIDs())
+	err := spaceSim.SimHostServer.SendClientUpdate(spaceSim.UUID, spaceSim.GetClientUUIDs(), spaceSim.Additions, spaceSim.Deletions, spaceSim.RootNode.getNodeUpdates())
 	if err != nil {
 		logger.Println("Error sending client update", err)
 	}
+	spaceSim.Additions = []*SceneAddition{}
+	spaceSim.Deletions = []int64{}
 }
 
 func (spaceSim *SpaceSimulator) GetClientUUIDs() []string {
@@ -162,6 +176,35 @@ func (spaceSim *SpaceSimulator) collectAvatarMotionNotices() []*AvatarMotionNoti
 	}
 }
 
+/*
+InitialAdditions returns SceneAdditions for every item in the space
+*/
+func (spaceSim *SpaceSimulator) InitialAdditions() []*SceneAddition {
+	return spaceSim.additionsForSceneNode(spaceSim.RootNode, nil)
+}
+
+/*
+additionsForSceneNode returns an array of SceneAdditions for the sceneNode and all children, recursively.
+Parents are guaranteed to come earlier in the array than their children.
+*/
+func (spaceSim *SpaceSimulator) additionsForSceneNode(sceneNode *SceneNode, parentNode *SceneNode) []*SceneAddition {
+	results := []*SceneAddition{}
+	addition := &SceneAddition{
+		Node: sceneNode,
+	}
+	if parentNode != nil {
+		addition.ParentId = parentNode.Id
+	}
+	results = append(results, addition)
+	for _, childNode := range sceneNode.Nodes {
+		results = append(results, spaceSim.additionsForSceneNode(childNode, sceneNode)...)
+	}
+	return results
+}
+
+/*
+InitialState returns a string of JSON that encodes the intialization state of the space for storage in the space record
+*/
 func (spaceSim *SpaceSimulator) InitialState() string {
 	buff := bytes.NewBufferString("")
 	json.NewEncoder(buff).Encode(spaceSim.RootNode)
@@ -179,13 +222,14 @@ func (spaceSim *SpaceSimulator) ChangeClientMembership(clientUUID string, member
 	}
 }
 
-func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position []float64, orientation []float64, translation []float64, rotation []float64) {
+func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64) {
 	spaceSim.AvatarMotionChannel <- &AvatarMotionNotice{
 		ClientUUID:  clientUUID,
 		Position:    position,
 		Orientation: orientation,
 		Translation: translation,
 		Rotation:    rotation,
+		Scale:       scale,
 	}
 }
 
@@ -209,7 +253,6 @@ func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, position []float
 
 func (spaceSim *SpaceSimulator) removeAvatar(clientUUID string) {
 	node, ok := spaceSim.Avatars[clientUUID]
-	logger.Println("Remove avatar", clientUUID, ok)
 	if ok == false {
 		// Unknown avatar, ignoring
 		return
@@ -225,6 +268,8 @@ func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneN
 		Settings:    make(map[string]*StringTuple),
 		Position:    NewVector3([]float64{0, 0, 0}),
 		Orientation: NewQuaternion([]float64{0, 0, 0, 1}),
+		Translation: NewVector3([]float64{0, 0, 0}),
+		Rotation:    NewVector3([]float64{0, 0, 0}),
 		Scale:       NewVector3([]float64{1, 1, 1}),
 	}
 	for key, value := range initialState.Settings {
@@ -247,6 +292,8 @@ type SceneNode struct {
 	Settings     map[string]*StringTuple `json:"settings"`
 	Position     *Vector3                `json:"position"`
 	Orientation  *Quaternion             `json:"orientation"`
+	Translation  *Vector3                `json:"-"`
+	Rotation     *Vector3                `json:"-"`
 	Scale        *Vector3                `json:"scale"`
 	TemplateUUID string                  `json:"templateUUID"`
 	Nodes        []*SceneNode            `json:"nodes,omitempty"`
@@ -275,6 +322,8 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 		Settings:    make(map[string]*StringTuple),
 		Position:    NewVector3(stateNode.Position),
 		Orientation: NewQuaternion(stateNode.Orientation),
+		Translation: NewVector3([]float64{0, 0, 0}),
+		Rotation:    NewVector3([]float64{0, 0, 0}),
 		Scale:       NewVector3(stateNode.Scale),
 		Nodes:       []*SceneNode{},
 	}
@@ -300,6 +349,63 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 		}
 	}
 	return sceneNode, nil
+}
+
+/*
+getNodeUpdates lists each NodeUpdate in the hierarchy starting at this SceneNode iff they are dirty
+This has the side effect of setting them clean
+*/
+func (node *SceneNode) getNodeUpdates() []*NodeUpdate {
+	result := []*NodeUpdate{}
+	if node.isDirty() {
+		update := &NodeUpdate{
+			Id:          node.Id,
+			Settings:    []*StringTuple{},
+			Position:    node.Position.ReadAndClean(),
+			Orientation: node.Orientation.ReadAndClean(),
+			Translation: node.Translation.ReadAndClean(),
+			Rotation:    node.Rotation.ReadAndClean(),
+			Scale:       node.Scale.ReadAndClean(),
+		}
+		for _, tuple := range node.Settings {
+			if tuple.Dirty {
+				update.Settings = append(update.Settings, tuple)
+			}
+		}
+		result = append(result, update)
+	}
+	for _, child := range node.Nodes {
+		result = append(result, child.getNodeUpdates()...)
+	}
+	return result
+}
+
+func (node *SceneNode) isDirty() bool {
+	if node.Position.Dirty || node.Orientation.Dirty || node.Rotation.Dirty || node.Translation.Dirty || node.Scale.Dirty {
+		return true
+	}
+	for _, stringTuple := range node.Settings {
+		if stringTuple.Dirty {
+			return true
+		}
+	}
+	return false
+}
+
+func (node *SceneNode) SetClean(includeChildren bool) {
+	for _, stringTuple := range node.Settings {
+		stringTuple.Dirty = false
+	}
+	node.Position.Dirty = false
+	node.Orientation.Dirty = false
+	node.Rotation.Dirty = false
+	node.Translation.Dirty = false
+	node.Scale.Dirty = false
+	if includeChildren {
+		for _, node := range node.Nodes {
+			node.SetClean(includeChildren)
+		}
+	}
 }
 
 func (node *SceneNode) SettingValue(name string) string {
@@ -339,11 +445,22 @@ type AvatarMotionNotice struct {
 	Orientation []float64
 	Translation []float64
 	Rotation    []float64
+	Scale       []float64
 }
 
 type ClientMembershipNotice struct {
 	ClientUUID string
 	Member     bool
+}
+
+type NodeUpdate struct {
+	Id          int64
+	Settings    []*StringTuple
+	Position    []float64
+	Orientation []float64
+	Translation []float64
+	Rotation    []float64
+	Scale       []float64
 }
 
 type StringTuple struct {
@@ -362,6 +479,15 @@ func NewStringTuple(key string, value string) *StringTuple {
 	}
 }
 
+// If clean, return "", otherwise set clean and return the value
+func (value *StringTuple) ReadAndClean() string {
+	if value.Dirty == false {
+		return ""
+	}
+	value.Dirty = false
+	return value.Value
+}
+
 type Vector3 struct {
 	Id    int64     `json:"id"`
 	Dirty bool      `json:"-"`
@@ -377,6 +503,15 @@ func NewVector3(data []float64) *Vector3 {
 		Dirty: true,
 		Data:  data,
 	}
+}
+
+// If clean, return zero length []float64, otherwise set clean and return Data
+func (value *Vector3) ReadAndClean() []float64 {
+	if value.Dirty == false {
+		return []float64{}
+	}
+	value.Dirty = false
+	return value.Data
 }
 
 func (vector *Vector3) Set(data []float64) error {
@@ -405,6 +540,15 @@ func NewQuaternion(data []float64) *Quaternion {
 		Dirty: true,
 		Data:  data,
 	}
+}
+
+// If clean, return zero length []float64, otherwise set clean and return Data
+func (quat *Quaternion) ReadAndClean() []float64 {
+	if quat.Dirty == false {
+		return []float64{}
+	}
+	quat.Dirty = false
+	return quat.Data
 }
 
 func (quat *Quaternion) Set(data []float64) error {

@@ -32,7 +32,6 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUI
 		}
 		return NewAckMessage("Ok"), nil
 	case ClientDisconnectedType:
-		logger.Println("Client disconnect type", clientUUID, spaceUUID)
 		if spaceUUID == "" {
 			// No need to notify a sim
 			return nil, nil

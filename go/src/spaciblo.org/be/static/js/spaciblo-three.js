@@ -11,13 +11,14 @@ SpacesRenderer holds a Three.js scene and is used by SpacesComponent to render s
 spaciblo.three.Renderer = k.eventMixin(class {
 	constructor(inputManager, background=new THREE.Color(0x99DDff)){
 		this.inputManager = inputManager
-		this.spaceUUID = null; // The UUID of the currently active space
-		this.rootGroup = null; // The Three.Group at the root of the currently active space scene graph
+		this.rootGroup = null; // The spaciblo.three.Group at the root of the currently active space scene graph
 		this.templateLoader = new spaciblo.three.TemplateLoader()
 		this.clock = new THREE.Clock()
 		this.scene = new THREE.Scene()
 		this.scene.background = background
 		this.camera = new THREE.PerspectiveCamera(75, 1, 0.5, 10000)
+
+		this.objectMap = new Map() // object id -> spaciblo.three.Group
 
 		// These variables are used in _animate to determine keyboard motion and whether or not to trigger events
 		this.translationVector = new THREE.Vector3()	// meters per second on x, y, z axis 
@@ -74,38 +75,78 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.camera.updateProjectionMatrix()
 		this.renderer.setSize(width, height)
 	}
-	showSpace(spaceUUID, state){
-		if(this.spaceUUID !== null){
-			console.error("TODO switch from one space to another")
-			return
+	updateSpace(nodeUpdates=[], additions=[], deletions=[]) {
+		nodeUpdates = nodeUpdates || []
+		additions = additions || []
+		deletions = deletions || []
+		for(let addition of additions){
+			if(this.objectMap.has(addition.id)){
+				console.log("Received an addition with a duplicate id", addition)
+				continue
+			}
+			if(addition.id === 0){
+				var parent = null
+			} else {
+				var parent = this.objectMap.get(addition.parent)
+				if(typeof parent === "undefined") {
+					console.error("Tried to add to an unknown parent", addition)
+					continue
+				}
+			}
+			let group = this._createGroupFromAddition(addition)
+			this.objectMap.set(addition.id, group)
+			if(addition.id == 0){
+				// This is the root
+				this.rootGroup = group
+				this.hideSpaceMenu()
+				this.scene.add(this.rootGroup)
+			} else {
+				parent.add(group)
+			}
 		}
-		this.hideSpaceMenu()
-		this.spaceUUID = spaceUUID
-		if(state.settings && state.settings["background-color"] && state.settings["background-color"].value){
-			this.scene.background = new THREE.Color(state.settings["background-color"].value)
+		for(let deletion of deletions){
+			console.log("Deletion", deletion)
 		}
-		this.rootGroup = this._createGroupFromState(state)
-		this.scene.add(this.rootGroup)
+		for(let update of nodeUpdates){
+			let group = this.objectMap.get(update.id)
+			if(typeof group === "undefined"){
+				console.error("Tried to update unknown object", update)
+				continue
+			}
+			if(update.position){
+				group.position.set(...update.position)
+			}
+			if(update.orientation){
+				group.quaternion.set(...update.orientation)
+			}
+			if(update.scale){
+				group.scale.set(...update.scale)
+			}
+
+			// TODO handle translation, rotation, and settings
+		}
 	}
-	_createGroupFromState(state, parentState=null){
+	_createGroupFromAddition(state){
 		let group = new spaciblo.three.Group()
+		if(typeof state.id != "undefined"){
+			this.objectMap.set(state.id, group)
+		}
 		group.renderer = this
 		group.state = state
-		group.state.parent = parentState
 		if(state.settings && state.settings.name && state.settings.name.value){
 			group.name = state.settings.name.value
-		} else if(parentState == null){
-			group.name = "root"
-		}
-		if(state.orientation){
-			group.quaternion.set(...state.orientation.data)
 		}
 		if(state.position){
-			group.position.set(...state.position.data)
+			group.position.set(...state.position)
+		}
+		if(state.orientation){
+			group.quaternion.set(...state.orientation)
 		}
 		if(state.scale){
-			group.scale.set(...state.scale.data)
+			group.scale.set(...state.scale)
 		}
+
+		//TODO handle translation and rotation 
 
 		if(typeof state.templateUUID !== "undefined" && state.templateUUID.length > 0){
 			group.template = this.templateLoader.addTemplate(state.templateUUID)
@@ -144,7 +185,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		if(typeof state.nodes !== "undefined"){
 			for(let node of state.nodes){
-				group.add(this._createGroupFromState(node, state))
+				group.add(this._createGroupFromAddition(node))
 			}
 		}
 		return group

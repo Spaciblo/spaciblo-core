@@ -66,10 +66,17 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	}
 	handleClientMessages(eventName, message){
 		switch(message.type){
-			case 'Joined-Space':
-				console.log("Event data", JSON.parse(message.state))
-
-				this.renderer.showSpace(message.uuid, JSON.parse(message.state))
+			case 'Ack':
+				break
+			case 'Space-Update':
+				if(
+					(message.additions && message.additions.length > 0) || 
+					(message.deletions && message.deletions.length > 0) || 
+					(message.nodeUpdates && message.nodeUpdates.length > 0)
+				){
+					//console.log("Space update", message)
+				}
+				this.renderer.updateSpace(message.nodeUpdates, message.additions, message.deletions)
 				break
 			default:
 				console.log("Unhandled client message", message)

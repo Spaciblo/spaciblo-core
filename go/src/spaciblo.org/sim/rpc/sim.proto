@@ -48,5 +48,6 @@ message AvatarMotion {
 	repeated double orientation = 4;
 	repeated double translation = 5;
 	repeated double rotation = 6;
+	repeated double scale = 7;
 }
 
