@@ -8,8 +8,10 @@
 		<link rel="stylesheet" href="/api/static/css/spaciblo-components.css" type='text/css'>
 
 		<script src="/api/static/js/potassium.js"></script>
-		<script src="/api/static/js/three.min.js"></script>
+		<script src="/api/static/js/three.js"></script>
 		<script src="/api/static/js/gltf-loader.js"></script>
+		<script src="/api/static/js/mtl-loader.js"></script>
+		<script src="/api/static/js/obj-loader.js"></script>
 		<script src="/api/static/js/be-api.js"></script>
 		<script src="/api/static/js/spaciblo-api.js"></script>
 		<script src="/api/static/js/spaciblo-three.js"></script>
@@ -31,5 +33,25 @@
 			}
 			document.addEventListener("schema-populated", initPage)
 		</script>
+
+		<script type="x-shader/x-vertex" id="skyVertexShader">
+			varying vec3 vWorldPosition;
+			void main() {
+				vec4 worldPosition = modelMatrix * vec4( position, 1.0 );
+				vWorldPosition = worldPosition.xyz;
+				gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+			}
+		</script>
+		<script type="x-shader/x-fragment" id="skyFragmentShader">
+			uniform vec3 topColor;
+			uniform vec3 bottomColor;
+			uniform float offset;
+			uniform float exponent;
+			varying vec3 vWorldPosition;
+			void main() {
+				float h = normalize( vWorldPosition + offset ).y;
+				gl_FragColor = vec4( mix( bottomColor, topColor, max( pow( max( h , 0.0), exponent ), 0.0 ) ), 1.0 );
+			}
+		</script>	
 	</body>
 </html>

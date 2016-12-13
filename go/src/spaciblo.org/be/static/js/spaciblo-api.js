@@ -86,5 +86,15 @@ spaciblo.api.handleSchemaPopulated = function(){
 	be.api.Template.prototype.sourceURL = function(){
 		return `/api/${be.API_VERSION}/template/${this.get("uuid")}/data/${this.get("source")}`
 	}
+	be.api.Template.prototype.getBaseURL = function(){
+		return `/api/${be.API_VERSION}/template/${this.get("uuid")}/data/`	
+	}
+	be.api.Template.prototype.getSourceExtension = function(){
+		const source = this.get('source')
+		if(source == null || source == "" || source.indexOf('.') == -1){
+			return null
+		}
+		return source.split('.')[source.split('.').length - 1].toLowerCase()
+	}
 }
 document.addEventListener("schema-populated", spaciblo.api.handleSchemaPopulated)

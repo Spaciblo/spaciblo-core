@@ -122,17 +122,36 @@ func createSpace(directory string, name string, dbInfo *be.DBInfo) (*apiDB.Space
 }
 
 func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.LocalFileStorage) (*apiDB.TemplateRecord, error) {
-	template, err := apiDB.CreateTemplateRecord(name, name+".gltf", dbInfo)
-	logger.Printf("Creating template: %s: %s", name, template.UUID)
-	if err != nil {
-		logger.Fatal("Could not create a template: ", err)
-		return nil, err
-	}
 	dataFileInfos, err := ioutil.ReadDir(directory)
 	if err != nil {
 		logger.Fatal("Could not read a template dir %s: %s", directory, err)
 		return nil, err
 	}
+
+	// Find a glTF or obj source file
+	var sourceInfo os.FileInfo
+	for _, dataInfo := range dataFileInfos {
+		if dataInfo.Name() == name+".gltf" {
+			sourceInfo = dataInfo
+			break
+		}
+		if dataInfo.Name() == name+".obj" {
+			sourceInfo = dataInfo
+			break
+		}
+	}
+	if sourceInfo == nil {
+		logger.Fatal("Could not find a source file for name")
+		return nil, nil
+	}
+
+	template, err := apiDB.CreateTemplateRecord(name, sourceInfo.Name(), dbInfo)
+	logger.Printf("Creating template: %s: %s", name, template.UUID)
+	if err != nil {
+		logger.Fatal("Could not create a template: ", err)
+		return nil, err
+	}
+
 	for _, dataInfo := range dataFileInfos {
 		logger.Printf("\t\tData %s", dataInfo.Name())
 

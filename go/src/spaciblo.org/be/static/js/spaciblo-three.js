@@ -37,9 +37,19 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.previousTranslation = 0
 		this.previousRotation = 0
 
-		var light = new THREE.DirectionalLight(0xffffff, 1)
-		light.position.set(50, 50, 50).normalize()
-		this.scene.add(light)
+		this.ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
+		this.scene.add(this.ambientLight)
+
+		this.fillLight = new THREE.PointLight(0xffffff, 1, 200)
+		this.fillLight.position.set(-100, 100, -10)
+		this.scene.add(this.fillLight)
+
+		this.fillLight = new THREE.PointLight(0xffffff, 0.5, 200)
+		this.fillLight.position.set(100, 100, -100)
+		this.scene.add(this.fillLight)
+
+		this.defaultSky = this._createDefaultSky() 
+		this.scene.add(this.defaultSky);
 
 		this.raycaster = new THREE.Raycaster()
 		this.mouse = new THREE.Vector2()
@@ -78,6 +88,24 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		let [offsetX, offsetY] = k.documentOffset(this.renderer.domElement)
 		this.mouse.x = ((ev.clientX - offsetX) / this.el.offsetWidth) * 2 - 1
 		this.mouse.y = - ((ev.clientY - offsetY) / this.el.offsetHeight) * 2 + 1
+	}
+	_createDefaultSky(){
+		let vertexShader = document.getElementById('skyVertexShader').textContent;
+		let fragmentShader = document.getElementById('skyFragmentShader').textContent;
+		let uniforms = {
+			topColor:    { value: new THREE.Color( 0x0077ff ) },
+			bottomColor: { value: new THREE.Color( 0xffffff ) },
+			offset:      { value: 33 },
+			exponent:    { value: 0.8 }
+		};
+		let skyGeo = new THREE.SphereGeometry(4000, 32, 15);
+		let skyMat = new THREE.ShaderMaterial({
+			vertexShader: vertexShader,
+			fragmentShader: fragmentShader,
+			uniforms: uniforms,
+			side: THREE.BackSide
+		});
+		return new THREE.Mesh( skyGeo, skyMat );
 	}
 	setSize(width, height){
 		this.camera.aspect = width / height
@@ -160,6 +188,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		group.state = state
 		if(state.settings && state.settings.name && state.settings.name.value){
 			group.name = state.settings.name.value
+			console.log("Name", group.name)
 		}
 		if(state.position){
 			group.position.set(...state.position)
@@ -172,36 +201,32 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		if(typeof state.templateUUID !== "undefined" && state.templateUUID.length > 0){
 			group.template = this.templateLoader.addTemplate(state.templateUUID)
-			/*
-			This is convoluted because we are currently unable to clone glTF scenes
-			So, if template.gltf is set we use it and set it to null.
-			If template.gltf is not set, we fetch and create a new one.
 			// TODO figure out why we can't clone glTF
-			*/
-			if(group.template.loading === false){
-				if(group.template.gltf){
-					group.setGLTF(group.template.gltf)
-					group.template.gltf = null
-				} else {
+			var loadIt = function(){
+				const extension = group.template.getSourceExtension()
+				if(extension == null){
+					console.error('Template had no source extension', group.template)
+				} else if(extension == 'gltf'){
 					spaciblo.three.GLTFLoader.load(group.template.sourceURL()).then(gltf => {
 						group.setGLTF(gltf)
 					}).catch(err => {
 						console.error("Could not fetch gltf", err)
 					})
+				} else if(extension == 'obj'){
+					spaciblo.three.OBJLoader.load(group.template.getBaseURL(), group.template.get('source')).then(obj => {
+						group.setOBJ(obj)
+					}).catch(err => {
+						console.error("Could not fetch obj", err)
+					})
 				}
+			}
+
+			if(group.template.loading === false){
+				loadIt()
 			} else {
-				group.template.addListener((eventName, template, gltf) => {
-					if(group.template.gltf){
-						group.setGLTF(group.template.gltf)
-						group.template.gltf = null
-					} else {
-						spaciblo.three.GLTFLoader.load(group.template.sourceURL()).then(gltf => {
-							group.setGLTF(gltf)
-						}).catch(err => {
-							console.error("Could not fetch gltf", err)
-						})
-					}
-				}, spaciblo.three.events.GLTFLoaded, true)
+				group.template.addListener(() => {
+					loadIt()
+				}, "fetched", true)
 			}
 		}
 
@@ -319,21 +344,23 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		this.camera.updateMatrixWorld()
 
-		this.raycaster.setFromCamera(this.mouse, this.camera)
-		let intersects = this.raycaster.intersectObjects(this.scene.children, true)
-		if(intersects.length > 0){
-			if(this.intersectedObj !== intersects[0].object && intersects[0].object.material.emissive){
+		if(this.spaceMenu && this.spaceMenu.visible){
+			this.raycaster.setFromCamera(this.mouse, this.camera)
+			let intersects = this.raycaster.intersectObjects(this.scene.children, true)
+			if(intersects.length > 0){
+				if(this.intersectedObj !== intersects[0].object && intersects[0].object.material.emissive){
+					if(this.intersectedObj !== null){
+						this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
+					}
+					this.intersectedObj = intersects[0].object
+					this.intersectedObj.currentHex = this.intersectedObj.material.emissive.getHex()
+					this.intersectedObj.material.emissive.setHex(0xff0000)
+				}
+			} else {
 				if(this.intersectedObj !== null){
 					this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
+					this.intersectedObj = null
 				}
-				this.intersectedObj = intersects[0].object
-				this.intersectedObj.currentHex = this.intersectedObj.material.emissive.getHex()
-				this.intersectedObj.material.emissive.setHex(0xff0000)
-			}
-		} else {
-			if(this.intersectedObj !== null){
-				this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
-				this.intersectedObj = null
 			}
 		}
 
@@ -355,9 +382,7 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 	constructor(){
 		// Added templates move from the fetchQueue, to the loadQueue, to the loadedTemplates list
 		this.fetchQueue = [] 		// Templates whose metadata we will fetch
-		this.loadQueue = [] 		// Templates whose glTF we will load
-		this.loadedTemplates = [] 	// Templates whose metadata is fetched and glTF is loaded or who have failed to load
-		this.loadingTemplate = null 
+		this.loadedTemplates = [] 	// Templates whose metadata is fetched
 	}
 	addTemplate(templateUUID){
 		let [index, listName, array] = this._indexAndListForTemplate(templateUUID)
@@ -367,58 +392,23 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 		// It's an unknown template, so fetch it
 		let template = new be.api.Template({ uuid: templateUUID })
 		template.loading = true
-		template.gltf = null
 		this.fetchQueue.push(template)
 		template.fetch().then(() =>{
 			this.fetchQueue.splice(this.fetchQueue.indexOf(template), 1)
-			this.loadQueue.push(template)
-			this._checkQueues()
+			template.loading = false
+			this.loadedTemplates.push(template)
 		}).catch((err) => {
 			this.fetchQueue.splice(this.fetchQueue.indexOf(template), 1)
 			template.loading = false
 			this.loadedTemplates.push(template)
-			this._checkQueues()
 		})
-		this._checkQueues()
 		return template
-	}
-	_checkQueues(){
-		if(this.loadingTemplate !== null || this.loadQueue.length === 0){
-			// Already loading a template or there are no templates to load
-			return
-		}
-		this.loadingTemplate = this.loadQueue[this.loadQueue.length - 1]				
-		spaciblo.three.GLTFLoader.load(this.loadingTemplate.sourceURL()).then(gltf => {
-			this.loadQueue.splice(this.loadQueue.indexOf(this.loadingTemplate), 1)
-			this.loadedTemplates.push(this.loadingTemplate)
-			this.loadingTemplate.loading = false
-			this.loadingTemplate.gltf = gltf
-			let template = this.loadingTemplate
-			this.loadingTemplate = null
-			template.trigger(spaciblo.three.events.GLTFLoaded, template, gltf)
-			this._checkQueues()
-		}).catch(err => {
-			console.error("Failed to load glTF", err)
-			this.loadQueue.splice(this.loadQueue.indexOf(this.loadingTemplate), 1)
-			this.loadedTemplates.push(this.loadingTemplate)
-			this.loadingTemplate.loading = false
-			this.loadingTemplate.gltf = null
-			let template = this.loadingTemplate
-			this.loadingTemplate = null
-			template.trigger(spaciblo.three.events.GLTFLoaded, template, gltf)
-			this._checkQueues()
-		})
 	}
 	_indexAndListForTemplate(templateUUID){
 		// returns [index,fetch/load/loaded,array] for a template or [-1, null, null] if it isn't known
 		for(let i = 0; i < this.fetchQueue.length; i++){
 			if(this.fetchQueue[i].get('uuid') == templateUUID){
 				return [i, "fetch", this.fetchQueue]
-			}
-		}
-		for(let i = 0; i < this.loadQueue.length; i++){
-			if(this.loadQueue[i].get('uuid') == templateUUID){
-				return [i, "load", this.loadQueue]
 			}
 		}
 		for(let i = 0; i < this.loadedTemplates.length; i++){
@@ -441,6 +431,9 @@ spaciblo.three.Group = function(){
 spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototype), {
 	setGLTF: function(gltf){
 		this.add(gltf.scene)
+	},
+	setOBJ: function(obj){
+		this.add(obj)
 	},
 	interpolate: function(elapsedTime){
 		const delta = elapsedTime - this.lastUpdate
@@ -468,6 +461,28 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		}
 	}
 })
+
+spaciblo.three.OBJLoader = class {
+	static load(baseURL, source){
+		return new Promise(function(resolve, reject){
+			const mtlLoader = new THREE.MTLLoader()
+			mtlLoader.setPath(baseURL)
+			const mtlName = source.split('.')[source.split(':').length - 1] + '.mtl'
+			mtlLoader.load(mtlName, (materials) => {
+				materials.preload()
+				let objLoader = new THREE.OBJLoader()
+				objLoader.setMaterials(materials)
+				objLoader.setPath(baseURL)
+				objLoader.load(source, (obj) => {
+					resolve(obj)
+				}, () => {} , (...params) => {
+					console.error("Failed to load obj", ...params)
+					reject(...params)
+				})
+			})
+		})
+	}
+}
 
 spaciblo.three.GLTFLoader = class {
 	static load(url){
