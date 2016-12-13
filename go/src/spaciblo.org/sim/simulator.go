@@ -47,7 +47,7 @@ func NewSpaceSimulator(name string, spaceUUID string, initialState *apiDB.SpaceS
 	}
 	rootNode.SetClean(true)
 
-	templateRecord, err := apiDB.FindTemplateRecordByField("name", "Box", dbInfo) // TODO Stop hard coding Box
+	templateRecord, err := apiDB.FindTemplateRecordByField("name", "FACE", dbInfo) // TODO Stop hard coding Box
 	if err != nil {
 		logger.Println("Error searching for default avatar template: Box: ", err)
 		return nil, err

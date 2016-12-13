@@ -37,16 +37,16 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.previousTranslation = 0
 		this.previousRotation = 0
 
-		this.ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
+		this.ambientLight = new THREE.AmbientLight(0xdddddd, 0.3)
 		this.scene.add(this.ambientLight)
 
-		this.fillLight = new THREE.PointLight(0xffffff, 1, 200)
-		this.fillLight.position.set(-100, 100, -10)
+		this.fillLight = new THREE.PointLight(0xffffff, 1, 10000)
+		this.fillLight.position.set(100, 1000, -10)
 		this.scene.add(this.fillLight)
 
-		this.fillLight = new THREE.PointLight(0xffffff, 0.5, 200)
-		this.fillLight.position.set(100, 100, -100)
-		this.scene.add(this.fillLight)
+		//this.fillLight = new THREE.PointLight(0xffffff, 0.5, 200)
+		//this.fillLight.position.set(100, 100, -100)
+		//this.scene.add(this.fillLight)
 
 		this.defaultSky = this._createDefaultSky() 
 		this.scene.add(this.defaultSky);
