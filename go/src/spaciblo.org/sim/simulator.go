@@ -11,7 +11,7 @@ import (
 	"spaciblo.org/be"
 )
 
-const TICK_DURATION = time.Millisecond * 1000 // TODO switch back to 10 ticks per second
+const TICK_DURATION = time.Millisecond * 100 // 10 ticks per second
 
 var currentSceneId int64 = -1
 
@@ -422,16 +422,13 @@ func (node *SceneNode) Add(childNode *SceneNode) {
 }
 
 func (node *SceneNode) Remove(childNode *SceneNode) {
-	for i, n := range node.Nodes {
-		if n.Id == childNode.Id {
-			if i == len(node.Nodes)-1 {
-				node.Nodes = node.Nodes[:i]
-			} else {
-				node.Nodes = append(node.Nodes[:i], node.Nodes[i+i:]...)
-			}
-			return
+	results := []*SceneNode{}
+	for _, n := range node.Nodes {
+		if n.Id != childNode.Id {
+			results = append(results, n)
 		}
 	}
+	node.Nodes = results
 }
 
 type SceneAddition struct {

@@ -4,7 +4,16 @@ var spaciblo = spaciblo || {}
 spaciblo.three = spaciblo.three || {}
 spaciblo.three.events = spaciblo.three.events || {}
 
+spaciblo.three.UPDATE_DELTA = 0.1 // seconds between sim updates 
+
+spaciblo.three.X_AXIS = new THREE.Vector3(1,0,0)
+spaciblo.three.Y_AXIS = new THREE.Vector3(0,1,0)
+spaciblo.three.Z_AXIS = new THREE.Vector3(0,0,1)
+
+spaciblo.three.WORKING_QUAT = new THREE.Quaternion(0,0,0,1) // A handy quat so we don't need to allocate new ones in each frame
+
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
+
 /*
 SpacesRenderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
@@ -81,7 +90,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		deletions = deletions || []
 		for(let addition of additions){
 			if(this.objectMap.has(addition.id)){
-				console.log("Received an addition with a duplicate id", addition)
 				continue
 			}
 			if(addition.id === 0){
@@ -94,6 +102,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				}
 			}
 			let group = this._createGroupFromAddition(addition)
+			group.lastUpdate = this.clock.elapsedTime + spaciblo.three.UPDATE_DELTA
 			this.objectMap.set(addition.id, group)
 			if(addition.id == 0){
 				// This is the root
@@ -105,7 +114,16 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 		}
 		for(let deletion of deletions){
-			console.log("Deletion", deletion)
+			var group = this.objectMap.get(deletion)
+			if(typeof group === "undefined"){
+				continue
+			}
+			this.objectMap.delete(deletion)
+			if(group.parent){
+				group.parent.remove(group)
+			} else {
+				this.scene.remove(group)
+			}
 		}
 		for(let update of nodeUpdates){
 			let group = this.objectMap.get(update.id)
@@ -113,17 +131,24 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				console.error("Tried to update unknown object", update)
 				continue
 			}
+			group.lastUpdate = this.clock.elapsedTime + spaciblo.three.UPDATE_DELTA
 			if(update.position){
+				group.updatePosition.set(...update.position)
 				group.position.set(...update.position)
 			}
 			if(update.orientation){
+				group.updateQuaternion.set(...update.orientation)
 				group.quaternion.set(...update.orientation)
+			}
+			if(update.translation){
+				group.translationMotion.set(...update.translation)
+			}
+			if(update.rotation){
+				group.rotationMotion.set(...update.rotation)
 			}
 			if(update.scale){
 				group.scale.set(...update.scale)
 			}
-
-			// TODO handle translation, rotation, and settings
 		}
 	}
 	_createGroupFromAddition(state){
@@ -145,9 +170,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		if(state.scale){
 			group.scale.set(...state.scale)
 		}
-
-		//TODO handle translation and rotation 
-
 		if(typeof state.templateUUID !== "undefined" && state.templateUUID.length > 0){
 			group.template = this.templateLoader.addTemplate(state.templateUUID)
 			/*
@@ -161,7 +183,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					group.setGLTF(group.template.gltf)
 					group.template.gltf = null
 				} else {
-					spaciblo.three.GLTFLoader.load(group.template.gltfURL()).then(gltf => {
+					spaciblo.three.GLTFLoader.load(group.template.sourceURL()).then(gltf => {
 						group.setGLTF(gltf)
 					}).catch(err => {
 						console.error("Could not fetch gltf", err)
@@ -173,7 +195,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						group.setGLTF(group.template.gltf)
 						group.template.gltf = null
 					} else {
-						spaciblo.three.GLTFLoader.load(group.template.gltfURL()).then(gltf => {
+						spaciblo.three.GLTFLoader.load(group.template.sourceURL()).then(gltf => {
 							group.setGLTF(gltf)
 						}).catch(err => {
 							console.error("Could not fetch gltf", err)
@@ -292,6 +314,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 
 		this._animateSpaceMenu(delta)
+		if(this.rootGroup){
+			this.rootGroup.interpolate(this.clock.elapsedTime)
+		}
 		this.camera.updateMatrixWorld()
 
 		this.raycaster.setFromCamera(this.mouse, this.camera)
@@ -363,7 +388,7 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 			return
 		}
 		this.loadingTemplate = this.loadQueue[this.loadQueue.length - 1]				
-		spaciblo.three.GLTFLoader.load(this.loadingTemplate.gltfURL()).then(gltf => {
+		spaciblo.three.GLTFLoader.load(this.loadingTemplate.sourceURL()).then(gltf => {
 			this.loadQueue.splice(this.loadQueue.indexOf(this.loadingTemplate), 1)
 			this.loadedTemplates.push(this.loadingTemplate)
 			this.loadingTemplate.loading = false
@@ -407,11 +432,40 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 
 spaciblo.three.Group = function(){
 	THREE.Group.call(this);
+	this.lastUpdate = null; 								// time in milliseconds of last update
+	this.updatePosition = new THREE.Vector3(0,0,0) 			// The position recieved from the sim
+	this.updateQuaternion = new THREE.Quaternion(0,0,0,1) 	// the orientation receive from the sim
+	this.rotationMotion = new THREE.Vector3(0,0,0)			// the rotation motion received from the sim
+	this.translationMotion = new THREE.Vector3(0,0,0)		// the translation motion received from the sim
 }
 spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototype), {
-	constructor: THREE.Group,
 	setGLTF: function(gltf){
 		this.add(gltf.scene)
+	},
+	interpolate: function(elapsedTime){
+		const delta = elapsedTime - this.lastUpdate
+		if(delta > 0){
+			if(this.translationMotion.length() != 0){
+				this.position.x = this.updatePosition.x + (this.translationMotion.x * delta)
+				this.position.y = this.updatePosition.y + (this.translationMotion.y * delta)
+				this.position.z = this.updatePosition.z + (this.translationMotion.z * delta)
+			}
+			if(this.rotationMotion.length() != 0){
+				this.quaternion.copy(this.updateQuaternion)
+				spaciblo.three.WORKING_QUAT.setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.rotationMotion.x * delta)
+				this.quaternion.multiply(spaciblo.three.WORKING_QUAT)
+				spaciblo.three.WORKING_QUAT.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationMotion.y * delta)
+				this.quaternion.multiply(spaciblo.three.WORKING_QUAT)
+				spaciblo.three.WORKING_QUAT.setFromAxisAngle(new THREE.Vector3(0, 0, 1), this.rotationMotion.z * delta)
+				this.quaternion.multiply(spaciblo.three.WORKING_QUAT)
+			}
+		}
+
+		for(let child of this.children){
+			if(typeof child.interpolate == 'function'){
+				child.interpolate(elapsedTime)
+			}
+		}
 	}
 })
 
