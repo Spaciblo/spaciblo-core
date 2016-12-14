@@ -6,48 +6,37 @@
 	"nodes": [
 		{
 			"settings": {
-				"name": "Top Level Node"
+				"name": "Test Cube Group"
 			},
-			"template-name": "Box",
-			"position": [0, 2.5, -4],
-			"orientation": [0, 0, 0.5, 0.5],
-			"scale": [0.25, 1, 0.25]
-		},
-		{
-			"template-name": "Greenspace",
-			"position": [0, -1, 0]
-		},
-		{
-			"settings": {
-				"name": "Box Group"
-			},
-			"position": [-1, 0, -4],
+			"position": [0, -0.8, -7],
 			"nodes": [
 				{
 					"settings": {
-						"name": "Box 1"
+						"name": "Test Cube 1"
 					},
-					"position": [-2, 1, 0],
-					"orientation": [0, 0, 0, 1],
-					"template-name": "Box"
+					"template-name": "TestCube",
+					"position": [-3, 0, 0]
 				},
 				{
 					"settings": {
-						"name": "Box 2"
+						"name": "Test Cube 2"
 					},
-					"position": [0, 0, 0],
-					"orientation": [0, 0, 0, 1],
-					"template-name": "Box"
+					"template-name": "TestCube",
+					"position": [0, 0, 0]
 				},
 				{
 					"settings": {
-						"name": "Box 3"
+						"name": "Test Cube 2"
 					},
-					"position": [2, -1, 0],
-					"orientation": [0, 0, 0, 1],
-					"template-name": "Box"
+					"template-name": "TestCube",
+					"position": [3, 0, 0]
 				}
 			]
+		},
+		{
+			"template-name": "Grid",
+			"position": [0, -1, 0],
+			"scale": [1.5, 1, 1.5]
 		}
 	]
 }

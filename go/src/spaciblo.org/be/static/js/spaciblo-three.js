@@ -37,16 +37,20 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.previousTranslation = 0
 		this.previousRotation = 0
 
-		this.ambientLight = new THREE.AmbientLight(0xdddddd, 0.3)
+		this.ambientLight = new THREE.AmbientLight(0xdddddd, 0.1)
 		this.scene.add(this.ambientLight)
 
-		this.fillLight = new THREE.PointLight(0xffffff, 1, 10000)
-		this.fillLight.position.set(100, 1000, -10)
-		this.scene.add(this.fillLight)
+		this.hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6)
+		this.hemiLight.color.setHSL(0.6, 0.6, 0.6)
+		this.hemiLight.groundColor.setHSL(1, 1, 1)
+		this.hemiLight.position.set(0, 500, 0)
+		this.scene.add(this.hemiLight)
 
-		//this.fillLight = new THREE.PointLight(0xffffff, 0.5, 200)
-		//this.fillLight.position.set(100, 100, -100)
-		//this.scene.add(this.fillLight)
+		this.dirLight = new THREE.DirectionalLight(0xffffff, 1)
+		this.dirLight.color.setHSL(1, 1, 1)
+		this.dirLight.position.set(-1, 1.75, 1)
+		this.dirLight.position.multiplyScalar(50)
+		this.scene.add(this.dirLight)
 
 		this.defaultSky = this._createDefaultSky() 
 		this.scene.add(this.defaultSky);
@@ -57,6 +61,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		this.renderer = new THREE.WebGLRenderer()
 		this.renderer.sortObjects = false
+		this.renderer.antialias = true
 		this.renderer.setClearColor(0xffffff)
 		this.renderer.setPixelRatio(window.devicePixelRatio)
 		this.renderer.shadowMap.enabled = true
@@ -196,6 +201,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		if(state.orientation){
 			group.quaternion.set(...state.orientation)
 		}
+		console.log("Scale", state)
 		if(state.scale){
 			group.scale.set(...state.scale)
 		}

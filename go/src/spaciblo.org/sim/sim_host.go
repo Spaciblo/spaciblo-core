@@ -76,6 +76,7 @@ func (server *SimHostServer) SendClientUpdate(spaceUUID string, clientUUIDs []st
 			Orientation:  addition.Node.Orientation.Data,
 			Translation:  addition.Node.Translation.Data,
 			Rotation:     addition.Node.Rotation.Data,
+			Scale:        addition.Node.Scale.Data,
 			Parent:       addition.ParentId,
 			TemplateUUID: addition.Node.TemplateUUID,
 		}
@@ -96,6 +97,7 @@ func (server *SimHostServer) SendClientUpdate(spaceUUID string, clientUUIDs []st
 			Orientation: update.Orientation,
 			Translation: update.Translation,
 			Rotation:    update.Rotation,
+			Scale:       update.Scale,
 		}
 		for _, setting := range update.Settings {
 			wsUpdate.Settings = append(wsUpdate.Settings, &wsRPC.Setting{
