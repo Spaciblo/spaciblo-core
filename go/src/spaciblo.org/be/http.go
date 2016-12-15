@@ -11,7 +11,7 @@ import (
 type StoppableListener struct {
 	*net.TCPListener          //Wrapped listener
 	stop             chan int //Channel used only to indicate listener should shutdown
-	wg               sync.WaitGroup
+	waitGroup        sync.WaitGroup
 }
 
 func NewStoppableListener(proto string, connect string) (*StoppableListener, error) {

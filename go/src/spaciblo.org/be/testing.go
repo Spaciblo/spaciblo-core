@@ -83,7 +83,7 @@ func (api TestAPI) URL() string {
 
 func (api *TestAPI) Stop() {
 	api.Listener.Stop()
-	api.Listener.wg.Wait()
+	api.Listener.waitGroup.Wait()
 }
 
 /*
@@ -127,8 +127,8 @@ func NewTestAPI() (*TestAPI, error) {
 	}
 	// Serve up the listener and set up the waitgroup so tests can wait until the server closes
 	go func() {
-		sl.wg.Add(1)
-		defer sl.wg.Done()
+		sl.waitGroup.Add(1)
+		defer sl.waitGroup.Done()
 		server.Serve(sl)
 	}()
 

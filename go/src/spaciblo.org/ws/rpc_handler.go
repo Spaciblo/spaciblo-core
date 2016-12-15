@@ -10,22 +10,22 @@ import (
 	wsRPC "spaciblo.org/ws/rpc"
 )
 
-type hostServer struct {
+type RPCHostServer struct {
 	WebSocketHandler *WebSocketHandler
 }
 
-func newHostServer(wsHandler *WebSocketHandler) (*hostServer, error) {
-	server := &hostServer{
+func NewRPCHostServer(wsHandler *WebSocketHandler) (*RPCHostServer, error) {
+	server := &RPCHostServer{
 		WebSocketHandler: wsHandler,
 	}
 	return server, nil
 }
 
-func (server *hostServer) HandlePing(ctxt context.Context, ping *wsRPC.Ping) (*wsRPC.Ack, error) {
+func (server *RPCHostServer) HandlePing(ctxt context.Context, ping *wsRPC.Ping) (*wsRPC.Ack, error) {
 	return &wsRPC.Ack{Message: "OK"}, nil
 }
 
-func (server *hostServer) SendSpaceUpdate(ctx context.Context, spaceUpdate *wsRPC.SpaceUpdate) (*wsRPC.Ack, error) {
+func (server *RPCHostServer) SendSpaceUpdate(ctx context.Context, spaceUpdate *wsRPC.SpaceUpdate) (*wsRPC.Ack, error) {
 	spaceUpdateMessage := NewSpaceUpdateMessage(spaceUpdate.SpaceUUID)
 
 	for _, addition := range spaceUpdate.Additions {
@@ -58,7 +58,7 @@ func (server *hostServer) SendSpaceUpdate(ctx context.Context, spaceUpdate *wsRP
 	return &wsRPC.Ack{Message: "OK"}, nil
 }
 
-func (server *hostServer) Serve(port int64) error {
+func (server *RPCHostServer) Serve(port int64) error {
 	lis, err := net.Listen("tcp", ":"+strconv.FormatInt(port, 10))
 	if err != nil {
 		return err

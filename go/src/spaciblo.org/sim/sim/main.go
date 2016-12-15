@@ -6,6 +6,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"spaciblo.org/sim"
 )
@@ -13,8 +14,12 @@ import (
 var logger = log.New(os.Stdout, "[sim-host] ", 0)
 
 func main() {
-	err := sim.StartSimHost(true)
+	err := sim.StartSimHostFromEnvVariables()
 	if err != nil {
-		logger.Printf("Error starting sim host: %s", err)
+		logger.Println("Error starting sim", err)
+		return
+	}
+	for {
+		time.Sleep(time.Hour)
 	}
 }

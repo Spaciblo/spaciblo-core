@@ -101,7 +101,7 @@ func TestSpaceRecords(t *testing.T) {
 	AssertNil(t, err)
 	AssertEqual(t, 0, len(spaceRecords))
 
-	spaceRecord, err := apiDB.CreateSpaceRecord("Space 0", "{}", dbInfo)
+	spaceRecord, err := apiDB.CreateSpaceRecord("Space 0", "{}", "bogus-avatar-uuid", dbInfo)
 	AssertNil(t, err)
 	spaceRecord2, err := apiDB.FindSpaceRecord(spaceRecord.UUID, dbInfo)
 	AssertNil(t, err)
@@ -115,7 +115,7 @@ func TestSpaceRecords(t *testing.T) {
 	AssertNil(t, err)
 	AssertEqual(t, 1, len(spaceRecords))
 	AssertEqual(t, spaceRecords[0].UUID, spaceRecord.UUID)
-	spaceRecord3, err := apiDB.CreateSpaceRecord("Space 3", "{}", dbInfo)
+	spaceRecord3, err := apiDB.CreateSpaceRecord("Space 3", "{}", "bogus-avatar-uuid", dbInfo)
 	AssertNil(t, err)
 	spaceRecords, err = apiDB.FindAllSpaceRecords(dbInfo)
 	AssertNil(t, err)

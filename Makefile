@@ -20,7 +20,7 @@ SESSION_SECRET := "fr0styth3sn0wm@n"
 STATIC_DIR := $(PWD)/go/src/spaciblo.org/be/static/
 FILE_STORAGE_DIR := $(PWD)/file_storage
 
-MAIN_PKGS := spaciblo.org/api/api spaciblo.org/sim/sim spaciblo.org/ws/ws spaciblo.org/all_in_one
+MAIN_PKGS := spaciblo.org/api/api spaciblo.org/sim/sim spaciblo.org/ws/ws spaciblo.org/all_in_one spaciblo.org/be/install_demo
 
 COMMON_POSTGRES_ENVS := POSTGRES_USER=$(POSTGRES_USER) \
 						POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
@@ -106,9 +106,15 @@ install_demo:
 	go install -v spaciblo.org/be/install_demo
 	$(DEMO_RUNTIME_ENVS) $(GOBIN)/install_demo
 
+test_sim:
+	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql
+	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/sim/... -cwd="$(PWD)"
+
 test:
 	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql
-	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/api/... spaciblo.org/sim/... spaciblo.org/ws/... -cwd="$(PWD)"
+	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/api/... -cwd="$(PWD)"
+	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/ws/... -cwd="$(PWD)"
+	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/sim/... -cwd="$(PWD)"
 	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/be/...
 
 psql:

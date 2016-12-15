@@ -19,7 +19,7 @@ type SimHostServer struct {
 	DBInfo          *be.DBInfo
 }
 
-func NewSimHostServer(wsHost string, dbInfo *be.DBInfo, run bool) (*SimHostServer, error) {
+func NewSimHostServer(wsHost string, dbInfo *be.DBInfo) (*SimHostServer, error) {
 	server := &SimHostServer{
 		SpaceSimulators: make(map[string]*SpaceSimulator),
 		WSHost:          wsHost,
@@ -34,19 +34,13 @@ func NewSimHostServer(wsHost string, dbInfo *be.DBInfo, run bool) (*SimHostServe
 		return nil, err
 	}
 	for _, spaceRecord := range records {
-		state, err := spaceRecord.DecodeState()
-		if err != nil {
-			return nil, err
-		}
-		spaceSim, err := NewSpaceSimulator(spaceRecord.Name, spaceRecord.UUID, state, server, dbInfo)
+		spaceSim, err := NewSpaceSimulator(spaceRecord.UUID, server, dbInfo)
 		if err != nil {
 			logger.Println("Error creating space simulator: ", spaceRecord.Name+": ", err)
 			return nil, err
 		}
 		server.SpaceSimulators[spaceRecord.UUID] = spaceSim
-		if run {
-			spaceSim.StartTime()
-		}
+		spaceSim.StartTime()
 	}
 
 	return server, nil

@@ -79,6 +79,12 @@ func main() {
 		createTemplate(path.Join(templatesDir, info.Name()), info.Name(), dbInfo, fs)
 	}
 
+	avatarTemplate, err := apiDB.FindTemplateRecordByField("name", "GridFace", dbInfo)
+	if err != nil {
+		logger.Fatal("Could not find default avatar: %s", err)
+		return
+	}
+
 	spacesDir := path.Join(DEMO_DATA_DIR, DEMO_SPACES_DIR)
 	spacesFileInfos, err := ioutil.ReadDir(spacesDir)
 	if err != nil {
@@ -86,11 +92,11 @@ func main() {
 		return
 	}
 	for _, info := range spacesFileInfos {
-		createSpace(path.Join(spacesDir, info.Name()), info.Name(), dbInfo)
+		createSpace(path.Join(spacesDir, info.Name()), info.Name(), avatarTemplate.UUID, dbInfo)
 	}
 }
 
-func createSpace(directory string, name string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, error) {
+func createSpace(directory string, name string, avatarUUID string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, error) {
 	spaceFilePath := path.Join(directory, DEMO_SPACE_FILE_NAME)
 	file, err := os.Open(spaceFilePath)
 	if err != nil {
@@ -112,7 +118,7 @@ func createSpace(directory string, name string, dbInfo *be.DBInfo) (*apiDB.Space
 	buff := bytes.NewBufferString("")
 	state.Encode(buff)
 
-	record, err := apiDB.CreateSpaceRecord(name, buff.String(), dbInfo)
+	record, err := apiDB.CreateSpaceRecord(name, buff.String(), avatarUUID, dbInfo)
 	logger.Println("Created space", name+":", record.UUID)
 	if err != nil {
 		logger.Fatal("Could not create user", err)

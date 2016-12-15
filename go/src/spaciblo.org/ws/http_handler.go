@@ -33,7 +33,6 @@ func NewWebSocketHandler(simHost string) (*WebSocketHandler, error) {
 }
 
 func (handler *WebSocketHandler) Distribute(clientUUIDs []string, message ClientMessage) {
-	// TODO use channels and go routines to make this async
 	for _, clientUUID := range clientUUIDs {
 		_, ok := handler.Connections[clientUUID]
 		if ok == false {
@@ -42,10 +41,7 @@ func (handler *WebSocketHandler) Distribute(clientUUIDs []string, message Client
 		if handler.Connections[clientUUID].SpaceUUID == "" && message.MessageType() == SpaceUpdateType {
 			handler.Connections[clientUUID].SpaceUUID = message.(*SpaceUpdateMessage).SpaceUUID
 		}
-		rawMessage, _ := json.Marshal(message)
-		if err := handler.Connections[clientUUID].Conn.WriteMessage(1, rawMessage); err != nil {
-			logger.Println(err)
-		}
+		handler.Connections[clientUUID].Outgoing <- message
 	}
 }
 
@@ -75,6 +71,22 @@ type WebSocketConnection struct {
 	ClientUUID string
 	SpaceUUID  string
 	Conn       *websocket.Conn
+	Outgoing   chan ClientMessage // A buffer for outgoing ClientMessages
+	Stop       chan bool          // Send a bool to this to stop HandleOutgoing
+}
+
+func (wsConn *WebSocketConnection) HandleOutgoing() {
+	for {
+		select {
+		case clientMessage := <-wsConn.Outgoing:
+			rawResponse, err := json.Marshal(clientMessage)
+			if err = wsConn.Conn.WriteMessage(1, rawResponse); err != nil {
+				logger.Println(err)
+			}
+		case <-wsConn.Stop:
+			return
+		}
+	}
 }
 
 func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -93,14 +105,19 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		ClientUUID: UUID(),
 		SpaceUUID:  "",
 		Conn:       conn,
+		Outgoing:   make(chan ClientMessage, 2048),
+		Stop:       make(chan bool),
 	}
+	go wsConnection.HandleOutgoing()
 	handler.AddWebSocketConnection(wsConnection)
 
 	for {
-		messageType, rawMessage, err := wsConnection.Conn.ReadMessage()
+		// TODO Break ReadMessage out into the for loop triplet
+		_, rawMessage, err := wsConnection.Conn.ReadMessage()
 		if err != nil {
 			handler.RemoveWebSocketConnection(wsConnection)
 			RouteClientMessage(NewClientDisconnectedMessage(), wsConnection.ClientUUID, wsConnection.SpaceUUID, simHostClient)
+			wsConnection.Stop <- true
 			return
 		}
 		typedMessage, err := ParseMessageJson(string(rawMessage))
@@ -112,10 +129,7 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		if err != nil {
 			logger.Printf("Error routing client message: %s", err)
 		} else if responseMessage != nil {
-			rawResponse, err := json.Marshal(responseMessage)
-			if err = conn.WriteMessage(messageType, rawResponse); err != nil {
-				logger.Println(err)
-			}
+			wsConnection.Outgoing <- responseMessage
 		}
 	}
 }

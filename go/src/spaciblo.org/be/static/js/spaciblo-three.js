@@ -64,8 +64,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.renderer.antialias = true
 		this.renderer.setClearColor(0xffffff)
 		this.renderer.setPixelRatio(window.devicePixelRatio)
-		this.renderer.shadowMap.enabled = true
-		this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
 		this.renderer.domElement.setAttribute('class', 'three-js-spaces-renderer spaces-renderer')
 
 		// A list of spaces to show when no space is loaded

@@ -40,28 +40,36 @@ type SpaceSimulator struct {
 	AvatarMotionChannel     chan *AvatarMotionNotice
 }
 
-func NewSpaceSimulator(name string, spaceUUID string, initialState *apiDB.SpaceStateNode, simHostServer *SimHostServer, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
-	rootNode, err := NewRootNode(initialState, dbInfo)
+func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
+	logger.Println("Starting", spaceUUID)
+	spaceRecord, err := apiDB.FindSpaceRecord(spaceUUID, dbInfo)
+	if err != nil {
+		return nil, err
+	}
+	state, err := spaceRecord.DecodeState()
+	if err != nil {
+		return nil, err
+	}
+	avatarTemplateRecord, err := apiDB.FindTemplateRecord(spaceRecord.Avatar, dbInfo)
+	if err != nil {
+		logger.Println("Error searching for avatar template ", spaceRecord.Avatar, " for space", spaceRecord.UUID, err)
+		return nil, err
+	}
+	rootNode, err := NewRootNode(state, dbInfo)
 	if err != nil {
 		return nil, err
 	}
 	rootNode.SetClean(true)
 
-	templateRecord, err := apiDB.FindTemplateRecordByField("name", "GridFace", dbInfo) // TODO Stop hard coding the Avatar template
-	if err != nil {
-		logger.Println("Error searching for default avatar template: Box: ", err)
-		return nil, err
-	}
-
 	return &SpaceSimulator{
 		Running:           false,
-		Name:              name,
+		Name:              spaceRecord.Name,
 		UUID:              spaceUUID,
 		RootNode:          rootNode,
 		Avatars:           make(map[string]*SceneNode),
 		Additions:         []*SceneAddition{},
 		Deletions:         []int64{},
-		DefaultAvatarUUID: templateRecord.UUID,
+		DefaultAvatarUUID: avatarTemplateRecord.UUID,
 		SimHostServer:     simHostServer,
 		DBInfo:            dbInfo,
 

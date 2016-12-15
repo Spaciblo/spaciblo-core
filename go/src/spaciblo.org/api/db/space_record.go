@@ -10,21 +10,23 @@ import (
 const SpaceTable = "spaces"
 
 type SpaceRecord struct {
-	Id    int64  `json:"id" db:"id, primarykey, autoincrement"`
-	UUID  string `json:"uuid" db:"u_u_i_d"`
-	Name  string `json:"name" db:"name"`
-	State string `json:"-"` // A JSON blob that stores a serialized SpaceStateNode scene graph and settings to initialize a space in a sim
+	Id     int64  `json:"id" db:"id, primarykey, autoincrement"`
+	UUID   string `json:"uuid" db:"u_u_i_d"`
+	Name   string `json:"name" db:"name"`
+	State  string `json:"-"`      // A JSON blob that stores a serialized SpaceStateNode scene graph and settings to initialize a space in a sim
+	Avatar string `json:"avatar"` // The template UUID of the default Avatar for the space
 }
 
 func (record *SpaceRecord) DecodeState() (*SpaceStateNode, error) {
 	return DecodeSpaceStateNode(bytes.NewBufferString(record.State))
 }
 
-func CreateSpaceRecord(name string, state string, dbInfo *be.DBInfo) (*SpaceRecord, error) {
+func CreateSpaceRecord(name string, state string, avatarTemplateUUID string, dbInfo *be.DBInfo) (*SpaceRecord, error) {
 	record := &SpaceRecord{
-		Name:  name,
-		UUID:  be.UUID(),
-		State: state,
+		Name:   name,
+		UUID:   be.UUID(),
+		State:  state,
+		Avatar: avatarTemplateUUID,
 	}
 	err := dbInfo.Map.Insert(record)
 	if err != nil {
@@ -101,6 +103,16 @@ func NewSpaceStateNode(position []float64, orientation []float64, templateUUID s
 
 func (stateNode *SpaceStateNode) Encode(writer io.Writer) error {
 	return json.NewEncoder(writer).Encode(stateNode)
+}
+
+func (stateNode *SpaceStateNode) ToString() string {
+	buff := bytes.NewBufferString("")
+	err := stateNode.Encode(buff)
+	if err != nil {
+		logger.Println("Could not encode StateNode", err)
+		return ""
+	}
+	return buff.String()
 }
 
 func DecodeSpaceStateNode(jsonFile io.Reader) (*SpaceStateNode, error) {

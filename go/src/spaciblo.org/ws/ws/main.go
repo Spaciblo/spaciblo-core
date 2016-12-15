@@ -13,7 +13,7 @@ import (
 var logger = log.New(os.Stdout, "[ws] ", 0)
 
 func main() {
-	err := ws.StartWS()
+	err := ws.StartWSFromEnvVariables()
 	if err != nil {
 		logger.Printf("Error starting ws: %s", err)
 	}
