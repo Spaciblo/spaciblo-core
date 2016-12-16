@@ -119,11 +119,11 @@ func createSpace(directory string, name string, avatarUUID string, dbInfo *be.DB
 	state.Encode(buff)
 
 	record, err := apiDB.CreateSpaceRecord(name, buff.String(), avatarUUID, dbInfo)
-	logger.Println("Created space", name+":", record.UUID)
 	if err != nil {
-		logger.Fatal("Could not create user", err)
+		logger.Fatal("Could not create space record", err)
 		return nil, err
 	}
+	logger.Println("Created space", name+":", record.UUID)
 	return record, nil
 }
 

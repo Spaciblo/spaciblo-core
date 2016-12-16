@@ -102,7 +102,7 @@ run_all: compile
 	$(API_RUNTIME_ENVS) $(SIM_RUNTIME_ENVS) $(WS_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/all_in_one
 
 install_demo:
-	-echo "drop database $(POSTGRES_DB_NAME); create database $(POSTGRES_DB_NAME);" | psql
+	-echo "drop database $(POSTGRES_DB_NAME); create database $(POSTGRES_DB_NAME);" | psql -U $(POSTGRES_USER)
 	go install -v spaciblo.org/be/install_demo
 	$(DEMO_RUNTIME_ENVS) $(GOBIN)/install_demo
 
