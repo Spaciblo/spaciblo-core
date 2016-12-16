@@ -58,7 +58,6 @@ func TestHostStartup(t *testing.T) {
 	wsService, simService, err := createTestCluster(dbInfo)
 	AssertNil(t, err)
 	defer func() {
-
 		wsService.Stop()
 		simService.Stop()
 	}()

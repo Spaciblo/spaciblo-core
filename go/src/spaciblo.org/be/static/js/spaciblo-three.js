@@ -191,7 +191,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		group.state = state
 		if(state.settings && state.settings.name && state.settings.name.value){
 			group.name = state.settings.name.value
-			console.log("Name", group.name)
 		}
 		if(state.position){
 			group.position.set(...state.position)
@@ -199,7 +198,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		if(state.orientation){
 			group.quaternion.set(...state.orientation)
 		}
-		console.log("Scale", state)
 		if(state.scale){
 			group.scale.set(...state.scale)
 		}

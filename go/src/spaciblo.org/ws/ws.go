@@ -5,12 +5,15 @@ package ws
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/nu7hatch/gouuid"
+
+	"spaciblo.org/be"
 )
 
 var logger = log.New(os.Stdout, "[ws] ", 0)
@@ -25,9 +28,10 @@ gRPC calls come in from the sim host
 The HTTP service itself holds a gRPC client to the sim host
 */
 type WSService struct {
-	WSPort    int64
-	SimHost   string
-	WSHandler *WebSocketHandler
+	WSPort     int64
+	SimHost    string
+	WSHandler  *WebSocketHandler
+	WSListener *be.StoppableListener
 
 	RPCPort   int64
 	RPCServer *RPCHostServer
@@ -64,21 +68,33 @@ func (wsService *WSService) Start() {
 	go func() {
 		err := wsService.RPCServer.Serve(wsService.RPCPort)
 		if err != nil {
-			logger.Println("Could not start WS RPC service", err)
+			logger.Println("Exited WS RPC service", err)
 		}
 	}()
 
 	go func() {
-		http.Handle(WS_HTTP_PATH, wsService.WSHandler)
-		err := http.ListenAndServe(":"+strconv.FormatInt(wsService.WSPort, 10), nil)
+		stoppableListener, err := be.NewStoppableListener("tcp", fmt.Sprintf(":%d", wsService.WSPort))
 		if err != nil {
-			logger.Println("Could not start WS HTTP service", err)
+			logger.Println("Error creating WS listener", err)
+			return
+		}
+		wsService.WSListener = stoppableListener
+
+		mux := http.NewServeMux()
+		mux.Handle(WS_HTTP_PATH, wsService.WSHandler)
+		server := http.Server{
+			Handler: mux,
+		}
+		err = server.Serve(stoppableListener)
+		if err != nil {
+			logger.Println("Exited WS HTTP service", err)
 		}
 	}()
 }
 
 func (wsService *WSService) Stop() {
-	// TODO
+	wsService.WSListener.Stop()
+	wsService.RPCServer.RPCServer.Stop()
 }
 
 /*

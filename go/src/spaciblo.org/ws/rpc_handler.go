@@ -12,6 +12,7 @@ import (
 
 type RPCHostServer struct {
 	WebSocketHandler *WebSocketHandler
+	RPCServer        *grpc.Server
 }
 
 func NewRPCHostServer(wsHandler *WebSocketHandler) (*RPCHostServer, error) {
@@ -65,8 +66,8 @@ func (server *RPCHostServer) Serve(port int64) error {
 	}
 
 	var opts []grpc.ServerOption
-	grpcServer := grpc.NewServer(opts...)
-	wsRPC.RegisterWSHostServer(grpcServer, server)
-	grpcServer.Serve(lis)
+	server.RPCServer = grpc.NewServer(opts...)
+	wsRPC.RegisterWSHostServer(server.RPCServer, server)
+	server.RPCServer.Serve(lis)
 	return nil
 }

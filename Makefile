@@ -99,6 +99,7 @@ run_ws: compile
 	$(WS_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/ws
 
 run_all: compile
+	-mkdir $(FILE_STORAGE_DIR)
 	$(API_RUNTIME_ENVS) $(SIM_RUNTIME_ENVS) $(WS_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/all_in_one
 
 install_demo:
