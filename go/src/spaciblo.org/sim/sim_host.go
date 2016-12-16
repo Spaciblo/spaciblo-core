@@ -46,7 +46,7 @@ func NewSimHostServer(wsHost string, dbInfo *be.DBInfo) (*SimHostServer, error) 
 	return server, nil
 }
 
-func (server *SimHostServer) SendClientUpdate(spaceUUID string, clientUUIDs []string, additions []*SceneAddition, deletions []int64, updates []*NodeUpdate) error {
+func (server *SimHostServer) SendClientUpdate(spaceUUID string, frame int64, clientUUIDs []string, additions []*SceneAddition, deletions []int64, updates []*NodeUpdate) error {
 	if len(clientUUIDs) == 0 {
 		// No point in sending updates with no recipients
 		return nil
@@ -57,6 +57,7 @@ func (server *SimHostServer) SendClientUpdate(spaceUUID string, clientUUIDs []st
 	}
 	spaceUpdate := &wsRPC.SpaceUpdate{
 		SpaceUUID:   spaceUUID,
+		Frame:       frame,
 		ClientUUIDs: clientUUIDs,
 		NodeUpdates: []*wsRPC.NodeUpdate{},
 		Additions:   []*wsRPC.Addition{},

@@ -19,10 +19,11 @@ message Ack {
 
 message SpaceUpdate {
   string spaceUUID = 1;
-  repeated string clientUUIDs = 2;
-  repeated NodeUpdate nodeUpdates = 3;
-  repeated Addition additions = 4;
-  repeated int64 deletions = 5; 
+  int64 frame = 2;
+  repeated string clientUUIDs = 3;
+  repeated NodeUpdate nodeUpdates = 4;
+  repeated Addition additions = 5;
+  repeated int64 deletions = 6;
 }
 
 message Setting {

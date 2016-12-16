@@ -27,7 +27,7 @@ func (server *RPCHostServer) HandlePing(ctxt context.Context, ping *wsRPC.Ping) 
 }
 
 func (server *RPCHostServer) SendSpaceUpdate(ctx context.Context, spaceUpdate *wsRPC.SpaceUpdate) (*wsRPC.Ack, error) {
-	spaceUpdateMessage := NewSpaceUpdateMessage(spaceUpdate.SpaceUUID)
+	spaceUpdateMessage := NewSpaceUpdateMessage(spaceUpdate.SpaceUUID, spaceUpdate.Frame)
 
 	for _, addition := range spaceUpdate.Additions {
 		spaceUpdateMessage.Additions = append(spaceUpdateMessage.Additions, &AdditionMessage{

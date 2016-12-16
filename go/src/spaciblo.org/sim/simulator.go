@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	apiDB "spaciblo.org/api/db"
@@ -26,6 +27,7 @@ It does not handle any of the communication with clients. That's the job of the 
 */
 type SpaceSimulator struct {
 	Running           bool                  // True if the simulator should be automatically ticking
+	Frame             int64                 // The current frame number
 	Name              string                // The Name of the SpaceRecord
 	UUID              string                // The UUID of the SpaceRecord
 	RootNode          *SceneNode            // The scene graph, including SceneNodes for avatars
@@ -63,6 +65,7 @@ func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *b
 
 	return &SpaceSimulator{
 		Running:           false,
+		Frame:             0,
 		Name:              spaceRecord.Name,
 		UUID:              spaceUUID,
 		RootNode:          rootNode,
@@ -137,19 +140,20 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 			newClientUUIDs = append(newClientUUIDs, notice.ClientUUID)
 		}
 		if len(newClientUUIDs) > 0 {
-			err := spaceSim.SimHostServer.SendClientUpdate(spaceSim.UUID, newClientUUIDs, spaceSim.InitialAdditions(), []int64{}, []*NodeUpdate{})
+			err := spaceSim.SimHostServer.SendClientUpdate(spaceSim.UUID, spaceSim.Frame, newClientUUIDs, spaceSim.InitialAdditions(), []int64{}, []*NodeUpdate{})
 			if err != nil {
 				logger.Println("Error sending client initialization", err)
 			}
 		}
 	}
 
-	err := spaceSim.SimHostServer.SendClientUpdate(spaceSim.UUID, spaceSim.GetClientUUIDs(), spaceSim.Additions, spaceSim.Deletions, spaceSim.RootNode.getNodeUpdates())
+	err := spaceSim.SimHostServer.SendClientUpdate(spaceSim.UUID, spaceSim.Frame, spaceSim.GetClientUUIDs(), spaceSim.Additions, spaceSim.Deletions, spaceSim.RootNode.getNodeUpdates())
 	if err != nil {
 		logger.Println("Error sending client update", err)
 	}
 	spaceSim.Additions = []*SceneAddition{}
 	spaceSim.Deletions = []int64{}
+	spaceSim.Frame = (spaceSim.Frame + 1) % math.MaxInt64
 }
 
 func (spaceSim *SpaceSimulator) GetClientUUIDs() []string {

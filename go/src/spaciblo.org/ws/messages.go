@@ -71,15 +71,17 @@ func NewJoinSpaceMessage(uuid string) *JoinSpaceMessage {
 type SpaceUpdateMessage struct {
 	TypedMessage
 	SpaceUUID   string               `json:"spaceUUID"`
+	Frame       int64                `json:"frame"`
 	NodeUpdates []*NodeUpdateMessage `json:"nodeUpdates"`
 	Additions   []*AdditionMessage   `json:"additions"`
 	Deletions   []int64              `json:"deletions"`
 }
 
-func NewSpaceUpdateMessage(spaceUUID string) *SpaceUpdateMessage {
+func NewSpaceUpdateMessage(spaceUUID string, frame int64) *SpaceUpdateMessage {
 	return &SpaceUpdateMessage{
 		TypedMessage{Type: SpaceUpdateType},
 		spaceUUID,
+		frame,
 		[]*NodeUpdateMessage{},
 		[]*AdditionMessage{},
 		[]int64{},
