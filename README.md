@@ -32,7 +32,7 @@ The `make run_{api,sim,ws}` targets will set environment variables useful during
 
 	make run_all
 
-Point your browser at (http://127.0.0.1:9000)[http://127.0.0.1:9000/] and click a cube and to enter a space. Use the arrow keys to move around.
+Point your browser at [http://127.0.0.1:9000](http://127.0.0.1:9000/) and click a cube and to enter a space. Use the arrow keys to move around.
 
 Point a second browser at the same URL and they'll see each others' avatars.
 
