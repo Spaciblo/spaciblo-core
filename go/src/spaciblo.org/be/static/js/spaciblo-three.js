@@ -78,7 +78,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.spaceMenuMeshes = []
 		this.spaceMenu = new THREE.Group()
 		this.spaceMenu.name = "Space Menu"
-		this.spaceMenu.position.z = -5
+		this.spaceMenu.position.z = -8
 		this.scene.add(this.spaceMenu)
 
 		this.el.addEventListener('mousemove', this._onDocumentMouseMove.bind(this), false)
@@ -133,7 +133,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	setSize(width, height){
 		if(this.vrDisplay){
-			var eyeParams = vrDisplay.getEyeParameters('left')
+			var eyeParams = this.vrDisplay.getEyeParameters('left')
 			this.width = eyeParams.renderWidth * 2
 			this.height = eyeParams.renderHeight
 			this.renderer.setPixelRatio(1)
