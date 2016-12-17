@@ -312,7 +312,8 @@ func (api *API) createHandlerFunc(resource Resource, versioned bool, dbInfo *DBI
 		}
 
 		rw.Header().Add("API-Version", api.Version)
-		rw.Header().Add("Request-Id", UUID()) // Useful for tracking requests across the front and back end
+		rw.Header().Add("Request-Id", UUID())  // Useful for tracking requests across the front and back end
+		rw.Header().Add("Connection", "close") // Don't keep the connection open after the transaction is finished
 		code, data, header := methodHandler(apiRequest)
 
 		// If the handler signaled that it handled the raw request itself, do nothing more
