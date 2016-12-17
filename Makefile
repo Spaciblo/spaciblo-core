@@ -5,6 +5,9 @@ SIM_PORT 		:= 9010
 WS_PORT 		:= 9020
 WS_RPC_PORT 	:= 9030
 
+TLS_CERT := "test_certs/mycert1.cer"
+TLS_KEY  := "test_certs/mycert1.key"
+
 DOCROOT_DIR = $(PWD)/docroot
 
 POSTGRES_USER := trevor
@@ -34,7 +37,10 @@ TEST_POSTGRES_ENVS := 	$(COMMON_POSTGRES_ENVS) \
 						POSTGRES_DB_NAME=$(POSTGRES_TEST_DB_NAME) 
 
 DEMO_RUNTIME_ENVS := 	$(MAIN_POSTGRES_ENVS) \
-						FILE_STORAGE_DIR=$(FILE_STORAGE_DIR)
+						FILE_STORAGE_DIR=$(FILE_STORAGE_DIR) \
+
+COMMON_RUNTIME_ENVS := 	TLS_CERT=$(TLS_CERT) \
+						TLS_KEY=$(TLS_KEY)
 
 API_RUNTIME_ENVS := 	API_PORT=$(API_PORT) \
 						STATIC_DIR=$(STATIC_DIR) \
@@ -90,17 +96,19 @@ compile:
 
 run_api: compile
 	-mkdir $(FILE_STORAGE_DIR)
-	$(API_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/api
+	$(COMMON_RUNTIME_ENVS) $(API_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/api
 
 run_sim: compile
-	$(SIM_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/sim
+	-mkdir $(FILE_STORAGE_DIR)
+	$(COMMON_RUNTIME_ENVS) $(SIM_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/sim
 
 run_ws: compile
-	$(WS_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/ws
+	-mkdir $(FILE_STORAGE_DIR)
+	$(COMMON_RUNTIME_ENVS) $(WS_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/ws
 
 run_all: compile
 	-mkdir $(FILE_STORAGE_DIR)
-	$(API_RUNTIME_ENVS) $(SIM_RUNTIME_ENVS) $(WS_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/all_in_one
+	$(COMMON_RUNTIME_ENVS) $(API_RUNTIME_ENVS) $(SIM_RUNTIME_ENVS) $(WS_RUNTIME_ENVS) $(MAIN_POSTGRES_ENVS) go/bin/all_in_one
 
 install_demo:
 	-echo "drop database $(POSTGRES_DB_NAME); create database $(POSTGRES_DB_NAME);" | psql -U $(POSTGRES_USER)
@@ -108,11 +116,11 @@ install_demo:
 	$(DEMO_RUNTIME_ENVS) $(GOBIN)/install_demo
 
 test_sim:
-	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql
+	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql -U $(POSTGRES_USER)
 	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/sim/... -cwd="$(PWD)"
 
 test:
-	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql
+	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql -U $(POSTGRES_USER)
 	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/api/... -cwd="$(PWD)"
 	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/ws/...  -cwd="$(PWD)"
 	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/sim/... -cwd="$(PWD)"

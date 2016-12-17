@@ -124,7 +124,7 @@ func NewTestAPI() (*TestAPI, error) {
 	negServer.UseHandler(api.Mux)
 
 	// Set up a stoppable listener so we can clean up afterwards
-	sl, err := NewStoppableListener("tcp", fmt.Sprintf(":%d", TestPort))
+	sl, err := NewStoppableListener(fmt.Sprintf(":%d", TestPort), "test_certs/mycert1.cer", "test_certs/mycert1.key")
 	if err != nil {
 		return nil, err
 	}

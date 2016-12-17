@@ -16,16 +16,15 @@ type StoppableListener struct {
 	waitGroup    sync.WaitGroup
 }
 
-func NewStoppableListener(proto string, connect string) (*StoppableListener, error) {
-	// TODO make cert location a configuration setting
-	cert, err := tls.LoadX509KeyPair("cert/mycert1.cer", "cert/mycert1.key")
+func NewStoppableListener(connect string, certPath string, keyPath string) (*StoppableListener, error) {
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		logger.Println("Error loading cert", err)
 		return nil, err
 	}
 	config := &tls.Config{Certificates: []tls.Certificate{cert}}
 
-	netListener, err := net.Listen(proto, connect)
+	netListener, err := net.Listen("tcp", connect)
 	if err != nil {
 		return nil, err
 	}

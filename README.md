@@ -32,7 +32,11 @@ The `make run_{api,sim,ws}` targets will set environment variables useful during
 
 	make run_all
 
-Point your browser at [http://127.0.0.1:9000](http://127.0.0.1:9000/) and click a cube and to enter a space. Use the arrow keys to move around.
+Point your browser at [https://127.0.0.1:9000](https://127.0.0.1:9000/).
+
+By default, the service is using a self-signed cert so you will need to reassure your browser that it's ok by creating a security exception. On firefox, you may need to do that for both the [web service](https://127.0.0.1:9000/) and for the [WebSocket service](https://127.0.0.1:9020/).
+
+Now, click a cube and to enter a space. Use the arrow keys to move around.
 
 Point a second browser at the same URL and they'll see each others' avatars.
 

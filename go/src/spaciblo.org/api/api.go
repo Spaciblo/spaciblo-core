@@ -46,11 +46,22 @@ func StartAPI() error {
 	}
 	docrootEndDir := os.Getenv("DOCROOT_DIR") // Optional
 
+	certPath := os.Getenv("TLS_CERT")
+	if certPath == "" {
+		return errors.New("No TLS_CERT env variable")
+	}
+	keyPath := os.Getenv("TLS_KEY")
+	if keyPath == "" {
+		return errors.New("No TLS_KEY env variable")
+	}
+
 	logger.Print("API_PORT:\t\t", port)
 	logger.Print("STATIC_DIR:\t", staticDir)
 	logger.Print("DOCROOT_DIR:\t", docrootEndDir)
 	logger.Print("FILE_STORAGE_DIR:\t", fsDir)
-	logger.Print("DB host: ", be.DBHost, ":", be.DBPort)
+	logger.Print("DB HOST:\t\t", be.DBHost, ":", be.DBPort)
+	logger.Print("TLS_CERT:\t\t", certPath)
+	logger.Print("TLS_KEY:\t\t", keyPath)
 
 	dbInfo, err := db.InitDB()
 	if err != nil {
@@ -84,7 +95,7 @@ func StartAPI() error {
 
 	server.UseHandler(api.Mux)
 
-	stoppableListener, err := be.NewStoppableListener("tcp", fmt.Sprintf(":%d", port))
+	stoppableListener, err := be.NewStoppableListener(fmt.Sprintf(":%d", port), certPath, keyPath)
 	if err != nil {
 		return err
 	}

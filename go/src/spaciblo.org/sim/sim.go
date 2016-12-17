@@ -89,7 +89,7 @@ func StartSimHostFromEnvVariables() error {
 	if err != nil {
 		return err
 	}
-	logger.Print("SIM_PORT:\t\t", rpcPort)
+	logger.Print("SIM_PORT:\t", rpcPort)
 
 	wsHost := os.Getenv("WS_RPC_HOST")
 	if wsHost == "" {

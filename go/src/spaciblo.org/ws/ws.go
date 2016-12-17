@@ -30,6 +30,8 @@ The HTTP service itself holds a gRPC client to the sim host
 type WSService struct {
 	WSPort     int64
 	SimHost    string
+	CertPath   string // file path to a TLS cert
+	KeyPath    string // file path to a TLs key
 	WSHandler  *WebSocketHandler
 	WSListener *be.StoppableListener
 
@@ -37,10 +39,12 @@ type WSService struct {
 	RPCServer *RPCHostServer
 }
 
-func NewWSService(wsPort int64, simHost string, rpcPort int64) (*WSService, error) {
+func NewWSService(wsPort int64, simHost string, rpcPort int64, certPath string, keyPath string) (*WSService, error) {
 	service := &WSService{
-		WSPort:  wsPort,
-		SimHost: simHost,
+		WSPort:   wsPort,
+		SimHost:  simHost,
+		CertPath: certPath,
+		KeyPath:  keyPath,
 
 		RPCPort: rpcPort,
 	}
@@ -73,7 +77,7 @@ func (wsService *WSService) Start() {
 	}()
 
 	go func() {
-		stoppableListener, err := be.NewStoppableListener("tcp", fmt.Sprintf(":%d", wsService.WSPort))
+		stoppableListener, err := be.NewStoppableListener(fmt.Sprintf(":%d", wsService.WSPort), wsService.CertPath, wsService.KeyPath)
 		if err != nil {
 			logger.Println("Error creating WS listener", err)
 			return
@@ -119,11 +123,22 @@ func StartWSFromEnvVariables() error {
 		return errors.New("WS requires a SIM_HOST variable")
 	}
 
+	certPath := os.Getenv("TLS_CERT")
+	if certPath == "" {
+		return errors.New("No TLS_CERT env variable")
+	}
+	keyPath := os.Getenv("TLS_KEY")
+	if keyPath == "" {
+		return errors.New("No TLS_KEY env variable")
+	}
+
 	logger.Print("WS_PORT:\t\t", wsPort)
 	logger.Print("WS_RPC_PORT:\t", rpcPort)
 	logger.Print("SIM_HOST:\t\t", simHost)
+	logger.Print("TLS_CERT:\t\t", certPath)
+	logger.Print("TLS_KEY:\t\t", keyPath)
 
-	wsService, err := NewWSService(wsPort, simHost, rpcPort)
+	wsService, err := NewWSService(wsPort, simHost, rpcPort, certPath, keyPath)
 	if err != nil {
 		logger.Println("Could not start WS services", err)
 		return err

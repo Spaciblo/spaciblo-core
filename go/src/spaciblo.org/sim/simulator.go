@@ -43,7 +43,6 @@ type SpaceSimulator struct {
 }
 
 func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
-	logger.Println("Starting", spaceUUID)
 	spaceRecord, err := apiDB.FindSpaceRecord(spaceUUID, dbInfo)
 	if err != nil {
 		return nil, err

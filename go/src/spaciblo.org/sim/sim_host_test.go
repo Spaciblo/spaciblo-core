@@ -84,7 +84,7 @@ func createTestCluster(dbInfo *be.DBInfo) (*ws.WSService, *SimHostService, error
 	var wsRPCPort int64 = 7053
 	var wsRPCHost string = "127.0.0.1:" + strconv.FormatInt(wsRPCPort, 10)
 
-	wsService, err := ws.NewWSService(wsHTTPPort, simHost, wsRPCPort)
+	wsService, err := ws.NewWSService(wsHTTPPort, simHost, wsRPCPort, "test_certs/mycert1.cer", "test_certs/mycert1.key")
 	if err != nil {
 		return nil, nil, err
 	}
