@@ -71,7 +71,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.renderer.sortObjects = false
 		this.renderer.antialias = true
 		this.renderer.setClearColor(0xffffff)
-		this.renderer.setPixelRatio(window.devicePixelRatio)
 		this.renderer.domElement.setAttribute('class', 'three-js-spaces-renderer spaces-renderer')
 
 		// A list of spaces to show when no space is loaded
@@ -133,11 +132,19 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.vrDisplay = vrDisplay
 	}
 	setSize(width, height){
-		this.width = width
-		this.height = height
-		this.camera.aspect = width / height
+		if(this.vrDisplay){
+			var eyeParams = vrDisplay.getEyeParameters('left')
+			this.width = eyeParams.renderWidth * 2
+			this.height = eyeParams.renderHeight
+			this.renderer.setPixelRatio(1)
+		} else {
+			this.width = width
+			this.height = height
+			this.renderer.setPixelRatio(window.devicePixelRatio)
+		}
+		this.camera.aspect = this.width / this.height
 		this.camera.updateProjectionMatrix()
-		this.renderer.setSize(width, height)
+		this.renderer.setSize(this.width, this.height, false)
 	}
 	updateSpace(nodeUpdates=[], additions=[], deletions=[]) {
 		nodeUpdates = nodeUpdates || []
