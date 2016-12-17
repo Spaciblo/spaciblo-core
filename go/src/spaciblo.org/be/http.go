@@ -1,6 +1,7 @@
 package be
 
 import (
+	"crypto/tls"
 	"errors"
 	"net"
 	"sync"
@@ -9,24 +10,36 @@ import (
 
 // StoppableListener taken from https://github.com/hydrogen18/stoppableListener
 type StoppableListener struct {
-	*net.TCPListener          //Wrapped listener
-	stop             chan int //Channel used only to indicate listener should shutdown
-	waitGroup        sync.WaitGroup
+	net.Listener                  //inner, TLS listener
+	tcpListener  *net.TCPListener // TCPlistener
+	stop         chan int         //Channel used only to indicate listener should shutdown
+	waitGroup    sync.WaitGroup
 }
 
 func NewStoppableListener(proto string, connect string) (*StoppableListener, error) {
-	l, err := net.Listen(proto, connect)
+	// TODO make cert location a configuration setting
+	cert, err := tls.LoadX509KeyPair("cert/mycert1.cer", "cert/mycert1.key")
+	if err != nil {
+		logger.Println("Error loading cert", err)
+		return nil, err
+	}
+	config := &tls.Config{Certificates: []tls.Certificate{cert}}
+
+	netListener, err := net.Listen(proto, connect)
 	if err != nil {
 		return nil, err
 	}
-	tcpL, ok := l.(*net.TCPListener)
+	tcpListener, ok := netListener.(*net.TCPListener)
 	if !ok {
 		return nil, errors.New("Cannot wrap listener")
 	}
-	retval := &StoppableListener{}
-	retval.TCPListener = tcpL
-	retval.stop = make(chan int)
-	return retval, nil
+	tlsListener := tls.NewListener(tcpListener, config)
+
+	stoppableListener := &StoppableListener{}
+	stoppableListener.Listener = tlsListener
+	stoppableListener.tcpListener = tcpListener
+	stoppableListener.stop = make(chan int)
+	return stoppableListener, nil
 }
 
 var ErrStopped = errors.New("Listener stopped")
@@ -34,8 +47,8 @@ var ErrStopped = errors.New("Listener stopped")
 func (sl *StoppableListener) Accept() (net.Conn, error) {
 	for {
 		//Wait up to one second for a new connection
-		sl.SetDeadline(time.Now().Add(time.Second))
-		newConn, err := sl.TCPListener.Accept()
+		sl.tcpListener.SetDeadline(time.Now().Add(time.Second))
+		newConn, err := sl.Listener.Accept()
 
 		//Check for the channel being closed
 		select {

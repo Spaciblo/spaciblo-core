@@ -27,6 +27,14 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.scene.background = background
 		this.camera = new THREE.PerspectiveCamera(75, 1, 0.5, 10000)
 
+		this.width = 0
+		this.height = 0
+
+		// These will be set iff this.setVRDisplay is called with a non-null parameter 
+		this.vrDisplay = null
+		this.vrFrameData = null
+		this.firstVRFrame = true
+
 		this.objectMap = new Map() // object id -> spaciblo.three.Group
 
 		// These variables are used in _animate to determine keyboard motion and whether or not to trigger events
@@ -53,7 +61,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.scene.add(this.dirLight)
 
 		this.defaultSky = this._createDefaultSky() 
-		this.scene.add(this.defaultSky);
+		this.scene.add(this.defaultSky)
 
 		this.raycaster = new THREE.Raycaster()
 		this.mouse = new THREE.Vector2()
@@ -93,24 +101,40 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.mouse.y = - ((ev.clientY - offsetY) / this.el.offsetHeight) * 2 + 1
 	}
 	_createDefaultSky(){
-		let vertexShader = document.getElementById('skyVertexShader').textContent;
-		let fragmentShader = document.getElementById('skyFragmentShader').textContent;
+		let vertexShader = document.getElementById('skyVertexShader').textContent
+		let fragmentShader = document.getElementById('skyFragmentShader').textContent
 		let uniforms = {
 			topColor:    { value: new THREE.Color( 0x0077ff ) },
 			bottomColor: { value: new THREE.Color( 0xffffff ) },
 			offset:      { value: 33 },
 			exponent:    { value: 0.8 }
-		};
-		let skyGeo = new THREE.SphereGeometry(4000, 32, 15);
+		}
+		let skyGeo = new THREE.SphereGeometry(4000, 32, 15)
 		let skyMat = new THREE.ShaderMaterial({
 			vertexShader: vertexShader,
 			fragmentShader: fragmentShader,
 			uniforms: uniforms,
 			side: THREE.BackSide
-		});
-		return new THREE.Mesh( skyGeo, skyMat );
+		})
+		return new THREE.Mesh( skyGeo, skyMat )
+	}
+	setVRDisplay(vrDisplay) {
+		if(vrDisplay !== null){
+			if(this.vrFrameData === null){
+				this.vrFrameData = new VRFrameData()
+			}
+			if(this.firstVRFrame === false){
+				this.firstVRFrame = true
+			}
+			// TODO make the sky gradient work in VR
+			this.scene.remove(this.defaultSky)
+			this.scene.background = null
+		}
+		this.vrDisplay = vrDisplay
 	}
 	setSize(width, height){
+		this.width = width
+		this.height = height
 		this.camera.aspect = width / height
 		this.camera.updateProjectionMatrix()
 		this.renderer.setSize(width, height)
@@ -303,7 +327,16 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	_animate(){
 		let delta = this.clock.getDelta()
-		requestAnimationFrame(this._boundAnimate)
+		if(this.vrDisplay){
+			this.vrDisplay.requestAnimationFrame(this._boundAnimate)
+			// We can't render to VR if we're in the window's animation frame call, so punt to the next frame which will be from the VR display's frame call
+			if(this.firstVRFrame){
+				this.firstVRFrame = false
+				return
+			}
+		} else {
+			requestAnimationFrame(this._boundAnimate)
+		}
 
 		this.previousRotation = this.currentRotation
 		this.previousTranslation = this.currentTranslation
@@ -366,9 +399,40 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 		}
 
-		//THREE.GLTFLoader.Animations.update();
-		THREE.GLTFLoader.Shaders.update(this.scene, this.camera);		
-		this.renderer.render(this.scene, this.camera)
+		if(this.vrDisplay){
+			this.vrDisplay.getFrameData(this.vrFrameData)
+			this.renderer.autoClear = false
+			this.scene.matrixAutoUpdate = false
+
+			// The view is assumed to be full-window in VR
+			this.renderer.clear()
+			this.renderer.setViewport(0, 0, this.width * 0.5, this.height)
+
+			// Render left eye
+			this.camera.projectionMatrix.fromArray(this.vrFrameData.leftProjectionMatrix)
+			this.scene.matrix.fromArray(this.vrFrameData.leftViewMatrix)
+			this.scene.updateMatrixWorld(true)
+			this.renderer.render(this.scene, this.camera)
+
+			// Prep for right eye
+			this.renderer.clearDepth()
+			this.renderer.setViewport(this.width * 0.5, 0, this.width * 0.5, this.height)
+
+			// Render right eye
+			this.camera.projectionMatrix.fromArray(this.vrFrameData.rightProjectionMatrix)
+			this.scene.matrix.fromArray(this.vrFrameData.rightViewMatrix)
+			this.scene.updateMatrixWorld(true)
+			this.renderer.render(this.scene, this.camera)
+
+			this.vrDisplay.submitFrame();
+		} else {
+			this.renderer.autoClear = true
+			this.scene.matrixAutoUpdate = true
+			//THREE.GLTFLoader.Animations.update()
+			THREE.GLTFLoader.Shaders.update(this.scene, this.camera);		
+			this.renderer.render(this.scene, this.camera)
+		}
+
 	}
 	_addGeometry(geometry, material){
 		var mesh = new THREE.Mesh(geometry, material)
@@ -423,8 +487,8 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 })
 
 spaciblo.three.Group = function(){
-	THREE.Group.call(this);
-	this.lastUpdate = null; 								// time in milliseconds of last update
+	THREE.Group.call(this)
+	this.lastUpdate = null									// time in milliseconds of last update
 	this.updatePosition = new THREE.Vector3(0,0,0) 			// The position recieved from the sim
 	this.updateQuaternion = new THREE.Quaternion(0,0,0,1) 	// the orientation receive from the sim
 	this.rotationMotion = new THREE.Vector3(0,0,0)			// the rotation motion received from the sim
@@ -494,29 +558,13 @@ spaciblo.three.GLTFLoader = class {
 				/*
 				if (gltf.animations && gltf.animations.length) {
 					for (let i = 0; i < gltf.animations.length; i++) {
-						gltf.animations[i].loop = true;
-						gltf.animations[i].play();
+						gltf.animations[i].loop = true
+						gltf.animations[i].play()
 					}
 				}
 				*/
 				resolve(gltf)
 			})
-		})
-	}
-	static loadTemplate(uuid, name){
-		let url = `/api/0.1.0/template/${uuid}/data/${name}.gltf`
-		return spaciblo.three.GLTFLoader.load(url)
-	}
-
-	static _jankyHack(uuid, name, position=[0,0,-20]){
-		spaciblo.three.GLTFLoader.loadTemplate(uuid, name).then(gltf => {
-			let node = gltf.scene.children[0]
-			window.pageComponent.spacesComponent.renderer.spaceMenu.add(node)
-			node.position.x = position[0]
-			node.position.y = position[1]
-			node.position.z = position[2]
-		}).catch((err) => {
-			console.error("Error loading", err)
 		})
 	}
 }

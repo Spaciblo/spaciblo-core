@@ -7,6 +7,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -82,7 +83,15 @@ func StartAPI() error {
 	addApiResources(api)
 
 	server.UseHandler(api.Mux)
-	server.Run(":" + strconv.FormatInt(port, 10))
+
+	stoppableListener, err := be.NewStoppableListener("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return err
+	}
+	httpServer := http.Server{
+		Handler: server,
+	}
+	httpServer.Serve(stoppableListener)
 	return nil
 }
 

@@ -2,6 +2,7 @@ package be
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
@@ -21,7 +22,7 @@ type Client struct {
 
 /*
 NewClient creates a client for interacting with the back end web API
-baseURL: a fully qualified URL to the API like http://127.0.0.1:9000/api/0.1.0
+baseURL: a fully qualified URL to the API like https://127.0.0.1:9000/api/0.1.0
 */
 func NewClient(baseURL string) (*Client, error) {
 	client := &Client{
@@ -74,7 +75,12 @@ func (client *Client) Deauthenticate() error {
 	if err != nil {
 		return err
 	}
-	c := &http.Client{}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	c := &http.Client{
+		Transport: transport,
+	}
 	_, err = c.Do(req)
 	if err != nil {
 		return err
@@ -83,7 +89,12 @@ func (client *Client) Deauthenticate() error {
 }
 
 func (client *Client) GetList(url string) (*APIList, error) {
-	c := &http.Client{}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	c := &http.Client{
+		Transport: transport,
+	}
 	req, err := client.prepJSONRequest("GET", client.BaseURL+url, nil)
 	if err != nil {
 		return nil, err
@@ -109,7 +120,12 @@ func (client *Client) Delete(url string) error {
 	if err != nil {
 		return err
 	}
-	c := &http.Client{}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	c := &http.Client{
+		Transport: transport,
+	}
 	resp, err := c.Do(req)
 	if err != nil {
 		return err
@@ -125,7 +141,12 @@ func (client *Client) GetJSON(url string, target interface{}) error {
 	if err != nil {
 		return err
 	}
-	c := &http.Client{}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	c := &http.Client{
+		Transport: transport,
+	}
 	resp, err := c.Do(req)
 	if err != nil {
 		return err
@@ -147,7 +168,12 @@ func (client *Client) GetFile(url string) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &http.Client{}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	c := &http.Client{
+		Transport: transport,
+	}
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
@@ -183,7 +209,12 @@ func (client *Client) SendFile(method string, url string, fieldName string, file
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	httpClient := &http.Client{}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	httpClient := &http.Client{
+		Transport: transport,
+	}
 	return httpClient.Do(req)
 }
 
@@ -218,7 +249,12 @@ func (client *Client) PutJSON(url string, data interface{}) (resp *http.Response
 }
 
 func (client *Client) SendJSON(method string, url string, data interface{}) (resp *http.Response, err error) {
-	c := &http.Client{}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	c := &http.Client{
+		Transport: transport,
+	}
 	dataBuff, err := json.Marshal(data)
 	if err != nil {
 		return
@@ -295,7 +331,14 @@ func (client *Client) prepRequest(method string, url string, reader io.Reader, m
 }
 
 func (client *Client) fetchSchema() error {
-	resp, err := http.Get(client.BaseURL + "/schema")
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	c := &http.Client{
+		Transport: transport,
+	}
+	req, err := http.NewRequest("GET", client.BaseURL+"/schema", nil)
+	resp, err := c.Do(req)
 	if err != nil {
 		return err
 	}

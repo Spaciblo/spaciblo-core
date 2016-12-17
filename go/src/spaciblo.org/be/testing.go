@@ -2,6 +2,7 @@ package be
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"image"
@@ -59,7 +60,12 @@ func AssertStatus(t *testing.T, status int, method string, url string) {
 }
 
 func connectToTestAPI(method string, url string) (resp *http.Response, err error) {
-	client := &http.Client{}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{
+		Transport: transport,
+	}
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return nil, err
@@ -78,7 +84,7 @@ type TestAPI struct {
 }
 
 func (api TestAPI) URL() string {
-	return "http://127.0.0.1:" + strconv.Itoa(TestPort) + "/api/" + TestVersion
+	return "https://127.0.0.1:" + strconv.Itoa(TestPort) + "/api/" + TestVersion
 }
 
 func (api *TestAPI) Stop() {

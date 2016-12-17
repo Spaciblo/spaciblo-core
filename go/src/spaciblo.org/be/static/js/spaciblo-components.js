@@ -31,6 +31,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.el.addClass('spaces-component')
 		this.inputManager = new spaciblo.components.InputManager()
 		this.client = null // Will be a spaciblo.api.Client when a Space is selected
+		this.vrDisplay = null
 
 		this.renderer = new spaciblo.three.Renderer(this.inputManager)
 		this.el.appendChild(this.renderer.el)
@@ -40,10 +41,41 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			this.handleReset()
 		}
 
+		this.vrButton = k.el.div({ class:'vr-button' }, 'Enter VR').appendTo(this.el)
+
 		this.updateSize()
 		window.addEventListener('resize', () => { this.updateSize() })
 		this.renderer.addListener(this.handleSpaceSelected.bind(this), spaciblo.events.SpaceSelected)
 		this.renderer.addListener(this.handleAvatarMotion.bind(this), spaciblo.events.AvatarMotionChanged)
+
+		spaciblo.getVRDisplays().then(this.handleVRDisplays.bind(this))
+	}
+	handleVRDisplays(displays){
+		console.log("VR displays", displays)
+		if(displays.length === 0){
+			return
+		}
+		this.vrDisplay = displays[0] // TODO handle more than one display
+
+		this.vrButton.style.display = 'inline-block'
+		this.vrButton.addEventListener('click', this.handleVRButtonClick.bind(this))
+	}
+	handleVRButtonClick(ev){
+		ev.preventDefault()
+		this.toggleVR()
+	}
+	toggleVR() {
+ 		if (this.vrDisplay.isPresenting) {
+			 this.vrDisplay.exitPresent()
+		} else {
+			this.vrDisplay.requestPresent([{
+				source: this.renderer.el
+			}]).then(() => {
+				this.renderer.setVRDisplay(this.vrDisplay)
+			}).catch(e => {
+				console.error(`Unable to init VR: ${e}`);
+			})
+		}
 	}
 	handleAvatarMotion(eventName, position, orientation, translationVector, rotationVector){
 		if(this.client === null){
@@ -120,3 +152,21 @@ spaciblo.components.InputManager = k.eventMixin(class {
 		return this.keysDown.has(keyCode)
 	}
 })
+
+spaciblo.getVRDisplays = function(){
+	return new Promise((resolve, reject) => {
+		if(spaciblo.hasWebVR() === false){
+			resolve([])
+			return
+		}
+		navigator.getVRDisplays().then(displays => {
+			displays = displays.filter(display => display.capabilities.canPresent)
+			resolve(displays)
+			return
+		})
+	})
+}
+
+spaciblo.hasWebVR = function(){
+	return typeof VRFrameData === 'function'
+}

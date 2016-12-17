@@ -69,7 +69,7 @@ spaciblo.api.Client = k.eventMixin(class {
 	}
 	static get ServiceURL(){
 		const host = document.location.host.split(':')[0]
-		return 'ws://' + host + ':' + spaciblo.api.WEBSOCKET_PORT + spaciblo.api.WEBSOCKET_PATH
+		return 'wss://' + host + ':' + spaciblo.api.WEBSOCKET_PORT + spaciblo.api.WEBSOCKET_PATH
 	}
 	_onOpen(event){
 		this.trigger(spaciblo.events.ClientOpened, this)
