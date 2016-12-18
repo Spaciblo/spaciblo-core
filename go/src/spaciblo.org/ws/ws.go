@@ -41,21 +41,15 @@ type WSService struct {
 
 func NewWSService(wsPort int64, simHost string, rpcPort int64, certPath string, keyPath string) (*WSService, error) {
 	service := &WSService{
-		WSPort:   wsPort,
-		SimHost:  simHost,
-		CertPath: certPath,
-		KeyPath:  keyPath,
-
-		RPCPort: rpcPort,
+		WSPort:    wsPort,
+		SimHost:   simHost,
+		CertPath:  certPath,
+		KeyPath:   keyPath,
+		WSHandler: NewWebSocketHandler(simHost),
+		RPCPort:   rpcPort,
 	}
 
-	wsHandler, err := NewWebSocketHandler(simHost)
-	if err != nil {
-		return nil, err
-	}
-	service.WSHandler = wsHandler
-
-	rpcHostServer, err := NewRPCHostServer(wsHandler)
+	rpcHostServer, err := NewRPCHostServer(service.WSHandler)
 	if err != nil {
 		return nil, err
 	}
