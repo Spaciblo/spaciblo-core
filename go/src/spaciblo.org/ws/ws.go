@@ -6,6 +6,7 @@ package ws
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -79,7 +80,16 @@ func (wsService *WSService) Start() {
 		wsService.WSListener = stoppableListener
 
 		mux := http.NewServeMux()
+		// Handle WebSocket connections at /ws
 		mux.Handle(WS_HTTP_PATH, wsService.WSHandler)
+		// Handle root requests for easy testing and so there is a URL load balancer tests can hit without attempting upgrade to WebSocket
+		mux.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {
+			if request.URL.Path != "/" {
+				http.NotFound(responseWriter, request)
+				return
+			}
+			io.WriteString(responseWriter, "<html>This is the WebSocket service</html>")
+		})
 		server := http.Server{
 			Handler: mux,
 		}
