@@ -27,6 +27,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.scene.background = background
 		this.camera = new THREE.PerspectiveCamera(75, 1, 0.5, 10000)
 
+		this.clientUUID = null // Will be null until set in this.setClientUUID()
+
 		this.width = 0
 		this.height = 0
 
@@ -116,6 +118,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			side: THREE.BackSide
 		})
 		return new THREE.Mesh( skyGeo, skyMat )
+	}
+	setClientUUID(clientUUID){
+		this.clientUUID = clientUUID
 	}
 	setVRDisplay(vrDisplay) {
 		if(vrDisplay !== null){
@@ -220,8 +225,14 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		group.renderer = this
 		group.state = state
-		if(state.settings && state.settings.name && state.settings.name.value){
-			group.name = state.settings.name.value
+		if(state.settings){
+			if(state.settings.name){
+				group.name = state.settings.name
+			}
+			if(state.settings.clientUUID && this.clientUUID === state.settings.clientUUID){
+				// Hide this user's avatar from view
+				group.visible = false
+			}
 		}
 		if(state.position){
 			group.position.set(...state.position)
@@ -234,23 +245,22 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		if(typeof state.templateUUID !== "undefined" && state.templateUUID.length > 0){
 			group.template = this.templateLoader.addTemplate(state.templateUUID)
-			// TODO figure out why we can't clone glTF
 			var loadIt = function(){
 				const extension = group.template.getSourceExtension()
-				if(extension == null){
-					console.error('Template had no source extension', group.template)
-				} else if(extension == 'gltf'){
+				if(extension === 'gltf'){
 					spaciblo.three.GLTFLoader.load(group.template.sourceURL()).then(gltf => {
 						group.setGLTF(gltf)
 					}).catch(err => {
 						console.error("Could not fetch gltf", err)
 					})
-				} else if(extension == 'obj'){
+				} else if(extension === 'obj'){
 					spaciblo.three.OBJLoader.load(group.template.getBaseURL(), group.template.get('source')).then(obj => {
 						group.setOBJ(obj)
 					}).catch(err => {
 						console.error("Could not fetch obj", err)
 					})
+				} else {
+					console.error("Unknown extension for template source.", extension, group.template)
 				}
 			}
 

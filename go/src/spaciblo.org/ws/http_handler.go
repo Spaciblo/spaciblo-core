@@ -113,7 +113,7 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	simHostClient, err := handler.GetSimHostClient()
 	if err != nil {
 		logger.Println("Could not get a sim host client", err)
-		// TODO handle client disconnection and failure. Tell the client to try again in a moment.
+		// TODO handle sim host client disconnection and failure.
 		return
 	}
 
@@ -138,6 +138,9 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		wsConnection.Stop <- true // Stops HandleOutgoing go routine
 		RouteClientMessage(NewClientDisconnectedMessage(), wsConnection.ClientUUID, wsConnection.SpaceUUID, simHostClient)
 	}()
+
+	// Send the initial Connect message
+	wsConnection.Outgoing <- NewConnectedMessage(wsConnection.ClientUUID)
 
 	for {
 		// Read

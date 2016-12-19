@@ -30,8 +30,9 @@ func (server *RPCHostServer) SendSpaceUpdate(ctx context.Context, spaceUpdate *w
 	spaceUpdateMessage := NewSpaceUpdateMessage(spaceUpdate.SpaceUUID, spaceUpdate.Frame)
 
 	for _, addition := range spaceUpdate.Additions {
-		spaceUpdateMessage.Additions = append(spaceUpdateMessage.Additions, &AdditionMessage{
+		wsAddition := &AdditionMessage{
 			Id:           addition.Id,
+			Settings:     make(map[string]string),
 			Position:     addition.Position,
 			Orientation:  addition.Orientation,
 			Translation:  addition.Translation,
@@ -39,18 +40,26 @@ func (server *RPCHostServer) SendSpaceUpdate(ctx context.Context, spaceUpdate *w
 			Scale:        addition.Scale,
 			Parent:       addition.Parent,
 			TemplateUUID: addition.TemplateUUID,
-		})
+		}
+		for _, setting := range addition.Settings {
+			wsAddition.Settings[setting.Key] = setting.Value
+		}
+		spaceUpdateMessage.Additions = append(spaceUpdateMessage.Additions, wsAddition)
 	}
 	spaceUpdateMessage.Deletions = spaceUpdate.Deletions
 
 	for _, update := range spaceUpdate.NodeUpdates {
 		updateMessage := &NodeUpdateMessage{
 			Id:          update.Id,
+			Settings:    make(map[string]string),
 			Position:    update.Position,
 			Orientation: update.Orientation,
 			Translation: update.Translation,
 			Rotation:    update.Rotation,
 			Scale:       update.Scale,
+		}
+		for _, setting := range update.Settings {
+			updateMessage.Settings[setting.Key] = setting.Value
 		}
 		spaceUpdateMessage.NodeUpdates = append(spaceUpdateMessage.NodeUpdates, updateMessage)
 	}

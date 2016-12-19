@@ -45,10 +45,14 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 
 		this.updateSize()
 		window.addEventListener('resize', () => { this.updateSize() })
+		window.addEventListener('gamepadconnected', ev => { this.handleGamepadConnected(ev) })
 		this.renderer.addListener(this.handleSpaceSelected.bind(this), spaciblo.events.SpaceSelected)
 		this.renderer.addListener(this.handleAvatarMotion.bind(this), spaciblo.events.AvatarMotionChanged)
 
 		spaciblo.getVRDisplays().then(this.handleVRDisplays.bind(this))
+	}
+	handleGamepadConnected(ev){
+		console.log("TODO handle gamepad input", event)
 	}
 	handleVRDisplays(displays){
 		console.log("VR displays", displays)
@@ -99,6 +103,10 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	handleClientMessages(eventName, message){
 		switch(message.type){
 			case 'Ack':
+				break
+			case 'Connected':
+				this.clientUUID = message.clientUUID
+				this.renderer.setClientUUID(message.clientUUID)
 				break
 			case 'Space-Update':
 				/*

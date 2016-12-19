@@ -10,6 +10,7 @@ import (
 const PingType = "Ping"
 const AckType = "Ack"
 const UnknownMessageType = "Unknown-Message-Type"
+const ConnectedType = "Connected"
 const JoinSpaceType = "Join-Space"
 const ClientDisconnectedType = "Client-Disconnected"
 const AvatarMotionType = "Avatar-Motion"
@@ -68,6 +69,19 @@ func NewJoinSpaceMessage(uuid string) *JoinSpaceMessage {
 	}
 }
 
+// Sent when the client first connects to the WebSocket service
+type ConnectedMessage struct {
+	TypedMessage
+	ClientUUID string `json:"clientUUID"`
+}
+
+func NewConnectedMessage(clientUUID string) *ConnectedMessage {
+	return &ConnectedMessage{
+		TypedMessage{Type: ConnectedType},
+		clientUUID,
+	}
+}
+
 type SpaceUpdateMessage struct {
 	TypedMessage
 	SpaceUUID   string               `json:"spaceUUID"`
@@ -89,23 +103,25 @@ func NewSpaceUpdateMessage(spaceUUID string, frame int64) *SpaceUpdateMessage {
 }
 
 type NodeUpdateMessage struct {
-	Id          int64     `json:"id"`
-	Position    []float64 `json:"position"`
-	Orientation []float64 `json:"orientation"`
-	Translation []float64 `json:"translation"`
-	Rotation    []float64 `json:"rotation"`
-	Scale       []float64 `json:"scale"`
+	Id          int64             `json:"id"`
+	Settings    map[string]string `json:"settings"`
+	Position    []float64         `json:"position"`
+	Orientation []float64         `json:"orientation"`
+	Translation []float64         `json:"translation"`
+	Rotation    []float64         `json:"rotation"`
+	Scale       []float64         `json:"scale"`
 }
 
 type AdditionMessage struct {
-	Id           int64     `json:"id"`
-	Position     []float64 `json:"position"`
-	Orientation  []float64 `json:"orientation"`
-	Translation  []float64 `json:"translation"`
-	Rotation     []float64 `json:"rotation"`
-	Scale        []float64 `json:"scale"`
-	Parent       int64     `json:"parent"`
-	TemplateUUID string    `json:"templateUUID"`
+	Id           int64             `json:"id"`
+	Settings     map[string]string `json:"settings"`
+	Position     []float64         `json:"position"`
+	Orientation  []float64         `json:"orientation"`
+	Translation  []float64         `json:"translation"`
+	Rotation     []float64         `json:"rotation"`
+	Scale        []float64         `json:"scale"`
+	Parent       int64             `json:"parent"`
+	TemplateUUID string            `json:"templateUUID"`
 }
 
 type ClientDisconnectedMessage struct {
