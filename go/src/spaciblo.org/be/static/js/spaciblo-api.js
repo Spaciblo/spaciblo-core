@@ -1,4 +1,5 @@
-"use strict";
+"use strict"
+
 /*
 spaciblo-components contains:
 	modifications to the default models and collections created in be.api
@@ -62,8 +63,8 @@ spaciblo.api.Client = k.eventMixin(class {
 			spaceUUID: this.space.get('uuid'),
 			position: [position.x, position.y, position.z],
 			orientation: [orientation.x, orientation.y, orientation.z, orientation.w],
-			translation: [translation.x, translation.y, translation.z],
-			rotation: [rotation.x, rotation.y, rotation.z],
+			translation: translation,
+			rotation: rotation,
 			scale: [1, 1, 1]
 		}))
 	}

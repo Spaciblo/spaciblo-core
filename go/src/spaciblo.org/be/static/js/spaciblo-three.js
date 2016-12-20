@@ -10,7 +10,12 @@ spaciblo.three.X_AXIS = new THREE.Vector3(1,0,0)
 spaciblo.three.Y_AXIS = new THREE.Vector3(0,1,0)
 spaciblo.three.Z_AXIS = new THREE.Vector3(0,0,1)
 
-spaciblo.three.WORKING_QUAT = new THREE.Quaternion(0,0,0,1) // A handy quat so we don't need to allocate new ones in each frame
+// Handy data structures for use in animation frames
+spaciblo.three.WORKING_QUAT = new THREE.Quaternion()
+spaciblo.three.WORKING_VECTOR3 = new THREE.Vector3()
+spaciblo.three.WORKING_VECTOR3_2 = new THREE.Vector3()
+spaciblo.three.WORKING_EULER = new THREE.Euler()
+spaciblo.three.WORKING_MATRIX4 = new THREE.Matrix4()
 
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
 
@@ -39,13 +44,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		this.objectMap = new Map() // object id -> spaciblo.three.Group
 
-		// These variables are used in _animate to determine keyboard motion and whether or not to trigger events
-		this.translationVector = new THREE.Vector3()	// meters per second on x, y, z axis 
-		this.rotationVector = new THREE.Vector3()		// radians/second around x, y, z axis
-		this.currentTranslation = 0
-		this.currentRotation = 0
-		this.previousTranslation = 0
-		this.previousRotation = 0
+		// These variables are used in _animate to handle motion
+		this.cameraOrientationVector = new THREE.Vector3()	
+		this.cameraRotationQuaternion = new THREE.Quaternion()		
+		this.translationVector = new THREE.Vector3()
+		this.rotationEuler = new THREE.Euler(0,0,0,'XYZ')
 
 		this.ambientLight = new THREE.AmbientLight(0xdddddd, 0.1)
 		this.scene.add(this.ambientLight)
@@ -87,6 +90,17 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.el.addEventListener('click', this._onClick.bind(this), false)
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
 		this._animate()
+	}
+	get avatarPosition(){
+		return this.camera.position
+	}
+	get avatarOrientation(){
+		return this.camera.quaternion
+	}
+	get avatarDirection(){
+		let direction = new THREE.Vector3()
+		this.camera.getWorldDirection(direction)
+		return direction
 	}
 	_onClick(ev){
 		ev.preventDefault()
@@ -355,46 +369,34 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			requestAnimationFrame(this._boundAnimate)
 		}
 
-		this.previousRotation = this.currentRotation
-		this.previousTranslation = this.currentTranslation
-		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('left-arrow')) && this.inputManager.isDown(spaciblo.components.KeyMap.get('right-arrow')) == false){
-			this.currentRotation = this.inputManager.keyboardRotationDelta
-		} else if(this.inputManager.isDown(spaciblo.components.KeyMap.get('right-arrow')) && this.inputManager.isDown(spaciblo.components.KeyMap.get('left-arrow')) == false){
-			this.currentRotation = -1 * this.inputManager.keyboardRotationDelta
-		} else {
-			this.currentRotation = 0
-		}
-		if(this.currentRotation != 0){
-			this.camera.rotateY(this.currentRotation * delta)
-		}
+		// Apply input rotation
+		this.rotationEuler.fromArray([this.inputManager.inputRotation[0] * delta, this.inputManager.inputRotation[1] * delta, this.inputManager.inputRotation[2] * delta])
+		this.cameraRotationQuaternion.setFromEuler(this.rotationEuler)
+		this.camera.quaternion.multiply(this.cameraRotationQuaternion)
+		this.camera.updateMatrixWorld()
 
-		if(this.inputManager.isDown(spaciblo.components.KeyMap.get('up-arrow')) && this.inputManager.isDown(spaciblo.components.KeyMap.get('down-arrow')) == false){
-			this.currentTranslation = this.inputManager.keyboardTranslationDelta
-		} else if(this.inputManager.isDown(spaciblo.components.KeyMap.get('down-arrow')) && this.inputManager.isDown(spaciblo.components.KeyMap.get('up-arrow')) == false){
-			this.currentTranslation = -1 * this.inputManager.keyboardTranslationDelta			
-		} else {
-			this.currentTranslation = 0
-		}
-		if(this.currentTranslation != 0){
-			this.camera.getWorldDirection(this.translationVector)
-			this.translationVector.multiplyScalar(this.currentTranslation * delta)
+		// Apply input translation, where the translation vector is relative to avatar forward
+		this.translationVector.fromArray(this.inputManager.inputTranslation)
+		if(this.translationVector.length() > 0){
+			// Get the avatar's orientation vector
+			spaciblo.three.WORKING_VECTOR3_2.set(0,0,-1)
+			spaciblo.three.WORKING_VECTOR3_2.applyQuaternion(this.camera.quaternion)
+			spaciblo.three.WORKING_VECTOR3_2.normalize()
+			// Get the rotation matrix from origin to the avatar's orientation
+			spaciblo.three.WORKING_VECTOR3.set(0,0,0)
+			spaciblo.three.WORKING_MATRIX4.lookAt(spaciblo.three.WORKING_VECTOR3, spaciblo.three.WORKING_VECTOR3_2, spaciblo.three.Y_AXIS)
+			// Scale the motion by the time delta
+			this.translationVector.multiplyScalar(delta)
+			// Apply the rotation matrix to the translation motion
+			this.translationVector.applyMatrix4(spaciblo.three.WORKING_MATRIX4)
+			// Now add the rotated and scaled motion vector to the camera position
 			this.camera.position.add(this.translationVector)
-		}
-
-		// Trigger an AvatarMotionChanged event if necessary
-		if(this.currentRotation != this.previousRotation || this.currentTranslation != this.previousTranslation){
-			// Reset the translationVector to the absolute speed
-			this.camera.getWorldDirection(this.translationVector)
-			this.translationVector.multiplyScalar(this.currentTranslation)
-			this.rotationVector.set(0, this.currentRotation, 0)
-			this.trigger(spaciblo.events.AvatarMotionChanged, this.camera.position, this.camera.quaternion, this.translationVector, this.rotationVector)
 		}
 
 		this._animateSpaceMenu(delta)
 		if(this.rootGroup){
 			this.rootGroup.interpolate(this.clock.elapsedTime)
 		}
-		this.camera.updateMatrixWorld()
 
 		if(this.spaceMenu && this.spaceMenu.visible){
 			this.raycaster.setFromCamera(this.mouse, this.camera)
@@ -445,7 +447,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		} else {
 			this.renderer.autoClear = true
 			this.scene.matrixAutoUpdate = true
-			//THREE.GLTFLoader.Animations.update()
 			THREE.GLTFLoader.Shaders.update(this.scene, this.camera);		
 			this.renderer.render(this.scene, this.camera)
 		}
@@ -521,19 +522,33 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 	interpolate: function(elapsedTime){
 		const delta = elapsedTime - this.lastUpdate
 		if(delta > 0){
-			if(this.translationMotion.length() != 0){
-				this.position.x = this.updatePosition.x + (this.translationMotion.x * delta)
-				this.position.y = this.updatePosition.y + (this.translationMotion.y * delta)
-				this.position.z = this.updatePosition.z + (this.translationMotion.z * delta)
-			}
 			if(this.rotationMotion.length() != 0){
 				this.quaternion.copy(this.updateQuaternion)
-				spaciblo.three.WORKING_QUAT.setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.rotationMotion.x * delta)
+				spaciblo.three.WORKING_QUAT.setFromAxisAngle(spaciblo.three.X_AXIS, this.rotationMotion.x * delta)
 				this.quaternion.multiply(spaciblo.three.WORKING_QUAT)
-				spaciblo.three.WORKING_QUAT.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationMotion.y * delta)
+				spaciblo.three.WORKING_QUAT.setFromAxisAngle(spaciblo.three.Y_AXIS, this.rotationMotion.y * delta)
 				this.quaternion.multiply(spaciblo.three.WORKING_QUAT)
-				spaciblo.three.WORKING_QUAT.setFromAxisAngle(new THREE.Vector3(0, 0, 1), this.rotationMotion.z * delta)
+				spaciblo.three.WORKING_QUAT.setFromAxisAngle(spaciblo.three.Z_AXIS, this.rotationMotion.z * delta)
 				this.quaternion.multiply(spaciblo.three.WORKING_QUAT)
+				this.updateMatrixWorld()
+			}
+			if(this.translationMotion.length() != 0){
+				// Origin
+				spaciblo.three.WORKING_VECTOR3.set(0,0,0)
+				// Get orientation vector
+				spaciblo.three.WORKING_VECTOR3_2.set(0,0,-1)
+				spaciblo.three.WORKING_VECTOR3_2.applyQuaternion(this.quaternion)
+				spaciblo.three.WORKING_VECTOR3_2.normalize()
+				// Get rotation matrix from origin to orientation vector
+				spaciblo.three.WORKING_MATRIX4.lookAt(spaciblo.three.WORKING_VECTOR3, spaciblo.three.WORKING_VECTOR3_2, spaciblo.three.Y_AXIS)
+
+				spaciblo.three.WORKING_VECTOR3.copy(this.translationMotion)
+				// Scale the motion by delta
+				spaciblo.three.WORKING_VECTOR3.multiplyScalar(delta)
+				// Apply rotation matrix to translation motion
+				spaciblo.three.WORKING_VECTOR3.applyMatrix4(spaciblo.three.WORKING_MATRIX4)
+				// Then set this position to the last update position added with the rotated translation motion vector
+				this.position.set(this.updatePosition.x + spaciblo.three.WORKING_VECTOR3.x, this.updatePosition.y + spaciblo.three.WORKING_VECTOR3.y, this.updatePosition.z + spaciblo.three.WORKING_VECTOR3.z)
 			}
 		}
 
