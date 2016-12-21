@@ -31,7 +31,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('spaces-component')
-		this.inputManager = new spaciblo.components.InputManager()
+		this.inputManager = new spaciblo.input.InputManager(spaciblo.input.DefaultInputSchema)
 		this.client = null // Will be a spaciblo.api.Client when a Space is selected
 		this.vrDisplay = null
 
@@ -132,124 +132,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.renderer.setSize(this.el.offsetWidth, this.el.offsetHeight)
 	}
 }
-
-spaciblo.components.KeyMap = new Map()
-spaciblo.components.KeyMap.set("left-arrow", 37)
-spaciblo.components.KeyMap.set("up-arrow", 38)
-spaciblo.components.KeyMap.set("right-arrow", 39)
-spaciblo.components.KeyMap.set("down-arrow", 40)
-spaciblo.components.KeyMap.set("q", 81)
-spaciblo.components.KeyMap.set("e", 69)
-
-spaciblo.components.InputManager = k.eventMixin(class {
-	constructor(){
-		this._keysDown = new Set()
-
-		this.keyboardRotationDelta = 1.2 // Radians per second
-		this.keyboardTranslationDelta = 1.9 // Meters per second
-
-		this._gamepads = {} // Gamepad.index -> Gamepad object
-
-		// When the user input indicates they want to rotate or translate, these are non zero
-		this._inputRotation =    [0,0,0]
-		this._inputTranslation = [0,0,0] // xyz translation in camera direction
-
-		// When the user input indicates that they want to teleport to a new position and orientation, teleportPosition is non-zero
-		this._teleportPosition =    [0,0,0]
-		this._teleportOrientation = [0,0,0,1]
-
-		document.onkeydown = ev => { this._handleKeyDown(ev) }
-		document.onkeyup   = ev => { this._handleKeyUp(ev)   }
-		window.addEventListener('gamepadconnected', ev => { this.handleGamepadConnected(ev) })
-		window.addEventListener('gamepaddisconnected', ev => { this.handleGamepadDisconnected(ev) })
-	}
-
-	// Gamepad input methods	
-	handleGamepadConnected(ev){
-		console.log('Gamepad connected', ev.gamepad.id, ev.gamepad.index, ev.gamepad)
-		this._gamepads[ev.gamepad.index] = ev.gamepad
-	}
-	handleGamepadDisconnected(ev){
-		console.log('Gamepad disconnected', ev.gamepad.id, ev.gamepad.index, ev.gamepad)
-		delete this._gamepads[ev.gamepad.index]
-	}
-
-	// Keyboard input methods
-	_handleKeyDown(ev){
-		if(this.isDown(ev.keyCode)) return
-		this._keysDown.add(ev.keyCode)
-		if(this._updateVectors()){
-			this._sendAvatarUpdate()
-		}
-	}
-	_handleKeyUp(ev){
-		if(this.isDown(ev.keyCode) == false) return
-		this._keysDown.delete(ev.keyCode)
-		if(this._updateVectors()){
-			this._sendAvatarUpdate()
-		}
-	}
-
-	isDown(keyCode){
-		return this._keysDown.has(keyCode)
-	}
-
-	// Returns true if the rotation or translation changed
-	_updateVectors(){
-		let oldRotation = [...this.inputRotation]
-		let oldTranslation = [...this.inputTranslation]
-		if(this.isDown(spaciblo.components.KeyMap.get('left-arrow')) && this.isDown(spaciblo.components.KeyMap.get('right-arrow')) == false){
-			this._inputRotation[0] = 0
-			this._inputRotation[1] = this.keyboardRotationDelta
-			this._inputRotation[2] = 0
-		} else if(this.isDown(spaciblo.components.KeyMap.get('right-arrow')) && this.isDown(spaciblo.components.KeyMap.get('left-arrow')) == false){
-			this._inputRotation[0] = 0
-			this._inputRotation[1] = -1 * this.keyboardRotationDelta
-			this._inputRotation[2] = 0
-		} else {
-			this._inputRotation[0] = 0
-			this._inputRotation[1] = 0
-			this._inputRotation[2] = 0
-		}
-		if(this.isDown(spaciblo.components.KeyMap.get('up-arrow')) && (this.isDown(spaciblo.components.KeyMap.get('down-arrow')) == false)) {
-			this._inputTranslation[0] = 0
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = -1 * this.keyboardTranslationDelta
-		} else if(this.isDown(spaciblo.components.KeyMap.get('down-arrow')) && (this.isDown(spaciblo.components.KeyMap.get('up-arrow')) == false)) {
-			this._inputTranslation[0] = 0
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = this.keyboardTranslationDelta
-		} else if(this.isDown(spaciblo.components.KeyMap.get('q')) && (this.isDown(spaciblo.components.KeyMap.get('e')) == false)) {
-			this._inputTranslation[0] = this.keyboardTranslationDelta
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = 0
-		} else if(this.isDown(spaciblo.components.KeyMap.get('e')) && (this.isDown(spaciblo.components.KeyMap.get('q')) == false)) {
-			this._inputTranslation[0] = -1 * this.keyboardTranslationDelta
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = 0
-		} else {
-			this._inputTranslation[0] = 0
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = 0
-		}
-		// Return true if anything changed
-		if(oldRotation.every((val, index) => { return val === this._inputRotation[index] }) === false) {
-			return true
-		}
-		if(oldTranslation.every((val, index) => { return val === this._inputTranslation[index] }) === false) {
-			return true
-		}
-		return false
-	}
-
-	_sendAvatarUpdate() {
-		this.trigger(spaciblo.events.AvatarMotionChanged, this._inputTranslation, this._inputRotation)
-	}
-
-	// Query methods called by the renderer during frame rendering
-	get inputTranslation() { return this._inputTranslation }
-	get inputRotation() { return this._inputRotation }
-})
 
 spaciblo.getVRDisplays = function(){
 	return new Promise((resolve, reject) => {
