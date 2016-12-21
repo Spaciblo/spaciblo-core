@@ -114,12 +114,16 @@ It also keeps a few 3D data structures (rotation, translation) used by the rende
 */
 spaciblo.input.InputManager = k.eventMixin(class {
 	constructor(inputSchema){
+		this._throttledSendAvatarUpdate = spaciblo.input.throttle(this._sendAvatarUpdate, 100)
 		this.inputSchema = inputSchema
 		this.currentActions = new Set()
 		this.currentKeyChord = null
 
-		this.keyboardRotationDelta = 1.2 // Radians per second
 		this.keyboardTranslationDelta = 1.9 // Meters per second
+		this.keyboardRotationDelta = 1.2 // Radians per second
+
+		this.touchTranslationDelta = 2.5 // Meters per second
+		this.touchRotationDelta = 1.8 // Radians per second
 
 		this._gamepads = {} // Gamepad.index -> Gamepad object
 
@@ -140,6 +144,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		}
 		return this.currentActions.has(action)
 	}
+
 	// Gamepad input methods
 	handleGamepadConnected(ev){
 		console.log('Gamepad connected', ev.gamepad.id, ev.gamepad.index, ev.gamepad)
@@ -148,6 +153,33 @@ spaciblo.input.InputManager = k.eventMixin(class {
 	handleGamepadDisconnected(ev){
 		console.log('Gamepad disconnected', ev.gamepad.id, ev.gamepad.index, ev.gamepad)
 		delete this._gamepads[ev.gamepad.index]
+	}
+
+	// Touch input methods
+	/*
+	deltaX and deltaY should be in range [-1,1]
+	*/
+	handleTouchMotion(deltaX, deltaY){
+		let oldRotation = [...this.inputRotation]
+		let oldTranslation = [...this.inputTranslation]
+		this._inputTranslation[0] = 0
+		this._inputTranslation[1] = 0
+		this._inputTranslation[2] = this.touchTranslationDelta * deltaY
+		this._inputRotation[0] = 0
+		this._inputRotation[1] = this.touchRotationDelta * -deltaX
+		this._inputRotation[2] = 0
+		if(oldRotation.every((val, index) => { return val === this._inputRotation[index] }) === false || oldTranslation.every((val, index) => { return val === this._inputTranslation[index] }) === false) {
+			this._throttledSendAvatarUpdate()
+		}
+	}
+	handleTouchEnd(){
+		this._inputTranslation[0] = 0
+		this._inputTranslation[1] = 0
+		this._inputTranslation[2] = 0
+		this._inputRotation[0] = 0
+		this._inputRotation[1] = 0
+		this._inputRotation[2] = 0
+		this._throttledSendAvatarUpdate()
 	}
 
 	// Keyboard input methods
@@ -283,3 +315,44 @@ spaciblo.input.KeyMap.set(224, "meta")
 
 // A list of modifier keys like shift, alt, control, and meta
 spaciblo.input.MODIFIER_KEYCODES = [16, 17, 18, 224]
+
+spaciblo.input.throttle = function(func, wait, leading=true, trailing=true) {
+	// Cribbed from https://github.com/jashkenas/underscore
+	var timeout, context, args, result
+	var previous = 0
+
+	var later = function() {
+		previous = leading === false ? 0 : Date.now()
+		timeout = null
+		result = func.apply(context, args)
+		if (!timeout) context = args = null
+	}
+
+	var throttled = function() {
+		var now = Date.now()
+		if (!previous && leading === false) previous = now
+		var remaining = wait - (now - previous)
+		context = this
+		args = arguments
+		if (remaining <= 0 || remaining > wait) {
+		if (timeout) {
+			clearTimeout(timeout)
+			timeout = null
+		}
+		previous = now
+		result = func.apply(context, args)
+		if (!timeout) context = args = null
+		} else if (!timeout && trailing !== false) {
+		timeout = setTimeout(later, remaining)
+		}
+		return result
+	}
+
+	throttled.cancel = function() {
+		clearTimeout(timeout)
+		previous = 0
+		timeout = context = args = null
+	}
+
+	return throttled
+}

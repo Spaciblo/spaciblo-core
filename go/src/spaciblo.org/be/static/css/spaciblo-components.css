@@ -35,3 +35,19 @@ body {
 	bottom: 20px;
 	right: 20px;
 }
+.spaces-component .touch-motion-component {
+	display: none; /* hidden until the first touch event comes in */
+	position: absolute;
+	bottom: 10px;
+	left: 50%;
+}
+.touch-motion-component {
+	width: 100px;
+	height: 100px;
+	transform: translate(-50%, 0);
+}
+.touch-motion-component canvas {
+	opacity: 0.5;
+	width: 100px;
+	height: 100px;
+}

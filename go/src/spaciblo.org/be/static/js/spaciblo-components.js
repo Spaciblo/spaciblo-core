@@ -6,6 +6,8 @@ spaciblo.components = spaciblo.components || {}
 
 spaciblo.events.SpaceSelected = 'spaciblo-space-selected'
 spaciblo.events.AvatarMotionChanged = 'spaciblo-avatar-motion-changed'
+spaciblo.events.TouchMotion = 'spaciblo-touch-motion'
+spaciblo.events.EndTouch = 'spaciblo-end-tough'
 
 /*
 SplashPageComponent wraps all of the logic for index.html
@@ -20,7 +22,7 @@ spaciblo.components.SplashPageComponent = class extends k.Component {
 		this.el.appendChild(this.spacesComponent.el)
 	}
 	handleAddedToDOM(){
-		this.spacesComponent.updateSize()
+		this.spacesComponent.handleAddedToDOM()
 	}
 }
 
@@ -34,6 +36,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.inputManager = new spaciblo.input.InputManager(spaciblo.input.DefaultInputSchema)
 		this.client = null // Will be a spaciblo.api.Client when a Space is selected
 		this.vrDisplay = null
+		this.receivedTouchEvent = false // Set to true iff the first touch event arrives
 
 		this.renderer = new spaciblo.three.Renderer(this.inputManager)
 		this.el.appendChild(this.renderer.el)
@@ -45,12 +48,35 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 
 		this.vrButton = k.el.div({ class:'vr-button' }, 'Enter VR').appendTo(this.el)
 
+		this.touchMotionComponent = new spaciblo.components.TouchMotionComponent()
+		this.el.appendChild(this.touchMotionComponent.el)
+		this.touchMotionComponent.addListener(this.handleTouchMotion.bind(this), spaciblo.events.TouchMotion)
+		this.touchMotionComponent.addListener(this.handleEndTouch.bind(this), spaciblo.events.EndTouch)
+
 		this.updateSize()
+
+		window.addEventListener('touchstart', ev => { this.handleTouchStart(ev) }, false)
 		window.addEventListener('resize', () => { this.updateSize() })
 		this.renderer.addListener(this.handleSpaceSelected.bind(this), spaciblo.events.SpaceSelected)
 		this.inputManager.addListener(this.handleAvatarMotion.bind(this), spaciblo.events.AvatarMotionChanged)
-
 		spaciblo.getVRDisplays().then(this.handleVRDisplays.bind(this))
+	}
+	handleAddedToDOM(){
+		this.updateSize()
+		this.touchMotionComponent.render()
+	}
+	handleTouchStart(ev){
+		if(this.receivedTouchEvent === false){
+			this.receivedTouchEvent = true
+			this.touchMotionComponent.el.style.display = 'block'
+			this.touchMotionComponent.render()
+		}
+	}
+	handleTouchMotion(eventName, deltaX, deltaY){
+		this.inputManager.handleTouchMotion(deltaX, deltaY)
+	}
+	handleEndTouch(){
+		this.inputManager.handleTouchEnd()
 	}
 	handleVRDisplays(displays){
 		if(displays.length === 0){
@@ -67,13 +93,19 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	toggleVR() {
  		if (this.vrDisplay.isPresenting) {
 			 this.vrDisplay.exitPresent()
+			 if(this.receivedTouchEvent){
+				this.touchMotionComponent.el.style.display = 'inline-block'
+			 }
 		} else {
 			this.vrDisplay.requestPresent([{
 				source: this.renderer.el
 			}]).then(() => {
+				if(this.receivedTouchEvent){
+					this.touchMotionComponent.el.style.display = 'none'
+				}
 				this.renderer.setVRDisplay(this.vrDisplay)
 			}).catch(e => {
-				console.error(`Unable to init VR: ${e}`);
+				console.error(`Unable to init VR: ${e}`)
 			})
 		}
 	}
@@ -130,6 +162,117 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	}
 	updateSize(){
 		this.renderer.setSize(this.el.offsetWidth, this.el.offsetHeight)
+	}
+}
+
+spaciblo.components.TouchMotionComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('touch-motion-component')
+		this.canvas = k.el.canvas().appendTo(this.el)
+		this.context = this.canvas.getContext('2d')
+		this.render()
+
+		this.dragDistance = 100 // The distance from drag start that is full motion speed
+		this.startX = -1
+		this.startY = -1
+
+		this.el.addEventListener("touchstart", ev => { this.handleTouchStart(ev) }, false)
+		this.el.addEventListener("touchmove", ev => { this.handleTouchMove(ev) }, false)
+		this.el.addEventListener("touchend", ev => { this.handleTouchEnd(ev) }, false)
+		this.el.addEventListener("touchcancel", ev => { this.handleTouchEnd(ev) }, false)
+	}
+	handleTouchStart(ev) {
+		ev.preventDefault()
+		this.startX = ev.changedTouches[0].pageX
+		this.startY = ev.changedTouches[0].pageY
+	}
+	handleTouchMove(ev){
+		ev.preventDefault()
+		let deltaX = ev.changedTouches[0].pageX - this.startX
+		if(deltaX > 100) deltaX = 100
+		if(deltaX < -100) deltaX = -100
+		let deltaY = ev.changedTouches[0].pageY - this.startY
+		if(deltaY > 100) deltaY = 100
+		if(deltaY < -100) deltaY = -100
+		this.trigger(spaciblo.events.TouchMotion, deltaX / 100, deltaY / 100)
+	}
+	handleTouchEnd(ev) {
+		ev.preventDefault()
+		this.trigger(spaciblo.events.EndTouch)
+	}
+	render(){
+		if(this.el.offsetWidth){
+			this.canvas.width = this.el.offsetWidth
+			this.canvas.height = this.el.offsetHeight
+		}
+
+		const width = this.canvas.width
+		const height = this.canvas.height
+
+		// Underlying shape constants
+		const inset = 2
+		const cornerRadius = 5
+		const topWidth = width * 0.4
+		const topLeft = (width / 2) - (topWidth / 2)
+		const topRight = (width / 2) + (topWidth / 2)
+		const bottomHeight = height / 2
+
+		// Arrow constants
+		const arrowInset = 10
+		const arrowWidth = 15
+		const arrowHeadWidth = 30
+		const arrowHeadDepth = 15
+
+		this.context.clearRect(0, 0, width, height)
+
+		// Draw underlying shape
+		this.context.beginPath()
+		this.context.moveTo(topLeft + cornerRadius, inset)					// Top left horizontal line start
+		this.context.lineTo(topRight - cornerRadius, inset)					// Top right horizontal line end
+		this.context.lineTo(topRight, inset + cornerRadius) 				// Corner
+		this.context.lineTo(topRight, bottomHeight - cornerRadius)			// Middle right vertical line end
+		this.context.lineTo(topRight + cornerRadius, bottomHeight)			// Corner
+		this.context.lineTo(width - inset - cornerRadius, bottomHeight)		// Middle right horizontal line end
+		this.context.lineTo(width - inset, bottomHeight + cornerRadius)		// Corner
+		this.context.lineTo(width - inset, height - inset - cornerRadius)	// Bottom right vertical line end
+		this.context.lineTo(width - inset - cornerRadius, height - inset)	// Corner
+		this.context.lineTo(inset + cornerRadius, height - inset)			// Bottom left horizontal line end
+		this.context.lineTo(inset, height - inset - cornerRadius)			// Corner
+		this.context.lineTo(inset, bottomHeight + cornerRadius)				// Middle left vertical line end
+		this.context.lineTo(inset + cornerRadius, bottomHeight)				// Corner
+		this.context.lineTo(topLeft - cornerRadius, bottomHeight)			// Middle left horizontal line end
+		this.context.lineTo(topLeft, bottomHeight - cornerRadius)			// Corner
+		this.context.lineTo(topLeft, inset + cornerRadius)					// Top left vertical line end
+		this.context.closePath()
+		this.context.fillStyle = '#DDDDDD'
+		this.context.fill()
+
+		// Draw triple headed arrow
+		this.context.beginPath()
+		this.context.moveTo(width / 2 - arrowWidth / 2, bottomHeight + bottomHeight / 2 - arrowWidth / 2)
+		this.context.lineTo(width / 2 - arrowWidth / 2, arrowInset + arrowHeadDepth)
+		this.context.lineTo(width / 2 - arrowHeadWidth / 2, arrowInset + arrowHeadDepth)
+		this.context.lineTo(width / 2, arrowInset) // top peak
+		this.context.lineTo(width / 2 + arrowHeadWidth / 2, arrowInset + arrowHeadDepth)
+		this.context.lineTo(width / 2 + arrowWidth / 2, arrowInset + arrowHeadDepth)
+		this.context.lineTo(width / 2 + arrowWidth / 2, bottomHeight + bottomHeight / 2 - arrowWidth / 2) // right middle corner
+		this.context.lineTo(width - arrowInset - arrowHeadDepth, bottomHeight + bottomHeight / 2 - arrowWidth / 2)
+		this.context.lineTo(width - arrowInset - arrowHeadDepth, bottomHeight + bottomHeight / 2 - arrowHeadWidth / 2)
+		this.context.lineTo(width - arrowInset, bottomHeight + bottomHeight / 2)
+		this.context.lineTo(width - arrowInset - arrowHeadDepth, bottomHeight + bottomHeight / 2 + arrowHeadWidth / 2)
+		this.context.lineTo(width - arrowInset - arrowHeadDepth, bottomHeight + bottomHeight / 2 + arrowWidth / 2)
+		this.context.lineTo(arrowInset + arrowHeadDepth, bottomHeight + bottomHeight / 2 + arrowWidth / 2)
+		this.context.lineTo(arrowInset + arrowHeadDepth, bottomHeight + bottomHeight / 2 + arrowHeadWidth / 2)
+		this.context.lineTo(arrowInset, bottomHeight + bottomHeight / 2) // Right peak
+		this.context.lineTo(arrowInset + arrowHeadDepth, bottomHeight + bottomHeight / 2 - arrowHeadWidth / 2)
+		this.context.lineTo(arrowInset + arrowHeadDepth, bottomHeight + bottomHeight / 2 - arrowWidth / 2)
+
+		this.context.closePath()
+		this.context.lineWidth = 2
+		this.context.strokeStyle = '#FFF'
+		this.context.stroke()
+
 	}
 }
 
