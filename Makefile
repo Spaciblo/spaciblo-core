@@ -119,6 +119,10 @@ test_sim:
 	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql -U $(POSTGRES_USER)
 	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/sim/... -cwd="$(PWD)"
 
+test_api:
+	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql -U $(POSTGRES_USER)
+	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/api/... -cwd="$(PWD)"
+
 test:
 	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql -U $(POSTGRES_USER)
 	$(TEST_POSTGRES_ENVS) go test -v spaciblo.org/api/... -cwd="$(PWD)"

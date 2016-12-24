@@ -87,8 +87,7 @@ type SpaceStateNode struct {
 	Scale        []float64         `json:"scale,omitempty"`         // x,y,z
 	TemplateName string            `json:"template-name,omitempty"` // Templates can be referenced by names (which are not unique) or by UUID (which are)
 	TemplateUUID string            `json:"template-uuid,omitempty"`
-
-	Nodes []SpaceStateNode `json:"nodes,omitempty"`
+	Nodes        []SpaceStateNode  `json:"nodes,omitempty"`
 }
 
 func NewSpaceStateNode(position []float64, orientation []float64, templateUUID string) *SpaceStateNode {

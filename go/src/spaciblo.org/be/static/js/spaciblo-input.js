@@ -356,3 +356,9 @@ spaciblo.input.throttle = function(func, wait, leading=true, trailing=true) {
 
 	return throttled
 }
+
+// A handy call when debugging within animation frames, logs messages at most once per second
+spaciblo.input.throttledConsoleLog = spaciblo.input.throttle(function(...params){
+	console.log(...params)
+}, 1000)
+

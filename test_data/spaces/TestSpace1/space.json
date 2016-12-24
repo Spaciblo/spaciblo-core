@@ -1,7 +1,10 @@
 {
 	"settings": {
 		"name": "Test Space 1",
-		"background-color": "#DDDDDD"
+		"background-color": "#DDDDDD",
+		"light-type": "ambient",
+		"light-color": "#FFFFFF",
+		"light-intensity": "0.3",
 	},
 	"nodes": [
 		{
@@ -10,7 +13,10 @@
 		{
 			"settings": {
 				"name": "Top Level Node",
-				"foxy": "brown"
+				"foxy": "brown",
+				"light-type": "directional",
+				"light-color": "#FF00FF",
+				"light-intensity": "0.9",
 			},
 			"template-name": "Box",
 			"position": [0, 0.5, -5],

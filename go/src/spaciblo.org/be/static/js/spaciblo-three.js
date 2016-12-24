@@ -17,6 +17,9 @@ spaciblo.three.WORKING_VECTOR3_2 = new THREE.Vector3()
 spaciblo.three.WORKING_EULER = new THREE.Euler()
 spaciblo.three.WORKING_MATRIX4 = new THREE.Matrix4()
 
+spaciblo.three.DEFAULT_DIRECTIONAL_LIGHT_COLOR = '#FFFFFF'
+spaciblo.three.DEFAULT_DIRECTIONAL_LIGHT_INTENSITY = 0.9
+
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
 
 /*
@@ -25,7 +28,7 @@ SpacesRenderer holds a Three.js scene and is used by SpacesComponent to render s
 spaciblo.three.Renderer = k.eventMixin(class {
 	constructor(inputManager, background=new THREE.Color(0x99DDff)){
 		this.inputManager = inputManager
-		this.rootGroup = null; // The spaciblo.three.Group at the root of the currently active space scene graph
+		this.rootGroup = null // The spaciblo.three.Group at the root of the currently active space scene graph
 		this.templateLoader = new spaciblo.three.TemplateLoader()
 		this.clock = new THREE.Clock()
 		this.scene = new THREE.Scene()
@@ -50,26 +53,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.translationVector = new THREE.Vector3()
 		this.rotationEuler = new THREE.Euler(0,0,0,'XYZ')
 
-		this.ambientLight = new THREE.AmbientLight(0xdddddd, 0.1)
-		this.scene.add(this.ambientLight)
-
-		this.hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6)
-		this.hemiLight.color.setHSL(0.6, 0.6, 0.6)
-		this.hemiLight.groundColor.setHSL(1, 1, 1)
-		this.hemiLight.position.set(0, 500, 0)
-		this.scene.add(this.hemiLight)
-
-		this.dirLight = new THREE.DirectionalLight(0xffffff, 1)
-		this.dirLight.color.setHSL(1, 1, 1)
-		this.dirLight.position.set(-1, 1.75, 1)
-		this.dirLight.position.multiplyScalar(50)
-		this.scene.add(this.dirLight)
-
 		this.defaultSky = this._createDefaultSky() 
 		this.scene.add(this.defaultSky)
 
 		this.raycaster = new THREE.Raycaster()
-		this.mouse = new THREE.Vector2()
+		this.mouse = new THREE.Vector2(-10000, -10000)
 		this.intersectedObj = null
 
 		this.renderer = new THREE.WebGLRenderer()
@@ -239,15 +227,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		group.renderer = this
 		group.state = state
-		if(state.settings){
-			if(state.settings.name){
-				group.name = state.settings.name
-			}
-			if(state.settings.clientUUID && this.clientUUID === state.settings.clientUUID){
-				// Hide this user's avatar from view
-				group.visible = false
-			}
-		}
 		if(state.position){
 			group.position.set(...state.position)
 		}
@@ -256,6 +235,36 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		if(state.scale){
 			group.scale.set(...state.scale)
+		}
+		if(state.settings){
+			if(state.settings.name){
+				group.name = state.settings.name
+			}
+			if(state.settings.clientUUID && this.clientUUID === state.settings.clientUUID){
+				// Hide this user's avatar from view
+				group.visible = false
+			}
+			if(typeof state.settings['light-type'] !== 'undefined'){
+				let color = state.settings['light-color'] || spaciblo.three.DEFAULT_DIRECTIONAL_LIGHT_COLOR
+				let intensity = parseFloat(state.settings['light-intensity'])
+				if(Number.isNaN(intensity)) intensity = spaciblo.three.DEFAULT_DIRECTIONAL_LIGHT_INTENSITY
+
+				switch(state.settings['light-type']){
+					case 'directional':
+						group.settingsLight = new THREE.DirectionalLight(color, intensity)
+						break
+					case 'ambient':
+						group.settingsLight = new THREE.AmbientLight(color, intensity)
+						break
+					default:
+						console.error('unknown light-type', state.settings)
+						group.settingsLight = null
+				}
+				if(group.settingsLight !== null){
+					group.settingsLight.name = "settings-light"
+					group.add(group.settingsLight)
+				}
+			}
 		}
 		if(typeof state.templateUUID !== "undefined" && state.templateUUID.length > 0){
 			group.template = this.templateLoader.addTemplate(state.templateUUID)
@@ -295,7 +304,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		return group
 	}
 	hideSpaceMenu(){
-		this.spaceMenu.visible = false;	
+		this.spaceMenu.visible = false
+		this.intersectedObj = null
 	}
 	clearSpacesMenu(){
 		while(this.spaceMenuMeshes.length > 0){
@@ -332,6 +342,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		})
 		const mesh = this._addGeometry(geometry, material)
 		mesh.space = space
+		mesh.name = space.get('name')
 		this.spaceMenuMeshes.push(mesh)
 		this.spaceMenu.add(mesh)
 		if(layout){
@@ -402,7 +413,12 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.raycaster.setFromCamera(this.mouse, this.camera)
 			let intersects = this.raycaster.intersectObjects(this.scene.children, true)
 			if(intersects.length > 0){
-				if(this.intersectedObj !== intersects[0].object && intersects[0].object.material.emissive){
+				if(typeof intersects[0].object.space === "undefined"){
+					if(this.intersectedObj){
+						this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
+						this.intersectedObj = null
+					}
+				} else if(this.intersectedObj !== intersects[0].object && intersects[0].object.material.emissive){
 					if(this.intersectedObj !== null){
 						this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
 					}
@@ -443,11 +459,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.scene.updateMatrixWorld(true)
 			this.renderer.render(this.scene, this.camera)
 
-			this.vrDisplay.submitFrame();
+			this.vrDisplay.submitFrame()
 		} else {
 			this.renderer.autoClear = true
 			this.scene.matrixAutoUpdate = true
-			THREE.GLTFLoader.Shaders.update(this.scene, this.camera);		
+			THREE.GLTFLoader.Shaders.update(this.scene, this.camera)
 			this.renderer.render(this.scene, this.camera)
 		}
 
@@ -518,6 +534,17 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 	},
 	setOBJ: function(obj){
 		this.add(obj)
+	},
+	findByName(name, results=[]){
+		for(let child of this.children){
+			if(child.name === name){
+				results[results.length] = child
+			}
+			if(typeof child.findByName === "function"){
+				child.findByName(name, results)
+			}
+		}
+		return results
 	},
 	interpolate: function(elapsedTime){
 		const delta = elapsedTime - this.lastUpdate

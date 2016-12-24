@@ -1,9 +1,21 @@
 {
 	"name": "Box Land",
 	"settings": {
-		"background-color": "#44DDFF"
+		"background-color": "#44DDFF",
+		"light-type": "ambient",
+		"light-color": "#FFFFFF",
+		"light-intensity": "0.7"
 	},
 	"nodes": [
+		{
+			"settings": {
+				"name": "directional light group",
+				"light-type": "directional",
+				"light-color": "#FFFFFF",
+				"light-intensity": "0.9"
+			},
+			"position": [-10, 10, -10]
+		},
 		{
 			"settings": {
 				"name": "Test Cube Group"
