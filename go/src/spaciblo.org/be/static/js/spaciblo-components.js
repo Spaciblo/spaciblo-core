@@ -96,6 +96,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		if(this.receivedTouchEvent){
 			this.touchMotionComponent.el.style.display = 'inline-block'
 		}
+		this.updateSize()
 	}
 	enterVR() {
 		if(this.vrDisplay === null){
