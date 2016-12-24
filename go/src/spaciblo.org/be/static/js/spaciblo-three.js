@@ -17,8 +17,8 @@ spaciblo.three.WORKING_VECTOR3_2 = new THREE.Vector3()
 spaciblo.three.WORKING_EULER = new THREE.Euler()
 spaciblo.three.WORKING_MATRIX4 = new THREE.Matrix4()
 
-spaciblo.three.DEFAULT_DIRECTIONAL_LIGHT_COLOR = '#FFFFFF'
-spaciblo.three.DEFAULT_DIRECTIONAL_LIGHT_INTENSITY = 0.9
+spaciblo.three.DEFAULT_LIGHT_COLOR = '#FFFFFF'
+spaciblo.three.DEFAULT_LIGHT_INTENSITY = 0.7
 
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
 
@@ -245,23 +245,42 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				group.visible = false
 			}
 			if(typeof state.settings['light-type'] !== 'undefined'){
-				let color = state.settings['light-color'] || spaciblo.three.DEFAULT_DIRECTIONAL_LIGHT_COLOR
-				let intensity = parseFloat(state.settings['light-intensity'])
-				if(Number.isNaN(intensity)) intensity = spaciblo.three.DEFAULT_DIRECTIONAL_LIGHT_INTENSITY
+				let color = spaciblo.three.parseSettingColor('light-color', state.settings, spaciblo.three.DEFAULT_LIGHT_COLOR)
+				let intensity = spaciblo.three.parseSettingFloat('light-intensity', state.settings, spaciblo.three.DEFAULT_LIGHT_INTENSITY)
+				let distance = spaciblo.three.parseSettingFloat('light-distance', state.settings, 0)
+				let decay = spaciblo.three.parseSettingFloat('light-decay', state.settings, 1)
+				let target = spaciblo.three.parseSettingFloatArray('light-target', state.settings, [0, -1, 0])
 
 				switch(state.settings['light-type']){
-					case 'directional':
-						group.settingsLight = new THREE.DirectionalLight(color, intensity)
-						break
 					case 'ambient':
 						group.settingsLight = new THREE.AmbientLight(color, intensity)
 						break
+
+					case 'directional':
+						group.settingsLight = new THREE.DirectionalLight(color, intensity)
+						group.settingsLight.target.position.set(...target)
+						group.settingsLight.add(group.settingsLight.target)
+						break
+
+					case 'point':
+						group.settingsLight = new THREE.PointLight(color, intensity, distance, decay)
+						break
+
+					case 'spot':
+						let angle = spaciblo.three.parseSettingFloat('light-angle', state.settings, Math.PI / 2)
+						let penumbra = spaciblo.three.parseSettingFloat('light-penumbra', state.settings, 0)
+						group.settingsLight = new THREE.SpotLight(color, intensity, distance, angle, penumbra, decay)						
+						group.settingsLight.target.position.set(...target)
+						group.settingsLight.add(group.settingsLight.target)
+						break
+
 					default:
 						console.error('unknown light-type', state.settings)
 						group.settingsLight = null
 				}
 				if(group.settingsLight !== null){
 					group.settingsLight.name = "settings-light"
+					group.settingsLight.position.set(0,0,0) // It's the light's group that sets the position and orientation
 					group.add(group.settingsLight)
 				}
 			}
@@ -477,6 +496,39 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		return this.renderer.domElement
 	}
 })
+
+// Helper functions for converting update.settings strings into native types
+spaciblo.three.parseSettingFloat = function(name, settings, defaultValue=0){
+	let val = parseFloat(settings[name])
+	if(Number.isNaN(val)){
+		val = defaultValue
+	}
+	return val
+}
+spaciblo.three.parseSettingFloatArray = function(name, settings, defaultValue=null){
+	if(typeof settings[name] !== 'string'){
+		return defaultValue
+	}
+	if(settings[name] === ""){
+		return defaultValue
+	}
+	let tokens = settings[name].split(',')
+	let results = []
+	for(let token of tokens){
+		let val = parseFloat(token)
+		if(Number.isNaN(val)){
+			val = 0
+		}
+		results[results.length] = val
+	}
+	return results
+}
+spaciblo.three.parseSettingColor = function(name, settings, defaultValue='#FFFFFF'){
+	if(typeof settings[name] !== 'string' || settings[name] === ''){
+		return defaultValue
+	}
+	return settings[name]
+}
 
 spaciblo.three.TemplateLoader = k.eventMixin(class {
 	constructor(){

@@ -11,10 +11,11 @@
 			"settings": {
 				"name": "directional light group",
 				"light-type": "directional",
+				"light-target": "-0.5,-0.2,0.5",
 				"light-color": "#FFFFFF",
-				"light-intensity": "0.9"
+				"light-intensity": "1"
 			},
-			"position": [-10, 10, -10]
+			"position": [10, 10, 10]
 		},
 		{
 			"settings": {
