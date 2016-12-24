@@ -388,12 +388,20 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	_animate(){
 		let delta = this.clock.getDelta()
-		if(this.vrDisplay){
-			this.vrDisplay.requestAnimationFrame(this._boundAnimate)
-			// We can't render to VR if we're in the window's animation frame call, so punt to the next frame which will be from the VR display's frame call
-			if(this.firstVRFrame){
+		if(this.vrDisplay !== null){
+			if(this.vrDisplay.isPresenting && this.firstVRFrame){
+				// We can't render to VR if we're in the window's animation frame call, so punt to the next frame which will be from the VR display's frame call
+				this.vrDisplay.requestAnimationFrame(this._boundAnimate)
 				this.firstVRFrame = false
 				return
+			} else if(this.vrDisplay.isPresenting === false){
+				// Switch back to non-VR animation frames
+				this.vrDisplay = null
+				requestAnimationFrame(this._boundAnimate)
+				this.trigger(spaciblo.events.RendererExitedVR, this)
+				return
+			} else {
+				this.vrDisplay.requestAnimationFrame(this._boundAnimate)
 			}
 		} else {
 			requestAnimationFrame(this._boundAnimate)

@@ -8,6 +8,7 @@ spaciblo.events.SpaceSelected = 'spaciblo-space-selected'
 spaciblo.events.AvatarMotionChanged = 'spaciblo-avatar-motion-changed'
 spaciblo.events.TouchMotion = 'spaciblo-touch-motion'
 spaciblo.events.EndTouch = 'spaciblo-end-tough'
+spaciblo.events.RendererExitedVR = 'spaciblo-exited-vr'
 
 /*
 SplashPageComponent wraps all of the logic for index.html
@@ -58,6 +59,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		window.addEventListener('touchstart', ev => { this.handleTouchStart(ev) }, false)
 		window.addEventListener('resize', () => { this.updateSize() })
 		this.renderer.addListener(this.handleSpaceSelected.bind(this), spaciblo.events.SpaceSelected)
+		this.renderer.addListener(this.handleExitedVR.bind(this), spaciblo.events.RendererExitedVR)
 		this.inputManager.addListener(this.handleAvatarMotion.bind(this), spaciblo.events.AvatarMotionChanged)
 		spaciblo.getVRDisplays().then(this.handleVRDisplays.bind(this))
 	}
@@ -88,14 +90,18 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	}
 	handleVRButtonClick(ev){
 		ev.preventDefault()
-		this.toggleVR()
+		this.enterVR()
 	}
-	toggleVR() {
- 		if (this.vrDisplay.isPresenting) {
-			 this.vrDisplay.exitPresent()
-			 if(this.receivedTouchEvent){
-				this.touchMotionComponent.el.style.display = 'inline-block'
-			 }
+	handleExitedVR(renderer){
+		if(this.receivedTouchEvent){
+			this.touchMotionComponent.el.style.display = 'inline-block'
+		}
+	}
+	enterVR() {
+		if(this.vrDisplay === null){
+			console.error("Tried to enter VR with no known VR display")
+		} else if (this.vrDisplay.isPresenting) {
+ 			console.error("Tried to enter VR when already presenting")
 		} else {
 			this.vrDisplay.requestPresent([{
 				source: this.renderer.el
@@ -105,7 +111,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 				}
 				this.renderer.setVRDisplay(this.vrDisplay)
 			}).catch(e => {
-				console.error(`Unable to init VR: ${e}`)
+				console.error('Unable to init VR', e)
 			})
 		}
 	}
