@@ -53,20 +53,22 @@ spaciblo.api.Client = k.eventMixin(class {
 			uuid: this.space.get('uuid')
 		}))
 	}
-	sendAvatarUpdate(position, orientation, translation, rotation){
+	sendAvatarUpdate(position, orientation, bodyUpdates, translation, rotation){
 		if(this.space === null){
 			// Not connected to a space, so nobody cares where we move
 			return
 		}
-		this.socket.send(JSON.stringify({
+		let update = {
 			type: 'Avatar-Motion',
 			spaceUUID: this.space.get('uuid'),
-			position: [position.x, position.y, position.z],
-			orientation: [orientation.x, orientation.y, orientation.z, orientation.w],
+			position: position,
+			orientation: orientation,
+			bodyUpdates: bodyUpdates,
 			translation: translation,
 			rotation: rotation,
-			scale: [1, 1, 1]
-		}))
+			scale: [1, 1, 1],
+		}
+		this.socket.send(JSON.stringify(update))
 	}
 	static get ServiceURL(){
 		const host = document.location.host.split(':')[0]

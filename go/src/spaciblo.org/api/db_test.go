@@ -28,12 +28,7 @@ func init() {
 }
 
 func TestSpaceStateNode(t *testing.T) {
-	filePath := path.Join(apiDB.TEST_DATA_DIR, apiDB.SPACES_DATA_DIR, "TestSpace1", "space.json")
-	file, err := os.Open(filePath)
-	AssertNil(t, err)
-
 	testState := func(stateNode *apiDB.SpaceStateNode) {
-		AssertNil(t, err)
 		AssertEqual(t, "Test Space 1", stateNode.Settings["name"])
 		AssertEqual(t, "#DDDDDD", stateNode.Settings["background-color"])
 		AssertEqual(t, 3, len(stateNode.Nodes))
@@ -76,7 +71,11 @@ func TestSpaceStateNode(t *testing.T) {
 	}
 
 	// Test decoding JSON
+	filePath := path.Join(apiDB.TEST_DATA_DIR, apiDB.SPACES_DATA_DIR, "TestSpace1", "space.json")
+	file, err := os.Open(filePath)
+	AssertNil(t, err)
 	state, err := apiDB.DecodeSpaceStateNode(file)
+	AssertNil(t, err)
 	testState(state)
 
 	// Test that we encode equivalent JSON
@@ -84,6 +83,7 @@ func TestSpaceStateNode(t *testing.T) {
 	err = state.Encode(buff)
 	AssertNil(t, err)
 	state2, err := apiDB.DecodeSpaceStateNode(buff)
+	AssertNil(t, err)
 	testState(state2)
 }
 

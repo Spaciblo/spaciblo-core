@@ -9,6 +9,8 @@ spaciblo.events.AvatarMotionChanged = 'spaciblo-avatar-motion-changed'
 spaciblo.events.TouchMotion = 'spaciblo-touch-motion'
 spaciblo.events.EndTouch = 'spaciblo-end-tough'
 spaciblo.events.RendererExitedVR = 'spaciblo-exited-vr'
+spaciblo.events.GamepadAdded = 'spaciblo-gamepad-added'
+spaciblo.events.GamepadRemoved = 'spaciblo-gamepad-removed'
 
 /*
 SplashPageComponent wraps all of the logic for index.html
@@ -120,8 +122,8 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		if(this.client === null){
 			return
 		}
-		// Avatar translation is relative to the avatar's local orientation, so translation of 0,0,-1 is always forward for the avatar
-		this.client.sendAvatarUpdate(this.renderer.avatarPosition, this.renderer.avatarOrientation, translation, rotation)
+		// Avatar translation is relative to the avatar orientation, so translation of 0,0,-1 is always forward even if the head/camera is pointed elsewhere
+		this.client.sendAvatarUpdate(this.renderer.avatarPosition, this.renderer.avatarOrientation, this.renderer.avatarBodyUpdates, translation, rotation)
 	}
 	handleSpaceSelected(eventName, space){
 		if(this.client != null){

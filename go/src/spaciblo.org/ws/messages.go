@@ -134,15 +134,28 @@ func NewClientDisconnectedMessage() *ClientDisconnectedMessage {
 	}
 }
 
-// AvatarMotion is sent by a client when the user moves their avatar
-type AvatarMotionMessage struct {
-	TypedMessage
-	SpaceUUID   string    `json:"spaceUUID"`
+/*
+An update for a body part like a head or a hand
+*/
+type BodyUpdateMessage struct {
+	Name        string    `json:"name"`
 	Position    []float64 `json:"position"`
 	Orientation []float64 `json:"orientation"`
 	Translation []float64 `json:"translation"`
 	Rotation    []float64 `json:"rotation"`
 	Scale       []float64 `json:"scale"`
+}
+
+// AvatarMotion is sent by a client when the user moves their avatar
+type AvatarMotionMessage struct {
+	TypedMessage
+	SpaceUUID   string              `json:"spaceUUID"`
+	Position    []float64           `json:"position"`
+	Orientation []float64           `json:"orientation"`
+	Translation []float64           `json:"translation"`
+	Rotation    []float64           `json:"rotation"`
+	Scale       []float64           `json:"scale"`
+	BodyUpdates []BodyUpdateMessage `json:"bodyUpdates"`
 }
 
 func NewAvatarMotionMessage(spaceUUID string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64) *AvatarMotionMessage {
@@ -154,6 +167,7 @@ func NewAvatarMotionMessage(spaceUUID string, position []float64, orientation []
 		translation,
 		rotation,
 		scale,
+		[]BodyUpdateMessage{},
 	}
 }
 

@@ -134,7 +134,17 @@ func (server *SimHostServer) HandleAvatarMotion(ctx context.Context, avatarMotio
 	if ok == false {
 		return nil, errors.New("Unknown space UUID: " + avatarMotion.SpaceUUID)
 	}
-	spaceSim.HandleAvatarMotion(avatarMotion.ClientUUID, avatarMotion.Position, avatarMotion.Orientation, avatarMotion.Translation, avatarMotion.Rotation, avatarMotion.Scale)
+	bodyUpdates := []*BodyUpdate{}
+	for _, bodyUpdate := range avatarMotion.BodyUpdates {
+		bodyUpdates = append(bodyUpdates, &BodyUpdate{
+			Name:        bodyUpdate.Name,
+			Position:    NewVector3(bodyUpdate.Position),
+			Orientation: NewQuaternion(bodyUpdate.Orientation),
+			Translation: NewVector3(bodyUpdate.Translation),
+			Rotation:    NewVector3(bodyUpdate.Rotation),
+		})
+	}
+	spaceSim.HandleAvatarMotion(avatarMotion.ClientUUID, avatarMotion.Position, avatarMotion.Orientation, avatarMotion.Translation, avatarMotion.Rotation, avatarMotion.Scale, bodyUpdates)
 	return &simRPC.Ack{Message: "OK"}, nil
 }
 

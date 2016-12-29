@@ -127,6 +127,7 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 		avatarNode.Translation.Set(notice.Translation)
 		avatarNode.Rotation.Set(notice.Rotation)
 		avatarNode.Scale.Set(notice.Scale)
+		avatarNode.handleBodyUpdates(notice.BodyUpdates)
 	}
 
 	// Send new client clients full initialization updates
@@ -233,7 +234,7 @@ func (spaceSim *SpaceSimulator) ChangeClientMembership(clientUUID string, member
 	}
 }
 
-func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64) {
+func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64, bodyUpdates []*BodyUpdate) {
 	spaceSim.AvatarMotionChannel <- &AvatarMotionNotice{
 		ClientUUID:  clientUUID,
 		Position:    position,
@@ -241,6 +242,7 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 		Translation: translation,
 		Rotation:    rotation,
 		Scale:       scale,
+		BodyUpdates: bodyUpdates,
 	}
 }
 
@@ -256,9 +258,17 @@ func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, position []float
 	}
 	node.Transient = true
 	node.Settings["clientUUID"] = NewStringTuple("clientUUID", clientUUID)
+
+	head := NewBodyPartSceneNode("head")
+	node.Add(head)
+	leftHand := NewBodyPartSceneNode("left_hand")
+	node.Add(leftHand)
+	rightHand := NewBodyPartSceneNode("right_hand")
+	node.Add(rightHand)
+
 	spaceSim.Avatars[clientUUID] = node
 	spaceSim.RootNode.Add(node)
-	spaceSim.Additions = append(spaceSim.Additions, &SceneAddition{node, spaceSim.RootNode.Id})
+	spaceSim.Additions = append(spaceSim.Additions, &SceneAddition{node, spaceSim.RootNode.Id}, &SceneAddition{head, node.Id}, &SceneAddition{leftHand, node.Id}, &SceneAddition{rightHand, node.Id})
 	return node, nil
 }
 
@@ -298,6 +308,17 @@ func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneN
 	return rootNode, nil
 }
 
+type BodyUpdate struct {
+	Name        string
+	Position    *Vector3
+	Orientation *Quaternion
+	Translation *Vector3
+	Rotation    *Vector3
+}
+
+/*
+SceneNode is an element in a space's scene graph
+*/
 type SceneNode struct {
 	Id           int64                   `json:"id"`
 	Settings     map[string]*StringTuple `json:"settings"`
@@ -309,6 +330,21 @@ type SceneNode struct {
 	TemplateUUID string                  `json:"templateUUID"`
 	Nodes        []*SceneNode            `json:"nodes,omitempty"`
 	Transient    bool                    `json:"transient"` // True if should be ignored when initializing a space (e.g. Avatar node)
+}
+
+func NewBodyPartSceneNode(name string) *SceneNode {
+	sceneNode := &SceneNode{
+		Id:          nextSceneId(),
+		Settings:    make(map[string]*StringTuple),
+		Position:    NewVector3([]float64{0, 0, 0}),
+		Orientation: NewQuaternion([]float64{0, 0, 0, 1}),
+		Translation: NewVector3([]float64{0, 0, 0}),
+		Rotation:    NewVector3([]float64{0, 0, 0}),
+		Scale:       NewVector3([]float64{1, 1, 1}),
+		Nodes:       []*SceneNode{},
+	}
+	sceneNode.Settings["name"] = NewStringTuple("name", name)
+	return sceneNode
 }
 
 func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode, error) {
@@ -391,6 +427,29 @@ func (node *SceneNode) getNodeUpdates() []*NodeUpdate {
 	return result
 }
 
+func (node *SceneNode) handleBodyUpdates(bodyUpdates []*BodyUpdate) {
+	for _, update := range bodyUpdates {
+		childNode := node.findFirstChildBySetting("name", update.Name)
+		if childNode == nil {
+			logger.Println("Could not find body update node", node, update.Name)
+			continue
+		}
+		childNode.Position.Copy(update.Position)
+		childNode.Orientation.Copy(update.Orientation)
+		childNode.Translation.Copy(update.Translation)
+		childNode.Rotation.Copy(update.Rotation)
+	}
+}
+
+func (node *SceneNode) findFirstChildBySetting(name string, value string) *SceneNode {
+	for _, childNode := range node.Nodes {
+		if childNode.SettingValue(name) == value {
+			return childNode
+		}
+	}
+	return nil
+}
+
 func (node *SceneNode) isDirty() bool {
 	if node.Position.Dirty || node.Orientation.Dirty || node.Rotation.Dirty || node.Translation.Dirty || node.Scale.Dirty {
 		return true
@@ -454,6 +513,7 @@ type AvatarMotionNotice struct {
 	Translation []float64
 	Rotation    []float64
 	Scale       []float64
+	BodyUpdates []*BodyUpdate
 }
 
 type ClientMembershipNotice struct {
@@ -533,6 +593,13 @@ func (vector *Vector3) Set(data []float64) error {
 	return nil
 }
 
+func (vector *Vector3) Copy(vec *Vector3) {
+	vector.Data[0] = vec.Data[0]
+	vector.Data[1] = vec.Data[1]
+	vector.Data[2] = vec.Data[2]
+	vector.Dirty = true
+}
+
 type Quaternion struct {
 	Id    int64     `json:"id"`
 	Dirty bool      `json:"-"`
@@ -569,4 +636,12 @@ func (quat *Quaternion) Set(data []float64) error {
 	quat.Data[3] = data[3]
 	quat.Dirty = true
 	return nil
+}
+
+func (quat *Quaternion) Copy(other *Quaternion) {
+	quat.Data[0] = other.Data[0]
+	quat.Data[1] = other.Data[1]
+	quat.Data[2] = other.Data[2]
+	quat.Data[3] = other.Data[3]
+	quat.Dirty = true
 }

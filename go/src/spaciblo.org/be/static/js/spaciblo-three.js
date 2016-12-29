@@ -10,6 +10,8 @@ spaciblo.three.X_AXIS = new THREE.Vector3(1,0,0)
 spaciblo.three.Y_AXIS = new THREE.Vector3(0,1,0)
 spaciblo.three.Z_AXIS = new THREE.Vector3(0,0,1)
 
+spaciblo.three.ZERO_VECTOR3 = new THREE.Vector3(0,0,0) // Do no set this to anything except zeros
+
 // Handy data structures for use in animation frames
 spaciblo.three.WORKING_QUAT = new THREE.Quaternion()
 spaciblo.three.WORKING_VECTOR3 = new THREE.Vector3()
@@ -22,6 +24,13 @@ spaciblo.three.DEFAULT_LIGHT_INTENSITY = 0.7
 
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
 
+spaciblo.three.DEFAULT_HEAD_POSITION = [0, 1, 0]
+spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, 0, 0]
+spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, 0, 0]
+spaciblo.three.HEAD_NODE_NAME = 'head'
+spaciblo.three.LEFT_HAND_NODE_NAME = 'left_hand'
+spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
+
 /*
 SpacesRenderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
@@ -33,9 +42,14 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.clock = new THREE.Clock()
 		this.scene = new THREE.Scene()
 		this.scene.background = background
+		this.pivotPoint = new THREE.Object3D() // Will hold the rootGroup and let us move the scene around the camera instead of moving the camera around in the scene, which doesn't work in VR
+		this.pivotPoint.position.set(spaciblo.three.DEFAULT_HEAD_POSITION[0] * -1, spaciblo.three.DEFAULT_HEAD_POSITION[1] * -1, spaciblo.three.DEFAULT_HEAD_POSITION[2] * -1)
+		this.scene.add(this.pivotPoint)
 		this.camera = new THREE.PerspectiveCamera(75, 1, 0.5, 10000)
+		this.gamepads = [] // added and removed via events from the inputManager
 
-		this.clientUUID = null // Will be null until set in this.setClientUUID()
+		this.clientUUID = null	// Will be null until set in this.setClientUUID()
+		this.avatarGroup = null	// Will be null until the avatar is created during an update addition
 
 		this.width = 0
 		this.height = 0
@@ -74,21 +88,54 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.spaceMenu.position.z = -8
 		this.scene.add(this.spaceMenu)
 
+		this.inputManager.addListener((...params) => { this._handleGamepadAdded(...params) }, spaciblo.events.GamepadAdded)
+		this.inputManager.addListener((...params) => { this._handleGamepadRemoved(...params) }, spaciblo.events.GamepadRemoved)
 		this.el.addEventListener('mousemove', this._onDocumentMouseMove.bind(this), false)
 		this.el.addEventListener('click', this._onClick.bind(this), false)
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
 		this._animate()
 	}
 	get avatarPosition(){
-		return this.camera.position
+		if(this.avatarGroup === null) return null
+		return [this.rootGroup.position.x * -1, this.rootGroup.position.y * -1, this.rootGroup.position.z * -1]
 	}
 	get avatarOrientation(){
-		return this.camera.quaternion
+		if(this.avatarGroup === null) return null
+		spaciblo.three.WORKING_QUAT.copy(this.pivotPoint.quaternion)
+		spaciblo.three.WORKING_QUAT.inverse()
+		return [spaciblo.three.WORKING_QUAT.x, spaciblo.three.WORKING_QUAT.y, spaciblo.three.WORKING_QUAT.z, spaciblo.three.WORKING_QUAT.w]
 	}
-	get avatarDirection(){
-		let direction = new THREE.Vector3()
-		this.camera.getWorldDirection(direction)
-		return direction
+	get avatarBodyUpdates(){
+		if(this.avatarGroup === null){
+			return []
+		}
+		let results = []
+		this._addBodyUpdate(this.avatarGroup.head, spaciblo.three.HEAD_NODE_NAME, results)
+		this._addBodyUpdate(this.avatarGroup.leftHand, spaciblo.three.LEFT_HAND_NODE_NAME, results)
+		this._addBodyUpdate(this.avatarGroup.rightHand, spaciblo.three.RIGHT_HAND_NODE_NAME, results)
+		return results
+	}
+
+	_addBodyUpdate(node, name, results){
+		// For a non-null scene node for a hand, add an avatar controller update data structure to results
+		if(node === null){
+			return
+		}
+		results.push({
+			'name': name,
+			'position': node.position.toArray(),
+			'orientation': node.quaternion.toArray()
+			// TODO send motion vectors
+		})
+	}
+
+	_handleGamepadAdded(eventName, gamepad){
+		this.gamepads[this.gamepads.length] = gamepad
+	}
+	_handleGamepadRemoved(eventName, gamepad){
+		let index = this.gamepads.indexOf(gamepad)
+		if(index === -1) return
+		this.gamepads.splice(index, 1)
 	}
 	_onClick(ev){
 		ev.preventDefault()
@@ -172,18 +219,18 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 			let group = this._createGroupFromAddition(addition)
 			group.lastUpdate = this.clock.elapsedTime + spaciblo.three.UPDATE_DELTA
-			this.objectMap.set(addition.id, group)
 			if(addition.id == 0){
 				// This is the root
 				this.rootGroup = group
+				this.rootGroup.name = "Root"
 				this.hideSpaceMenu()
-				this.scene.add(this.rootGroup)
+				this.pivotPoint.add(this.rootGroup)
 			} else {
 				parent.add(group)
 			}
 		}
 		for(let deletion of deletions){
-			var group = this.objectMap.get(deletion)
+			let group = this.objectMap.get(deletion)
 			if(typeof group === "undefined"){
 				continue
 			}
@@ -193,11 +240,19 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			} else {
 				this.scene.remove(group)
 			}
+			for(let childId of group.getChildrenIds()){
+				this.objectMap.delete(childId)
+			}
 		}
 		for(let update of nodeUpdates){
 			let group = this.objectMap.get(update.id)
 			if(typeof group === "undefined"){
 				console.error("Tried to update unknown object", update)
+				continue
+			}
+			if(group.isLocalAvatar || (group.parent && group.parent.isLocalAvatar)){
+				// We control the local avatar locally instead of letting the server tell us its position.
+				// TODO Watch for big changes to the avatar position/orientation from the server and smoothly warp to them
 				continue
 			}
 			group.lastUpdate = this.clock.elapsedTime + spaciblo.three.UPDATE_DELTA
@@ -240,9 +295,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			if(state.settings.name){
 				group.name = state.settings.name
 			}
-			if(state.settings.clientUUID && this.clientUUID === state.settings.clientUUID){
-				// Hide this user's avatar from view
-				group.visible = false
+			if(state.settings.clientUUID){
+				// Only avatars have clientUUIDs, so set up this up as an avatar
+				group.isAvatar = true
+				if(this.clientUUID === state.settings.clientUUID){
+					group.isLocalAvatar = true
+					this.avatarGroup = group
+				}
 			}
 			if(typeof state.settings['light-type'] !== 'undefined'){
 				let color = spaciblo.three.parseSettingColor('light-color', state.settings, spaciblo.three.DEFAULT_LIGHT_COLOR)
@@ -287,7 +346,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		if(typeof state.templateUUID !== "undefined" && state.templateUUID.length > 0){
 			group.template = this.templateLoader.addTemplate(state.templateUUID)
-			var loadIt = function(){
+			var loadIt = () => {
 				const extension = group.template.getSourceExtension()
 				if(extension === 'gltf'){
 					spaciblo.three.GLTFLoader.load(group.template.sourceURL()).then(gltf => {
@@ -397,7 +456,14 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			} else if(this.vrDisplay.isPresenting === false){
 				// Switch back to non-VR animation frames
 				this.vrDisplay = null
+				this.avatarGroup.head.quaternion.set(0,0,0,1)
+				this.avatarGroup.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+				this.avatarGroup.leftHand.quaternion.set(0,0,0,1)
+				this.avatarGroup.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
+				this.avatarGroup.rightHand.quaternion.set(0,0,0,1)
+				this.avatarGroup.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
 				requestAnimationFrame(this._boundAnimate)
+				this.inputManager.throttledSendAvatarUpdate()
 				this.trigger(spaciblo.events.RendererExitedVR, this)
 				return
 			} else {
@@ -407,28 +473,46 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			requestAnimationFrame(this._boundAnimate)
 		}
 
-		// Apply input rotation
-		this.rotationEuler.fromArray([this.inputManager.inputRotation[0] * delta, this.inputManager.inputRotation[1] * delta, this.inputManager.inputRotation[2] * delta])
-		this.cameraRotationQuaternion.setFromEuler(this.rotationEuler)
-		this.camera.quaternion.multiply(this.cameraRotationQuaternion)
-		this.camera.updateMatrixWorld()
+		if(this.avatarGroup !== null){
+			/*
+			Many of the these calculations are reversed because we move the rootGroup
+			and rotate the pivot point instead of changing the camera.
+			The camera is moved by the matrices we receive from the WebVR.
+			*/
 
-		// Apply input translation, where the translation vector is relative to avatar forward
-		this.translationVector.fromArray(this.inputManager.inputTranslation)
-		if(this.translationVector.length() > 0){
-			// Get the avatar's orientation vector
-			spaciblo.three.WORKING_VECTOR3_2.set(0,0,-1)
-			spaciblo.three.WORKING_VECTOR3_2.applyQuaternion(this.camera.quaternion)
-			spaciblo.three.WORKING_VECTOR3_2.normalize()
-			// Get the rotation matrix from origin to the avatar's orientation
-			spaciblo.three.WORKING_VECTOR3.set(0,0,0)
-			spaciblo.three.WORKING_MATRIX4.lookAt(spaciblo.three.WORKING_VECTOR3, spaciblo.three.WORKING_VECTOR3_2, spaciblo.three.Y_AXIS)
-			// Scale the motion by the time delta
-			this.translationVector.multiplyScalar(delta)
-			// Apply the rotation matrix to the translation motion
-			this.translationVector.applyMatrix4(spaciblo.three.WORKING_MATRIX4)
-			// Now add the rotated and scaled motion vector to the camera position
-			this.camera.position.add(this.translationVector)
+			// Apply reversed input rotation to the pivot point
+			this.rotationEuler.fromArray([this.inputManager.inputRotation[0] * -delta, this.inputManager.inputRotation[1] * -delta, this.inputManager.inputRotation[2] * -delta])
+			this.cameraRotationQuaternion.setFromEuler(this.rotationEuler)
+			this.pivotPoint.quaternion.multiply(this.cameraRotationQuaternion)
+			this.pivotPoint.updateMatrixWorld()
+
+			// Apply input translation, where the translation vector is relative to avatar forward
+			this.translationVector.fromArray(this.inputManager.inputTranslation)
+			this.translationVector.x *= -1
+			if(this.translationVector.length() > 0){
+				// Get the avatar's orientation vector
+				spaciblo.three.WORKING_VECTOR3_2.set(0,0,1)
+				spaciblo.three.WORKING_VECTOR3_2.applyQuaternion(this.pivotPoint.quaternion)
+
+				// Get the rotation matrix from origin to the avatar's orientation
+				spaciblo.three.WORKING_MATRIX4.lookAt(spaciblo.three.ZERO_VECTOR3, spaciblo.three.WORKING_VECTOR3_2, spaciblo.three.Y_AXIS)
+
+				// Scale the motion by the time delta
+				this.translationVector.multiplyScalar(delta)
+
+				// Apply the rotation matrix to the translation motion
+				this.translationVector.applyMatrix4(spaciblo.three.WORKING_MATRIX4)
+				this.translationVector.x *= -1
+				this.translationVector.y *= -1
+				// Now add the rotated and scaled motion vector to the camera position
+				this.rootGroup.position.add(this.translationVector)
+			}
+
+			// Move the avatar group in the scene to line up with the camera
+			this.avatarGroup.position.set(this.rootGroup.position.x * -1, this.rootGroup.position.y * -1, this.rootGroup.position.z * -1)
+			spaciblo.three.WORKING_QUAT.copy(this.pivotPoint.quaternion)
+			spaciblo.three.WORKING_QUAT.inverse()
+			this.avatarGroup.quaternion.copy(spaciblo.three.WORKING_QUAT)
 		}
 
 		this._animateSpaceMenu(delta)
@@ -486,7 +570,16 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.scene.updateMatrixWorld(true)
 			this.renderer.render(this.scene, this.camera)
 
+			// Update head orientation and position
+			if(this.vrFrameData.pose.orientation !== null){
+				this.avatarGroup.head.quaternion.set(...this.vrFrameData.pose.orientation)
+			}
+			if(this.vrFrameData.pose.position !== null && this.vrFrameData.pose.position[0] === 0 && this.vrFrameData.pose.position[1] === 0 && this.vrFrameData.pose.position[2] === 0){
+				this.avatarGroup.head.position.set(...this.vrFrameData.pose.position)
+			}
+
 			this.vrDisplay.submitFrame()
+			this.inputManager.throttledSendAvatarUpdate()
 		} else {
 			this.renderer.autoClear = true
 			this.scene.matrixAutoUpdate = true
@@ -587,24 +680,70 @@ spaciblo.three.Group = function(){
 	this.updateQuaternion = new THREE.Quaternion(0,0,0,1) 	// the orientation receive from the sim
 	this.rotationMotion = new THREE.Vector3(0,0,0)			// the rotation motion received from the sim
 	this.translationMotion = new THREE.Vector3(0,0,0)		// the translation motion received from the sim
+
+	this.isAvatar = false 		// True if the group represents any user's avatar
+	this.isLocalAvatar = false	// True if the group represents the local user's avatar
+	// head, leftHand, and rightHand are three.js Object3Ds (Groups or Meshes) that are avatar body parts 
+	this.head = null
+	this.leftHand = null
+	this.rightHand = null
 }
 spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototype), {
-	setGLTF: function(gltf){
-		this.add(gltf.scene)
-	},
-	setOBJ: function(obj){
-		this.add(obj)
-	},
-	findByName(name, results=[]){
+	getChildrenIds: function(results=[]){
+		if(this.children === null){
+			return results
+		}
 		for(let child of this.children){
-			if(child.name === name){
-				results[results.length] = child
+			if(typeof child.state !== 'undefined' && typeof child.state.id !== 'undefined'){
+				results.push(child.state.id)
 			}
-			if(typeof child.findByName === "function"){
-				child.findByName(name, results)
+			if(typeof child.getChildrenIds !== 'undefined'){
+				child.getChildrenIds(results)
 			}
 		}
 		return results
+	},
+	setGLTF: function(gltf){
+		this.add(gltf.scene)
+		if(this.isAvatar){
+			console.error("TODO: find avatar body parts in glTF groups")
+		}
+	},
+	setOBJ: function(obj){
+		this.add(obj)
+		if(this.isAvatar){
+			// First, find the body nodes created by update additions from the simulator
+			this.head = spaciblo.three.findChildNodeByName(spaciblo.three.HEAD_NODE_NAME, this, false)[0]
+			this.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+			this.leftHand = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, this, false)[0]
+			this.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
+			this.rightHand = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, this, false)[0]
+			this.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
+
+			// Then, find the body nodes in the OBJ tree and add each to its corresponding node found above
+			// TODO Use a more flexible method than OBJ named groups for associating body part nodes to model parts
+			let targets = spaciblo.three.findChildNodeByName(spaciblo.three.HEAD_NODE_NAME, obj, true)
+			if(targets.length === 1){
+				this.head.add(targets[0])
+				if(this.isLocalAvatar){
+					targets[0].visible = false // Local avatar shows the hands but not the head model
+				}
+			} else {
+				console.error("Could not find a head for avatar group", this)
+			}
+			targets = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, obj, true)
+			if(targets.length === 1){
+				this.leftHand.add(targets[0])
+			} else {
+				console.error("Could not find a left hand for avatar group", this)
+			}
+			targets = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, obj, true)
+			if(targets.length === 1){
+				this.rightHand.add(targets[0])
+			} else {
+				console.error("Could not find a right hand for avatar group", this)
+			}
+		}
 	},
 	interpolate: function(elapsedTime){
 		const delta = elapsedTime - this.lastUpdate
@@ -634,7 +773,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 				spaciblo.three.WORKING_VECTOR3.multiplyScalar(delta)
 				// Apply rotation matrix to translation motion
 				spaciblo.three.WORKING_VECTOR3.applyMatrix4(spaciblo.three.WORKING_MATRIX4)
-				// Then set this position to the last update position added with the rotated translation motion vector
+				// Then set this position to the last update position added with the rotated, delta scaled translation motion vector
 				this.position.set(this.updatePosition.x + spaciblo.three.WORKING_VECTOR3.x, this.updatePosition.y + spaciblo.three.WORKING_VECTOR3.y, this.updatePosition.z + spaciblo.three.WORKING_VECTOR3.z)
 			}
 		}
@@ -646,6 +785,21 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		}
 	}
 })
+
+spaciblo.three.findChildNodeByName = function(name, node, deepSearch=true, results=[]){
+	if(typeof node.children === 'undefined'){
+		return results
+	}
+	for(let child of node.children){
+		if(child.name === name){
+			results.push(child)
+		}
+		if(deepSearch){
+			spaciblo.three.findChildNodeByName(name, child, true, results)
+		}
+	}
+	return results
+}
 
 spaciblo.three.OBJLoader = class {
 	static load(baseURL, source){

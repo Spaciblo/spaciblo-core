@@ -56,6 +56,16 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUI
 			Orientation: avatarMotion.Orientation,
 			Translation: avatarMotion.Translation,
 			Rotation:    avatarMotion.Rotation,
+			BodyUpdates: []*simRPC.BodyUpdate{},
+		}
+		for _, bodyUpdate := range avatarMotion.BodyUpdates {
+			avatarMotionRPM.BodyUpdates = append(avatarMotionRPM.BodyUpdates, &simRPC.BodyUpdate{
+				Name:        bodyUpdate.Name,
+				Position:    bodyUpdate.Position,
+				Orientation: bodyUpdate.Orientation,
+				Translation: bodyUpdate.Translation,
+				Rotation:    bodyUpdate.Rotation,
+			})
 		}
 		_, err := simHostClient.HandleAvatarMotion(context.Background(), avatarMotionRPM)
 		if err != nil {

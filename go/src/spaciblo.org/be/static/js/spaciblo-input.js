@@ -80,6 +80,8 @@ spaciblo.input._defaultActions = [
 	"translate-back",
 	"translate-left",
 	"translate-right",
+	"translate-up",
+	"translate-down",
 	"rotate-left",
 	"rotate-right",
 ]
@@ -96,12 +98,14 @@ spaciblo.input._defaultChords = [
 	[69, false, false, false, false, "translate-left"],
 	[81, false, false, false, false, "translate-right"],
 
+	[82, false, false, false, false, "translate-up"],
+	[70, false, false, false, false, "translate-down"],
+
 	[65, false, false, false, false, "rotate-left"],
 	[68, false, false, false, false, "rotate-right"],
 
 	[37, false, false, false, false, "rotate-left"],
 	[39, false, false, false, false, "rotate-right"]
-
 ]
 spaciblo.input._defaultChords.forEach((chord, index) => {
 	chord[5] = spaciblo.input.DefaultInputSchema.getAction(chord[5])
@@ -114,7 +118,7 @@ It also keeps a few 3D data structures (rotation, translation) used by the rende
 */
 spaciblo.input.InputManager = k.eventMixin(class {
 	constructor(inputSchema){
-		this._throttledSendAvatarUpdate = spaciblo.input.throttle(this._sendAvatarUpdate, 100)
+		this.throttledSendAvatarUpdate = spaciblo.input.throttle(this._sendAvatarUpdate, 100)
 		this.inputSchema = inputSchema
 		this.currentActions = new Set()
 		this.currentKeyChord = null
@@ -147,12 +151,12 @@ spaciblo.input.InputManager = k.eventMixin(class {
 
 	// Gamepad input methods
 	handleGamepadConnected(ev){
-		console.log('Gamepad connected', ev.gamepad.id, ev.gamepad.index, ev.gamepad)
 		this._gamepads[ev.gamepad.index] = ev.gamepad
+		this.trigger(spaciblo.events.GamepadAdded, ev.gamepad)
 	}
 	handleGamepadDisconnected(ev){
-		console.log('Gamepad disconnected', ev.gamepad.id, ev.gamepad.index, ev.gamepad)
 		delete this._gamepads[ev.gamepad.index]
+		this.trigger(spaciblo.events.GamepadRemoved, ev.gamepad)
 	}
 
 	// Touch input methods
@@ -169,7 +173,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		this._inputRotation[1] = this.touchRotationDelta * -deltaX
 		this._inputRotation[2] = 0
 		if(oldRotation.every((val, index) => { return val === this._inputRotation[index] }) === false || oldTranslation.every((val, index) => { return val === this._inputTranslation[index] }) === false) {
-			this._throttledSendAvatarUpdate()
+			this.throttledSendAvatarUpdate()
 		}
 	}
 	handleTouchEnd(){
@@ -179,7 +183,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		this._inputRotation[0] = 0
 		this._inputRotation[1] = 0
 		this._inputRotation[2] = 0
-		this._throttledSendAvatarUpdate()
+		this.throttledSendAvatarUpdate()
 	}
 
 	// Keyboard input methods
@@ -256,21 +260,29 @@ spaciblo.input.InputManager = k.eventMixin(class {
 			this._inputRotation[1] = 0
 			this._inputRotation[2] = 0
 		}
-		if(this.isActionActive("translate-forward")) {
+		if(this.isActionActive('translate-forward')){
 			this._inputTranslation[0] = 0
 			this._inputTranslation[1] = 0
 			this._inputTranslation[2] = -1 * this.keyboardTranslationDelta
-		} else if(this.isActionActive("translate-back")) {
+		} else if(this.isActionActive('translate-back')){
 			this._inputTranslation[0] = 0
 			this._inputTranslation[1] = 0
 			this._inputTranslation[2] = this.keyboardTranslationDelta
-		} else if(this.isActionActive("translate-left")) {
+		} else if(this.isActionActive('translate-left')){
 			this._inputTranslation[0] = this.keyboardTranslationDelta
 			this._inputTranslation[1] = 0
 			this._inputTranslation[2] = 0
-		} else if(this.isActionActive("translate-right")) {
+		} else if(this.isActionActive('translate-right')){
 			this._inputTranslation[0] = -1 * this.keyboardTranslationDelta
 			this._inputTranslation[1] = 0
+			this._inputTranslation[2] = 0
+		} else if(this.isActionActive('translate-up')){
+			this._inputTranslation[0] = 0
+			this._inputTranslation[1] = 1 * this.keyboardTranslationDelta
+			this._inputTranslation[2] = 0
+		} else if(this.isActionActive('translate-down')){
+			this._inputTranslation[0] = 0
+			this._inputTranslation[1] = -1 * this.keyboardTranslationDelta
 			this._inputTranslation[2] = 0
 		} else {
 			this._inputTranslation[0] = 0
@@ -308,10 +320,13 @@ spaciblo.input.KeyMap.set(69, "e")
 spaciblo.input.KeyMap.set(65, "a")
 spaciblo.input.KeyMap.set(83, "s")
 spaciblo.input.KeyMap.set(68, "d")
+spaciblo.input.KeyMap.set(82, 'r')
+spaciblo.input.KeyMap.set(70, 'f')
 spaciblo.input.KeyMap.set(16, "shift")
 spaciblo.input.KeyMap.set(17, "control")
 spaciblo.input.KeyMap.set(18, "alt")
 spaciblo.input.KeyMap.set(224, "meta")
+
 
 // A list of modifier keys like shift, alt, control, and meta
 spaciblo.input.MODIFIER_KEYCODES = [16, 17, 18, 224]

@@ -1,6 +1,6 @@
 {
-	"name": "Box Land",
 	"settings": {
+		"name": "Box Land",
 		"background-color": "#44DDFF",
 		"light-type": "ambient",
 		"light-color": "#FFFFFF",

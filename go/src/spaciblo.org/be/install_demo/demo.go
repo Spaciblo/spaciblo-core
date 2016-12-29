@@ -79,7 +79,7 @@ func main() {
 		createTemplate(path.Join(templatesDir, info.Name()), info.Name(), dbInfo, fs)
 	}
 
-	avatarTemplate, err := apiDB.FindTemplateRecordByField("name", "GridFace", dbInfo)
+	avatarTemplate, err := apiDB.FindTemplateRecordByField("name", "Handsie", dbInfo)
 	if err != nil {
 		logger.Fatal("Could not find default avatar: %s", err)
 		return

@@ -41,6 +41,14 @@ message ClientMembership {
 	bool member = 3;
 }
 
+message BodyUpdate {
+	string name = 1;
+	repeated double position = 2;
+	repeated double orientation = 3;
+	repeated double translation = 4;
+	repeated double rotation = 5;
+}
+
 message AvatarMotion {
 	string spaceUUID = 1;
 	string clientUUID = 2;
@@ -49,5 +57,6 @@ message AvatarMotion {
 	repeated double translation = 5;
 	repeated double rotation = 6;
 	repeated double scale = 7;
+	repeated BodyUpdate bodyUpdates = 8;
 }
 
