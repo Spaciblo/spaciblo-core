@@ -574,10 +574,12 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			if(this.vrFrameData.pose.orientation !== null){
 				this.avatarGroup.head.quaternion.set(...this.vrFrameData.pose.orientation)
 			}
-			if(this.vrFrameData.pose.position !== null && this.vrFrameData.pose.position[0] === 0 && this.vrFrameData.pose.position[1] === 0 && this.vrFrameData.pose.position[2] === 0){
+			/*
+			TODO figure out why this is non-zero for Daydream
+			if(this.vrFrameData.pose.position !== null && (this.vrFrameData.pose.position[0] !== 0 || this.vrFrameData.pose.position[1] !== 0 || this.vrFrameData.pose.position[2] !== 0)){
 				this.avatarGroup.head.position.set(...this.vrFrameData.pose.position)
 			}
-
+			*/
 			this.vrDisplay.submitFrame()
 			this.inputManager.throttledSendAvatarUpdate()
 		} else {
