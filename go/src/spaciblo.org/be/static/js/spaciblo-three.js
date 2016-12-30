@@ -24,9 +24,9 @@ spaciblo.three.DEFAULT_LIGHT_INTENSITY = 0.7
 
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
 
-spaciblo.three.DEFAULT_HEAD_POSITION = [0, 1, 0]
-spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, 0, 0]
-spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, 0, 0]
+spaciblo.three.DEFAULT_HEAD_POSITION = [0, 1.5, 0]
+spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, 0.5, -0.5]
+spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, 0.5, -0.5]
 spaciblo.three.HEAD_NODE_NAME = 'head'
 spaciblo.three.LEFT_HAND_NODE_NAME = 'left_hand'
 spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
@@ -46,7 +46,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.pivotPoint.position.set(spaciblo.three.DEFAULT_HEAD_POSITION[0] * -1, spaciblo.three.DEFAULT_HEAD_POSITION[1] * -1, spaciblo.three.DEFAULT_HEAD_POSITION[2] * -1)
 		this.scene.add(this.pivotPoint)
 		this.camera = new THREE.PerspectiveCamera(75, 1, 0.5, 10000)
-		this.gamepads = [] // added and removed via events from the inputManager
 
 		this.clientUUID = null	// Will be null until set in this.setClientUUID()
 		this.avatarGroup = null	// Will be null until the avatar is created during an update addition
@@ -88,8 +87,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.spaceMenu.position.z = -8
 		this.scene.add(this.spaceMenu)
 
-		this.inputManager.addListener((...params) => { this._handleGamepadAdded(...params) }, spaciblo.events.GamepadAdded)
-		this.inputManager.addListener((...params) => { this._handleGamepadRemoved(...params) }, spaciblo.events.GamepadRemoved)
 		this.el.addEventListener('mousemove', this._onDocumentMouseMove.bind(this), false)
 		this.el.addEventListener('click', this._onClick.bind(this), false)
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
@@ -127,15 +124,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			'orientation': node.quaternion.toArray()
 			// TODO send motion vectors
 		})
-	}
-
-	_handleGamepadAdded(eventName, gamepad){
-		this.gamepads[this.gamepads.length] = gamepad
-	}
-	_handleGamepadRemoved(eventName, gamepad){
-		let index = this.gamepads.indexOf(gamepad)
-		if(index === -1) return
-		this.gamepads.splice(index, 1)
 	}
 	_onClick(ev){
 		ev.preventDefault()
@@ -456,12 +444,14 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			} else if(this.vrDisplay.isPresenting === false){
 				// Switch back to non-VR animation frames
 				this.vrDisplay = null
-				this.avatarGroup.head.quaternion.set(0,0,0,1)
-				this.avatarGroup.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
-				this.avatarGroup.leftHand.quaternion.set(0,0,0,1)
-				this.avatarGroup.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
-				this.avatarGroup.rightHand.quaternion.set(0,0,0,1)
-				this.avatarGroup.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
+				if(this.avatarGroup !== null){
+					this.avatarGroup.head.quaternion.set(0,0,0,1)
+					this.avatarGroup.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+					this.avatarGroup.leftHand.quaternion.set(0,0,0,1)
+					this.avatarGroup.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
+					this.avatarGroup.rightHand.quaternion.set(0,0,0,1)
+					this.avatarGroup.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
+				}
 				requestAnimationFrame(this._boundAnimate)
 				this.inputManager.throttledSendAvatarUpdate()
 				this.trigger(spaciblo.events.RendererExitedVR, this)
@@ -571,8 +561,42 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.renderer.render(this.scene, this.camera)
 
 			// Update head orientation and position
-			if(this.vrFrameData.pose.orientation !== null){
-				this.avatarGroup.head.quaternion.set(...this.vrFrameData.pose.orientation)
+			if(this.avatarGroup !== null){
+				if(this.vrFrameData.pose.orientation !== null && this.avatarGroup.head !== null){
+					this.avatarGroup.head.quaternion.set(...this.vrFrameData.pose.orientation)
+				}
+				if(typeof navigator.getGamepads === 'function'){
+					for(let gamepad of navigator.getGamepads()){
+						if(gamepad === null) continue
+						// Find the hand to change
+						let handNode = null
+						if(typeof gamepad.hand === 'string'){
+							if(gamepad.hand === 'left'){
+								handNode = this.avatarGroup.leftHand
+							} else if (gamepad.hand === 'right'){
+								handNode = this.avatarGroup.rightHand
+							}
+						}
+						if(handNode === null){
+							spaciblo.input.throttledConsoleLog("Gamepad has no known hand", gamepad)
+							continue
+						}
+						if(typeof gamepad.pose === 'undefined' || gamepad.pose === null){
+							spaciblo.input.throttledConsoleLog("Gamepad has hand but no pose", gamepad)
+							continue
+						}
+
+						// Set the hand orientation
+						if(gamepad.pose.hasOrientation === true){
+							handNode.quaternion.set(...gamepad.pose.orientation)
+						}
+
+						// Set the hand position
+						if(gamepad.pose.hasPosition === true){
+							handNode.position.set(...gamepad.pose.position)
+						}
+					}
+				}
 			}
 			/*
 			TODO figure out why this is non-zero for Daydream

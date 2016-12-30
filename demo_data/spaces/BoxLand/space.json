@@ -48,7 +48,7 @@
 		},
 		{
 			"template-name": "Grid",
-			"position": [0, -3, 0],
+			"position": [0, 0, 0],
 			"scale": [1.5, 1, 1.5]
 		}
 	]
