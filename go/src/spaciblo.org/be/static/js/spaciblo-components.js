@@ -5,10 +5,12 @@ spaciblo.events = spaciblo.events || {}
 spaciblo.components = spaciblo.components || {}
 
 spaciblo.events.SpaceSelected = 'spaciblo-space-selected'
+spaciblo.events.RendererExitedVR = 'spaciblo-exited-vr'
 spaciblo.events.AvatarMotionChanged = 'spaciblo-avatar-motion-changed'
 spaciblo.events.TouchMotion = 'spaciblo-touch-motion'
 spaciblo.events.EndTouch = 'spaciblo-end-tough'
-spaciblo.events.RendererExitedVR = 'spaciblo-exited-vr'
+spaciblo.events.InputActionStarted = 'spaciblo-input-action-started'
+spaciblo.events.InputActionEnded = 'spaciblo-input-action-ended'
 spaciblo.events.GamepadAdded = 'spaciblo-gamepad-added'
 spaciblo.events.GamepadRemoved = 'spaciblo-gamepad-removed'
 

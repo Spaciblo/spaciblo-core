@@ -1,4 +1,4 @@
-"use strict"
+'use strict'
 
 /*
 spaciblo-components contains:
@@ -78,7 +78,7 @@ spaciblo.api.Client = k.eventMixin(class {
 		this.trigger(spaciblo.events.ClientOpened, this)
 	}
 	_onError(event){
-		console.error("Error in Client", arguments)
+		console.error('Error in Client', arguments)
 	}
 	_onMessage(event){
 		this.trigger(spaciblo.events.ClientMessageReceived, JSON.parse(event.data))
@@ -87,17 +87,17 @@ spaciblo.api.Client = k.eventMixin(class {
 
 spaciblo.api.handleSchemaPopulated = function(){
 	be.api.Template.prototype.sourceURL = function(){
-		return `/api/${be.API_VERSION}/template/${this.get("uuid")}/data/${this.get("source")}`
+		return `/api/${be.API_VERSION}/template/${this.get('uuid')}/data/${this.get('source')}`
 	}
 	be.api.Template.prototype.getBaseURL = function(){
-		return `/api/${be.API_VERSION}/template/${this.get("uuid")}/data/`	
+		return `/api/${be.API_VERSION}/template/${this.get('uuid')}/data/`
 	}
 	be.api.Template.prototype.getSourceExtension = function(){
 		const source = this.get('source')
-		if(source == null || source == "" || source.indexOf('.') == -1){
+		if(source == null || source == '' || source.indexOf('.') == -1){
 			return null
 		}
 		return source.split('.')[source.split('.').length - 1].toLowerCase()
 	}
 }
-document.addEventListener("schema-populated", spaciblo.api.handleSchemaPopulated)
+document.addEventListener('schema-populated', spaciblo.api.handleSchemaPopulated)

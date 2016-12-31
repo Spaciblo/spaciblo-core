@@ -21,7 +21,7 @@
 			"settings": {
 				"name": "Test Cube Group"
 			},
-			"position": [0, -0.8, -7],
+			"position": [0, 0.5, -7],
 			"nodes": [
 				{
 					"settings": {

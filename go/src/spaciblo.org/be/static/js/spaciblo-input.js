@@ -1,4 +1,4 @@
-"use strict"
+'use strict'
 /*
 Input related code that handles user events from the keyboard, gamepad, etc
 */
@@ -27,7 +27,7 @@ spaciblo.input.KeyChord = class {
 		this.meta = ev.metaKey
 	}
 	keysEqual(obj){
-		if(typeof obj !== "object") return false
+		if(typeof obj !== 'object') return false
 		if(obj instanceof spaciblo.input.KeyChord === false) return false
 		if(obj.keyCode !== this.keyCode) return false
 		if(obj.shift !== this.shift) return false
@@ -37,7 +37,7 @@ spaciblo.input.KeyChord = class {
 	}
 }
 
-// A high level user action, like "translate-forward", used by InputSchema
+// A high level user action, like 'translate-forward', used by InputSchema
 spaciblo.input.InputAction = class {
 	constructor(name){
 		this.name = name
@@ -58,7 +58,7 @@ spaciblo.input.InputSchema = class {
 	}
 	addKeyChord(keyChord){
 		if(keyChord.action === null){
-			console.error("Cannot add a KeyChord with a null action", keyChord)
+			console.error('Cannot add a KeyChord with a null action', keyChord)
 			return
 		}
 		this.keyChords.add(keyChord)
@@ -76,36 +76,39 @@ spaciblo.input.InputSchema = class {
 // Set up a default input schema.
 spaciblo.input.DefaultInputSchema = new spaciblo.input.InputSchema()
 spaciblo.input._defaultActions = [
-	"translate-forward",
-	"translate-back",
-	"translate-left",
-	"translate-right",
-	"translate-up",
-	"translate-down",
-	"rotate-left",
-	"rotate-right",
+	'translate-forward',
+	'translate-back',
+	'translate-left',
+	'translate-right',
+	'translate-up',
+	'translate-down',
+	'rotate-left',
+	'rotate-right',
+	'left-point',
+	'right-point',
+	'teleport'
 ]
 spaciblo.input._defaultActions.forEach((name, index) => {
 	spaciblo.input.DefaultInputSchema.addAction(new spaciblo.input.InputAction(name))
 })
 spaciblo.input._defaultChords = [
-	[38, false, false, false, false, "translate-forward"],
-	[87, false, false, false, false, "translate-forward"],
+	[38, false, false, false, false, 'translate-forward'],
+	[87, false, false, false, false, 'translate-forward'],
 
-	[40, false, false, false, false, "translate-back"],
-	[83, false, false, false, false, "translate-back"],
+	[40, false, false, false, false, 'translate-back'],
+	[83, false, false, false, false, 'translate-back'],
 
-	[69, false, false, false, false, "translate-left"],
-	[81, false, false, false, false, "translate-right"],
+	[69, false, false, false, false, 'translate-left'],
+	[81, false, false, false, false, 'translate-right'],
 
-	[82, false, false, false, false, "translate-up"],
-	[70, false, false, false, false, "translate-down"],
+	[82, false, false, false, false, 'translate-up'],
+	[70, false, false, false, false, 'translate-down'],
 
-	[65, false, false, false, false, "rotate-left"],
-	[68, false, false, false, false, "rotate-right"],
+	[65, false, false, false, false, 'rotate-left'],
+	[68, false, false, false, false, 'rotate-right'],
 
-	[37, false, false, false, false, "rotate-left"],
-	[39, false, false, false, false, "rotate-right"]
+	[37, false, false, false, false, 'rotate-left'],
+	[39, false, false, false, false, 'rotate-right']
 ]
 spaciblo.input._defaultChords.forEach((chord, index) => {
 	chord[5] = spaciblo.input.DefaultInputSchema.getAction(chord[5])
@@ -143,10 +146,26 @@ spaciblo.input.InputManager = k.eventMixin(class {
 	isActionActive(name){
 		let action = this.inputSchema.getAction(name)
 		if(action === null){
-			console.error("No such action", action)
+			console.error('No such action', action)
 			return false
 		}
 		return this.currentActions.has(action)
+	}
+	_toggleAction(action, active=null){
+		/*
+		Iff there is a change to the action activity, add or delete it in currentActions and trigger an InputActionStarted or InputActionEnded event.
+		*/
+		if(active === null){
+			active = !this.currentActions.has(action)
+		}
+		if(active === true  && this.currentActions.has(action) === false){
+			this.currentActions.add(action)
+			this.trigger(spaciblo.events.InputActionStarted, action)
+		}
+		if(active === false && this.currentActions.has(action) === true){
+			this.currentActions.delete(action)
+			this.trigger(spaciblo.events.InputActionEnded, action)
+		}
 	}
 
 	// Gamepad input methods
@@ -157,6 +176,23 @@ spaciblo.input.InputManager = k.eventMixin(class {
 	handleGamepadDisconnected(ev){
 		delete this._gamepads[ev.gamepad.index]
 		this.trigger(spaciblo.events.GamepadRemoved, ev.gamepad)
+	}
+	updateGamepadActions(){
+		/*
+		Called by the renderer in every frame to update actions based on gamepad(s) state
+		TODO Add controller type detection and button schemas
+		*/
+		for(let gamepad of navigator.getGamepads()){
+			if(gamepad === null) continue
+			let handName = gamepad.hand === 'left' ? 'left' : 'right'
+			if(Array.isArray(gamepad.buttons) && gamepad.buttons.length > 0){
+				let pointAction = handName === 'left' ? this.inputSchema.getAction('left-point') : this.inputSchema.getAction('right-point')
+				let isPointing = gamepad.buttons[0].pressed === true || gamepad.buttons[0].touched === true
+				let isTriggering = gamepad.buttons[0].pressed
+				this._toggleAction(pointAction, isPointing)
+				this._toggleAction(this.inputSchema.getAction('teleport'), isTriggering)
+			}
+		}
 	}
 
 	// Touch input methods
@@ -228,14 +264,14 @@ spaciblo.input.InputManager = k.eventMixin(class {
 	_replaceKeyChord(keyChord){
 		// It's a new chord, so remove the old chord and its action
 		if(this.currentKeyChord && this.currentKeyChord.action !== null){
-			this.currentActions.delete(this.currentKeyChord.action)
+			this._toggleAction(this.currentKeyChord.action, false)
 		}
 		this.currentKeyChord = keyChord
 		if(this.currentKeyChord !== null){
 			// Find the chord's action (if any) and add it to current actions
 			this.currentKeyChord.action = this.inputSchema.getKeyChordAction(this.currentKeyChord)
 			if(this.currentKeyChord.action !== null){
-				this.currentActions.add(this.currentKeyChord.action)
+				this._toggleAction(this.currentKeyChord.action, true)
 			}
 		}
 		if(this._updateVectors()){
@@ -247,11 +283,11 @@ spaciblo.input.InputManager = k.eventMixin(class {
 	_updateVectors(){
 		let oldRotation = [...this.inputRotation]
 		let oldTranslation = [...this.inputTranslation]
-		if(this.isActionActive("rotate-left")){
+		if(this.isActionActive('rotate-left')){
 			this._inputRotation[0] = 0
 			this._inputRotation[1] = this.keyboardRotationDelta
 			this._inputRotation[2] = 0
-		} else if(this.isActionActive("rotate-right")){
+		} else if(this.isActionActive('rotate-right')){
 			this._inputRotation[0] = 0
 			this._inputRotation[1] = -1 * this.keyboardRotationDelta
 			this._inputRotation[2] = 0
@@ -300,6 +336,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 	}
 
 	_sendAvatarUpdate() {
+		// Consider using this.throttledSendAvatarUpdate in code that's called for each frame
 		this.trigger(spaciblo.events.AvatarMotionChanged, this._inputTranslation, this._inputRotation)
 	}
 
@@ -310,22 +347,22 @@ spaciblo.input.InputManager = k.eventMixin(class {
 
 // Map key codes to names
 spaciblo.input.KeyMap = new Map()
-spaciblo.input.KeyMap.set(37, "left-arrow")
-spaciblo.input.KeyMap.set(38, "up-arrow")
-spaciblo.input.KeyMap.set(39, "right-arrow")
-spaciblo.input.KeyMap.set(40, "down-arrow")
-spaciblo.input.KeyMap.set(81, "q")
-spaciblo.input.KeyMap.set(87, "w")
-spaciblo.input.KeyMap.set(69, "e")
-spaciblo.input.KeyMap.set(65, "a")
-spaciblo.input.KeyMap.set(83, "s")
-spaciblo.input.KeyMap.set(68, "d")
+spaciblo.input.KeyMap.set(37, 'left-arrow')
+spaciblo.input.KeyMap.set(38, 'up-arrow')
+spaciblo.input.KeyMap.set(39, 'right-arrow')
+spaciblo.input.KeyMap.set(40, 'down-arrow')
+spaciblo.input.KeyMap.set(81, 'q')
+spaciblo.input.KeyMap.set(87, 'w')
+spaciblo.input.KeyMap.set(69, 'e')
+spaciblo.input.KeyMap.set(65, 'a')
+spaciblo.input.KeyMap.set(83, 's')
+spaciblo.input.KeyMap.set(68, 'd')
 spaciblo.input.KeyMap.set(82, 'r')
 spaciblo.input.KeyMap.set(70, 'f')
-spaciblo.input.KeyMap.set(16, "shift")
-spaciblo.input.KeyMap.set(17, "control")
-spaciblo.input.KeyMap.set(18, "alt")
-spaciblo.input.KeyMap.set(224, "meta")
+spaciblo.input.KeyMap.set(16, 'shift')
+spaciblo.input.KeyMap.set(17, 'control')
+spaciblo.input.KeyMap.set(18, 'alt')
+spaciblo.input.KeyMap.set(224, 'meta')
 
 
 // A list of modifier keys like shift, alt, control, and meta

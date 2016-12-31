@@ -1,4 +1,4 @@
-"use strict"
+'use strict'
 
 var spaciblo = spaciblo || {}
 spaciblo.three = spaciblo.three || {}
@@ -24,9 +24,9 @@ spaciblo.three.DEFAULT_LIGHT_INTENSITY = 0.7
 
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
 
-spaciblo.three.DEFAULT_HEAD_POSITION = [0, 1.5, 0]
-spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, 0.5, -0.5]
-spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, 0.5, -0.5]
+spaciblo.three.DEFAULT_HEAD_POSITION = [0, 2, 0]
+spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, 1, -0.5]
+spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, 1, -0.5]
 spaciblo.three.HEAD_NODE_NAME = 'head'
 spaciblo.three.LEFT_HAND_NODE_NAME = 'left_hand'
 spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
@@ -43,9 +43,12 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.scene = new THREE.Scene()
 		this.scene.background = background
 		this.pivotPoint = new THREE.Object3D() // Will hold the rootGroup and let us move the scene around the camera instead of moving the camera around in the scene, which doesn't work in VR
+		this.pivotPoint.name = "PivotPoint"
 		this.pivotPoint.position.set(spaciblo.three.DEFAULT_HEAD_POSITION[0] * -1, spaciblo.three.DEFAULT_HEAD_POSITION[1] * -1, spaciblo.three.DEFAULT_HEAD_POSITION[2] * -1)
 		this.scene.add(this.pivotPoint)
 		this.camera = new THREE.PerspectiveCamera(75, 1, 0.5, 10000)
+
+		this.shouldTeleport = false // Set to true when the input manager triggers an InputEventStarted for the 'teleport' action
 
 		this.clientUUID = null	// Will be null until set in this.setClientUUID()
 		this.avatarGroup = null	// Will be null until the avatar is created during an update addition
@@ -83,12 +86,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.spaces = []
 		this.spaceMenuMeshes = []
 		this.spaceMenu = new THREE.Group()
-		this.spaceMenu.name = "Space Menu"
+		this.spaceMenu.name = 'Space Menu'
 		this.spaceMenu.position.z = -8
 		this.scene.add(this.spaceMenu)
 
 		this.el.addEventListener('mousemove', this._onDocumentMouseMove.bind(this), false)
 		this.el.addEventListener('click', this._onClick.bind(this), false)
+		this.inputManager.addListener((...params) => { this._handleInputEventStarted(...params) }, spaciblo.events.InputActionStarted)
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
 		this._animate()
 	}
@@ -112,7 +116,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this._addBodyUpdate(this.avatarGroup.rightHand, spaciblo.three.RIGHT_HAND_NODE_NAME, results)
 		return results
 	}
-
 	_addBodyUpdate(node, name, results){
 		// For a non-null scene node for a hand, add an avatar controller update data structure to results
 		if(node === null){
@@ -125,10 +128,15 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			// TODO send motion vectors
 		})
 	}
+	_handleInputEventStarted(eventName, action){
+		if(action.name === 'teleport'){
+			this.shouldTeleport = true
+		}
+	}
 	_onClick(ev){
 		ev.preventDefault()
 		if(this.intersectedObj == null) return
-		if(typeof this.intersectedObj.space !== "undefined"){
+		if(typeof this.intersectedObj.space !== 'undefined'){
 			this.trigger(spaciblo.events.SpaceSelected, this.intersectedObj.space)
 		}
 	}
@@ -142,8 +150,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		let vertexShader = document.getElementById('skyVertexShader').textContent
 		let fragmentShader = document.getElementById('skyFragmentShader').textContent
 		let uniforms = {
-			topColor:    { value: new THREE.Color( 0x0077ff ) },
-			bottomColor: { value: new THREE.Color( 0xffffff ) },
+			topColor:    { value: new THREE.Color(0x0077ff) },
+			bottomColor: { value: new THREE.Color(0xffffff) },
 			offset:      { value: 33 },
 			exponent:    { value: 0.8 }
 		}
@@ -154,7 +162,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			uniforms: uniforms,
 			side: THREE.BackSide
 		})
-		return new THREE.Mesh( skyGeo, skyMat )
+		return new THREE.Mesh(skyGeo, skyMat)
 	}
 	setClientUUID(clientUUID){
 		this.clientUUID = clientUUID
@@ -200,8 +208,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				var parent = null
 			} else {
 				var parent = this.objectMap.get(addition.parent)
-				if(typeof parent === "undefined") {
-					console.error("Tried to add to an unknown parent", addition)
+				if(typeof parent === 'undefined') {
+					console.error('Tried to add to an unknown parent', addition)
 					continue
 				}
 			}
@@ -210,7 +218,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			if(addition.id == 0){
 				// This is the root
 				this.rootGroup = group
-				this.rootGroup.name = "Root"
+				this.rootGroup.name = 'Root'
 				this.hideSpaceMenu()
 				this.pivotPoint.add(this.rootGroup)
 			} else {
@@ -219,7 +227,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		for(let deletion of deletions){
 			let group = this.objectMap.get(deletion)
-			if(typeof group === "undefined"){
+			if(typeof group === 'undefined'){
 				continue
 			}
 			this.objectMap.delete(deletion)
@@ -234,8 +242,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		for(let update of nodeUpdates){
 			let group = this.objectMap.get(update.id)
-			if(typeof group === "undefined"){
-				console.error("Tried to update unknown object", update)
+			if(typeof group === 'undefined'){
+				console.error('Tried to update unknown object', update)
 				continue
 			}
 			if(group.isLocalAvatar || (group.parent && group.parent.isLocalAvatar)){
@@ -265,7 +273,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	_createGroupFromAddition(state){
 		let group = new spaciblo.three.Group()
-		if(typeof state.id != "undefined"){
+		if(typeof state.id != 'undefined'){
 			this.objectMap.set(state.id, group)
 		}
 		group.renderer = this
@@ -326,13 +334,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						group.settingsLight = null
 				}
 				if(group.settingsLight !== null){
-					group.settingsLight.name = "settings-light"
+					group.settingsLight.name = 'settings-light'
 					group.settingsLight.position.set(0,0,0) // It's the light's group that sets the position and orientation
 					group.add(group.settingsLight)
 				}
 			}
 		}
-		if(typeof state.templateUUID !== "undefined" && state.templateUUID.length > 0){
+		if(typeof state.templateUUID !== 'undefined' && state.templateUUID.length > 0){
 			group.template = this.templateLoader.addTemplate(state.templateUUID)
 			var loadIt = () => {
 				const extension = group.template.getSourceExtension()
@@ -340,16 +348,16 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					spaciblo.three.GLTFLoader.load(group.template.sourceURL()).then(gltf => {
 						group.setGLTF(gltf)
 					}).catch(err => {
-						console.error("Could not fetch gltf", err)
+						console.error('Could not fetch gltf', err)
 					})
 				} else if(extension === 'obj'){
 					spaciblo.three.OBJLoader.load(group.template.getBaseURL(), group.template.get('source')).then(obj => {
 						group.setOBJ(obj)
 					}).catch(err => {
-						console.error("Could not fetch obj", err)
+						console.error('Could not fetch obj', err)
 					})
 				} else {
-					console.error("Unknown extension for template source.", extension, group.template)
+					console.error('Unknown extension for template source.', extension, group.template)
 				}
 			}
 
@@ -358,11 +366,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			} else {
 				group.template.addListener(() => {
 					loadIt()
-				}, "fetched", true)
+				}, 'fetched', true)
 			}
 		}
 
-		if(typeof state.nodes !== "undefined"){
+		if(typeof state.nodes !== 'undefined'){
 			for(let node of state.nodes){
 				group.add(this._createGroupFromAddition(node))
 			}
@@ -433,6 +441,40 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			mesh.rotation.x -= 0.5 * delta
 		}
 	}
+	_getTeleportLocation(){
+		/* 
+		If the user is pointing, return the world coordinate Vector3 location they're pointing to
+		Returns null if they're not pointing at anything
+		*/
+		if(this.avatarGroup === null){
+			return null
+		}
+		let handGroup = null
+		if(this.inputManager.isActionActive('left-point')){
+			handGroup = this.avatarGroup.leftHand
+		} else if(this.inputManager.isActionActive('right-point')){
+			handGroup = this.avatarGroup.rightHand
+		}
+		if(handGroup === null){
+			return null
+		}
+
+		// Picking is all in world coordinates, 
+		// Set the raycaster origin and direction from the hand's world position and orientation
+		this.scene.updateMatrixWorld(true)
+		this.raycaster.ray.origin.setFromMatrixPosition(handGroup.matrixWorld)
+		handGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+		this.raycaster.ray.direction.set(0, 0, -1).applyQuaternion(spaciblo.three.WORKING_QUAT)
+		this.raycaster.ray.direction.normalize()
+		// Turn off the avatarGroup while picking so we don't pick ourselves
+		this.avatarGroup.visible = false
+		let intersects = this.raycaster.intersectObjects([this.pivotPoint], true)
+		this.avatarGroup.visible = true
+		if(intersects.length === 0){
+			return null
+		}
+		return intersects[0].point // This is a world coordinate Vector3
+	}
 	_animate(){
 		let delta = this.clock.getDelta()
 		if(this.vrDisplay !== null){
@@ -442,25 +484,44 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				this.firstVRFrame = false
 				return
 			} else if(this.vrDisplay.isPresenting === false){
-				// Switch back to non-VR animation frames
+				// No longer presenting, so switch back to non-VR frames
 				this.vrDisplay = null
 				if(this.avatarGroup !== null){
 					this.avatarGroup.head.quaternion.set(0,0,0,1)
 					this.avatarGroup.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
 					this.avatarGroup.leftHand.quaternion.set(0,0,0,1)
 					this.avatarGroup.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
+					this.avatarGroup.leftLine.visible = false
 					this.avatarGroup.rightHand.quaternion.set(0,0,0,1)
 					this.avatarGroup.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
+					this.avatarGroup.rightLine.visible = false
 				}
 				requestAnimationFrame(this._boundAnimate)
 				this.inputManager.throttledSendAvatarUpdate()
 				this.trigger(spaciblo.events.RendererExitedVR, this)
 				return
 			} else {
+				// This is a VR frame, so render at will
 				this.vrDisplay.requestAnimationFrame(this._boundAnimate)
 			}
 		} else {
+			// This is a non-VR frame
 			requestAnimationFrame(this._boundAnimate)
+		}
+		this.inputManager.updateGamepadActions()
+
+		if(this.shouldTeleport){
+			this.shouldTeleport = false
+			if(this.avatarGroup !== null){
+				let destination = this._getTeleportLocation() // Returns a world coordinate Vector3
+				if(destination !== null){
+					spaciblo.three.WORKING_VECTOR3.copy(destination)
+					this.rootGroup.worldToLocal(spaciblo.three.WORKING_VECTOR3) // Convert to rootGroup local coordinates
+					spaciblo.three.WORKING_VECTOR3.negate() // Negate because we move the rootGroup instead of the camera
+					spaciblo.three.WORKING_VECTOR3.y = this.rootGroup.position.y // TODO handle teleporting on non-flat surfaces
+					this.rootGroup.position.copy(spaciblo.three.WORKING_VECTOR3)
+				}
+			}
 		}
 
 		if(this.avatarGroup !== null){
@@ -514,7 +575,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.raycaster.setFromCamera(this.mouse, this.camera)
 			let intersects = this.raycaster.intersectObjects(this.scene.children, true)
 			if(intersects.length > 0){
-				if(typeof intersects[0].object.space === "undefined"){
+				if(typeof intersects[0].object.space === 'undefined'){
 					if(this.intersectedObj){
 						this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
 						this.intersectedObj = null
@@ -570,25 +631,34 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						if(gamepad === null) continue
 						// Find the hand to change
 						let handNode = null
+						let lineNode = null
+						let pointingActionName = null
 						if(typeof gamepad.hand === 'string'){
 							if(gamepad.hand === 'left'){
 								handNode = this.avatarGroup.leftHand
+								lineNode = this.avatarGroup.leftLine
+								pointingActionName = 'left-point'
 							} else if (gamepad.hand === 'right'){
 								handNode = this.avatarGroup.rightHand
+								lineNode = this.avatarGroup.rightLine
+								pointingActionName = 'right-point'
 							}
 						}
 						if(handNode === null){
-							spaciblo.input.throttledConsoleLog("Gamepad has no known hand", gamepad)
+							spaciblo.input.throttledConsoleLog('Gamepad has no known hand', gamepad)
 							continue
 						}
 						if(typeof gamepad.pose === 'undefined' || gamepad.pose === null){
-							spaciblo.input.throttledConsoleLog("Gamepad has hand but no pose", gamepad)
+							spaciblo.input.throttledConsoleLog('Gamepad has hand but no pose', gamepad)
 							continue
 						}
 
-						// Set the hand orientation
+						// Set the hand orientation and show or hide the pointing line based on button state
 						if(gamepad.pose.hasOrientation === true){
 							handNode.quaternion.set(...gamepad.pose.orientation)
+							lineNode.visible = this.inputManager.isActionActive(pointingActionName)
+						} else {
+							lineNode.visible = false
 						}
 
 						// Set the hand position
@@ -636,7 +706,7 @@ spaciblo.three.parseSettingFloatArray = function(name, settings, defaultValue=nu
 	if(typeof settings[name] !== 'string'){
 		return defaultValue
 	}
-	if(settings[name] === ""){
+	if(settings[name] === ''){
 		return defaultValue
 	}
 	let tokens = settings[name].split(',')
@@ -687,12 +757,12 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 		// returns [index,fetch/load/loaded,array] for a template or [-1, null, null] if it isn't known
 		for(let i = 0; i < this.fetchQueue.length; i++){
 			if(this.fetchQueue[i].get('uuid') == templateUUID){
-				return [i, "fetch", this.fetchQueue]
+				return [i, 'fetch', this.fetchQueue]
 			}
 		}
 		for(let i = 0; i < this.loadedTemplates.length; i++){
 			if(this.loadedTemplates[i].get('uuid') == templateUUID){
-				return [i, "loaded", this.loadedTemplates]
+				return [i, 'loaded', this.loadedTemplates]
 			}
 		}
 		return [-1, null, null]
@@ -713,6 +783,9 @@ spaciblo.three.Group = function(){
 	this.head = null
 	this.leftHand = null
 	this.rightHand = null
+	// left and right lines are the rays used to point at things
+	this.leftLine = null
+	this.rightLine = null
 }
 spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototype), {
 	getChildrenIds: function(results=[]){
@@ -732,7 +805,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 	setGLTF: function(gltf){
 		this.add(gltf.scene)
 		if(this.isAvatar){
-			console.error("TODO: find avatar body parts in glTF groups")
+			console.error('TODO: find avatar body parts in glTF groups')
 		}
 	},
 	setOBJ: function(obj){
@@ -746,6 +819,13 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			this.rightHand = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, this, false)[0]
 			this.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
 
+			this.leftLine = this._makeHandLine()
+			this.leftHand.add(this.leftLine)
+			this.leftLine.visible = false
+			this.rightLine = this._makeHandLine()
+			this.rightHand.add(this.rightLine)
+			this.rightLine.visible = false
+
 			// Then, find the body nodes in the OBJ tree and add each to its corresponding node found above
 			// TODO Use a more flexible method than OBJ named groups for associating body part nodes to model parts
 			let targets = spaciblo.three.findChildNodeByName(spaciblo.three.HEAD_NODE_NAME, obj, true)
@@ -755,21 +835,31 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 					targets[0].visible = false // Local avatar shows the hands but not the head model
 				}
 			} else {
-				console.error("Could not find a head for avatar group", this)
+				console.error('Could not find a head for avatar group', this)
 			}
 			targets = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, obj, true)
 			if(targets.length === 1){
 				this.leftHand.add(targets[0])
 			} else {
-				console.error("Could not find a left hand for avatar group", this)
+				console.error('Could not find a left hand for avatar group', this)
 			}
 			targets = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, obj, true)
 			if(targets.length === 1){
 				this.rightHand.add(targets[0])
 			} else {
-				console.error("Could not find a right hand for avatar group", this)
+				console.error('Could not find a right hand for avatar group', this)
 			}
 		}
+	},
+	_makeHandLine: function(){
+		// Return a THREE.Line to point out from leftHand or rightHand
+		let material = new THREE.LineBasicMaterial({ color: 0x0000ff })
+		let geometry = new THREE.Geometry()
+		geometry.vertices.push(
+			new THREE.Vector3(0, 0, 0),
+			new THREE.Vector3(0, 0, -1000)
+		)
+		return new THREE.Line(geometry, material)
 	},
 	interpolate: function(elapsedTime){
 		const delta = elapsedTime - this.lastUpdate
@@ -841,7 +931,7 @@ spaciblo.three.OBJLoader = class {
 				objLoader.load(source, (obj) => {
 					resolve(obj)
 				}, () => {} , (...params) => {
-					console.error("Failed to load obj", ...params)
+					console.error('Failed to load obj', ...params)
 					reject(...params)
 				})
 			})
