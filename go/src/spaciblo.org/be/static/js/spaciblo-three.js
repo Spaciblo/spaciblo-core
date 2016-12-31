@@ -821,10 +821,10 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 
 			this.leftLine = this._makeHandLine()
 			this.leftHand.add(this.leftLine)
-			this.leftLine.visible = false
+			this.leftLine.visible = false // Shown when the user initiates a point gesture
 			this.rightLine = this._makeHandLine()
 			this.rightHand.add(this.rightLine)
-			this.rightLine.visible = false
+			this.rightLine.visible = false // Shown when the user initiates a point gesture
 
 			// Then, find the body nodes in the OBJ tree and add each to its corresponding node found above
 			// TODO Use a more flexible method than OBJ named groups for associating body part nodes to model parts
