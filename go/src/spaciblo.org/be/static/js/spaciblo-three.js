@@ -24,9 +24,10 @@ spaciblo.three.DEFAULT_LIGHT_INTENSITY = 0.7
 
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
 
-spaciblo.three.DEFAULT_HEAD_POSITION = [0, 2, 0]
-spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, 1, -0.5]
-spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, 1, -0.5]
+spaciblo.three.DEFAULT_HEAD_POSITION = [0, 0.6, 0]
+spaciblo.three.MINIMUM_HEAD_POSITION_DISTANCE = 0.12 // If vrframe.pose.position is less that this from origin, use DEFAULT_HEAD_POSITION (hides odd Daydream pose positions)
+spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, -0.5, -0.5]
+spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, -0.5, -0.5]
 spaciblo.three.HEAD_NODE_NAME = 'head'
 spaciblo.three.LEFT_HAND_NODE_NAME = 'left_hand'
 spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
@@ -621,14 +622,27 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.scene.updateMatrixWorld(true)
 			this.renderer.render(this.scene, this.camera)
 
-			// Update head orientation and position
 			if(this.avatarGroup !== null){
-				if(this.vrFrameData.pose.orientation !== null && this.avatarGroup.head !== null){
+				// Update the head 
+				if(this.vrFrameData.pose.orientation !== null){
 					this.avatarGroup.head.quaternion.set(...this.vrFrameData.pose.orientation)
 				}
+				if(this.vrFrameData.pose.position !== null){
+					// We check that the position is more than MINIMUM_HEAD_POSITION_DISTANCE from 0,0,0 because Daydream sends tiny position changes for some reason
+					// If it is not far from 0,0,0 we set it to DEFAULT_HEAD_POSITION
+					// TODO Figure out Daydream's pose.position.
+					spaciblo.three.WORKING_VECTOR3.set(...this.vrFrameData.pose.position)
+					if(spaciblo.three.WORKING_VECTOR3.length() > spaciblo.three.MINIMUM_HEAD_POSITION_DISTANCE){
+						this.avatarGroup.head.position.set(...this.vrFrameData.pose.position)
+					} else {
+						this.avatarGroup.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+					}
+				}
+
+				// Update the hands
 				if(typeof navigator.getGamepads === 'function'){
 					for(let gamepad of navigator.getGamepads()){
-						if(gamepad === null) continue
+						if(gamepad === null || typeof gamepad.pose === 'undefined') continue
 						// Find the hand to change
 						let handNode = null
 						let lineNode = null
@@ -638,42 +652,46 @@ spaciblo.three.Renderer = k.eventMixin(class {
 								handNode = this.avatarGroup.leftHand
 								lineNode = this.avatarGroup.leftLine
 								pointingActionName = 'left-point'
-							} else if (gamepad.hand === 'right'){
+							} else if(gamepad.hand === 'right'){
+								handNode = this.avatarGroup.rightHand
+								lineNode = this.avatarGroup.rightLine
+								pointingActionName = 'right-point'
+							}
+						} else if(typeof gamepad.index === 'number'){
+							// No gamepad.hand, so use index to arbitrarily assign to a hand
+							if(gamepad.index === 0){
+								handNode = this.avatarGroup.leftHand
+								lineNode = this.avatarGroup.leftLine
+								pointingActionName = 'left-point'
+							} else if(gamepad.index === 1) {
 								handNode = this.avatarGroup.rightHand
 								lineNode = this.avatarGroup.rightLine
 								pointingActionName = 'right-point'
 							}
 						}
+
 						if(handNode === null){
 							spaciblo.input.throttledConsoleLog('Gamepad has no known hand', gamepad)
 							continue
 						}
-						if(typeof gamepad.pose === 'undefined' || gamepad.pose === null){
-							spaciblo.input.throttledConsoleLog('Gamepad has hand but no pose', gamepad)
-							continue
-						}
 
 						// Set the hand orientation and show or hide the pointing line based on button state
-						if(gamepad.pose.hasOrientation === true){
-							handNode.quaternion.set(...gamepad.pose.orientation)
+						if(gamepad.pose.hasOrientation === true && gamepad.pose.orientation !== null){
+							// TODO figure out why Vive controller orientation is not iterable like ...gamepad.pose.orientation
+							handNode.quaternion.set(gamepad.pose.orientation[0], gamepad.pose.orientation[1], gamepad.pose.orientation[2], gamepad.pose.orientation[3])
 							lineNode.visible = this.inputManager.isActionActive(pointingActionName)
 						} else {
 							lineNode.visible = false
 						}
 
 						// Set the hand position
-						if(gamepad.pose.hasPosition === true){
+						if(gamepad.pose.hasPosition === true && gamepad.pose.position !== null){
 							handNode.position.set(...gamepad.pose.position)
 						}
 					}
 				}
 			}
-			/*
-			TODO figure out why this is non-zero for Daydream
-			if(this.vrFrameData.pose.position !== null && (this.vrFrameData.pose.position[0] !== 0 || this.vrFrameData.pose.position[1] !== 0 || this.vrFrameData.pose.position[2] !== 0)){
-				this.avatarGroup.head.position.set(...this.vrFrameData.pose.position)
-			}
-			*/
+
 			this.vrDisplay.submitFrame()
 			this.inputManager.throttledSendAvatarUpdate()
 		} else {
