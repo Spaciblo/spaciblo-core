@@ -51,9 +51,9 @@ func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *b
 	if err != nil {
 		return nil, err
 	}
-	avatarTemplateRecord, err := apiDB.FindTemplateRecord(spaceRecord.Avatar, dbInfo)
+	avatarRecord, err := apiDB.FindAvatarRecord(spaceRecord.Avatar, dbInfo)
 	if err != nil {
-		logger.Println("Error searching for avatar template ", spaceRecord.Avatar, " for space", spaceRecord.UUID, err)
+		logger.Println("Error searching for avatar record ", spaceRecord.Avatar, " for space", spaceRecord.UUID, err)
 		return nil, err
 	}
 	rootNode, err := NewRootNode(state, dbInfo)
@@ -71,7 +71,7 @@ func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *b
 		Avatars:           make(map[string]*SceneNode),
 		Additions:         []*SceneAddition{},
 		Deletions:         []int64{},
-		DefaultAvatarUUID: avatarTemplateRecord.UUID,
+		DefaultAvatarUUID: avatarRecord.UUID,
 		SimHostServer:     simHostServer,
 		DBInfo:            dbInfo,
 
@@ -109,7 +109,10 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 	for _, notice := range membershipNotices {
 		// TODO compress duplicate membership notices
 		if notice.Member == true {
-			spaceSim.createAvatar(notice.ClientUUID, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
+			_, err := spaceSim.createAvatar(notice.ClientUUID, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
+			if err != nil {
+				logger.Println("Error creating avatar", err)
+			}
 		} else {
 			spaceSim.removeAvatar(notice.ClientUUID)
 		}
@@ -247,28 +250,78 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 }
 
 func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, position []float64, orientation []float64) (*SceneNode, error) {
+	// Check for an existing avatar for this client
 	node, ok := spaceSim.Avatars[clientUUID]
 	if ok == true {
 		return node, nil
 	}
-	state := apiDB.NewSpaceStateNode(position, orientation, spaceSim.DefaultAvatarUUID)
-	node, err := NewSceneNode(state, spaceSim.DBInfo)
+
+	// Find the avatar and parts records
+	avatarRecord, err := apiDB.FindAvatarRecord(spaceSim.DefaultAvatarUUID, spaceSim.DBInfo)
+	if err != nil {
+		return nil, err
+	}
+	// We're assuming that parts without parents are first in this list of parts so they're there when sub-parts are added
+	partRecords, err := apiDB.FindAvatarPartRecordsForAvatar(avatarRecord.UUID, spaceSim.DBInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the base avatar node
+	state := apiDB.NewSpaceStateNode(position, orientation, "")
+	node, err = NewSceneNode(state, spaceSim.DBInfo)
 	if err != nil {
 		return nil, err
 	}
 	node.Transient = true
 	node.Settings["clientUUID"] = NewStringTuple("clientUUID", clientUUID)
 
-	head := NewBodyPartSceneNode("head")
-	node.Add(head)
-	leftHand := NewBodyPartSceneNode("left_hand")
-	node.Add(leftHand)
-	rightHand := NewBodyPartSceneNode("right_hand")
-	node.Add(rightHand)
+	// Start additions list
+	additions := []*SceneAddition{&SceneAddition{node, spaceSim.RootNode.Id}}
+	partMap := make(map[string]*SceneNode)
+
+	// Create the body part scene nodes, adding them to additions
+	for _, partRecord := range partRecords {
+		templateRecord, err := apiDB.FindTemplateRecordById(partRecord.Template, spaceSim.DBInfo)
+		if err != nil {
+			logger.Println("Could not find a template for a body part, ignoring:", partRecord.Template, partRecord)
+			continue
+		}
+		position, err := partRecord.ParsePosition()
+		if err != nil {
+			logger.Println("Could not parse part record position, ignoring:", partRecord.Position)
+			position = []float64{0, 0, 0}
+		}
+		orientation, err := partRecord.ParseOrientation()
+		if err != nil {
+			logger.Println("Could not parse part record orientation, ignoring:", partRecord.Orientation)
+			orientation = []float64{0, 0, 0, 1}
+		}
+		scale, err := partRecord.ParseScale()
+		if err != nil {
+			logger.Println("Could not parse part record scale, ignoring:", partRecord.Scale)
+			scale = []float64{1, 1, 1}
+		}
+		partNode := NewBodyPartSceneNode(partRecord.Part, templateRecord.UUID, position, orientation, scale)
+		if partRecord.Parent != "" {
+			parentNode, ok := partMap[partRecord.Parent]
+			if ok == false {
+				logger.Println("Could not find a parent for a part, ignoring:", partRecord.Part, partRecord.Parent)
+				continue
+			}
+			parentNode.Add(partNode)
+			additions = append(additions, &SceneAddition{partNode, parentNode.Id})
+		} else {
+			node.Add(partNode)
+			additions = append(additions, &SceneAddition{partNode, node.Id})
+		}
+		partMap[partRecord.Part] = partNode
+	}
 
 	spaceSim.Avatars[clientUUID] = node
 	spaceSim.RootNode.Add(node)
-	spaceSim.Additions = append(spaceSim.Additions, &SceneAddition{node, spaceSim.RootNode.Id}, &SceneAddition{head, node.Id}, &SceneAddition{leftHand, node.Id}, &SceneAddition{rightHand, node.Id})
+
+	spaceSim.Additions = append(spaceSim.Additions, additions...)
 	return node, nil
 }
 
@@ -332,16 +385,17 @@ type SceneNode struct {
 	Transient    bool                    `json:"transient"` // True if should be ignored when initializing a space (e.g. Avatar node)
 }
 
-func NewBodyPartSceneNode(name string) *SceneNode {
+func NewBodyPartSceneNode(name string, templateUUID string, position []float64, orientation []float64, scale []float64) *SceneNode {
 	sceneNode := &SceneNode{
-		Id:          nextSceneId(),
-		Settings:    make(map[string]*StringTuple),
-		Position:    NewVector3([]float64{0, 0, 0}),
-		Orientation: NewQuaternion([]float64{0, 0, 0, 1}),
-		Translation: NewVector3([]float64{0, 0, 0}),
-		Rotation:    NewVector3([]float64{0, 0, 0}),
-		Scale:       NewVector3([]float64{1, 1, 1}),
-		Nodes:       []*SceneNode{},
+		Id:           nextSceneId(),
+		TemplateUUID: templateUUID,
+		Settings:     make(map[string]*StringTuple),
+		Position:     NewVector3(position),
+		Orientation:  NewQuaternion(orientation),
+		Translation:  NewVector3([]float64{0, 0, 0}),
+		Rotation:     NewVector3([]float64{0, 0, 0}),
+		Scale:        NewVector3(scale),
+		Nodes:        []*SceneNode{},
 	}
 	sceneNode.Settings["name"] = NewStringTuple("name", name)
 	return sceneNode

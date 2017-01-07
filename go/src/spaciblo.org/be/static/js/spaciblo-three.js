@@ -295,6 +295,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			if(state.settings.clientUUID){
 				// Only avatars have clientUUIDs, so set up this up as an avatar
 				group.isAvatar = true
+				setTimeout(() => { group.setupParts() }, 1)
 				if(this.clientUUID === state.settings.clientUUID){
 					group.isLocalAvatar = true
 					this.avatarGroup = group
@@ -343,30 +344,30 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		if(typeof state.templateUUID !== 'undefined' && state.templateUUID.length > 0){
 			group.template = this.templateLoader.addTemplate(state.templateUUID)
-			var loadIt = () => {
-				const extension = group.template.getSourceExtension()
+			var loadIt = (loadingGroup) => {
+				const extension = loadingGroup.template.getSourceExtension()
 				if(extension === 'gltf'){
-					spaciblo.three.GLTFLoader.load(group.template.sourceURL()).then(gltf => {
-						group.setGLTF(gltf)
+					spaciblo.three.GLTFLoader.load(loadingGroup.template.sourceURL()).then(gltf => {
+						loadingGroup.setGLTF(gltf)
 					}).catch(err => {
 						console.error('Could not fetch gltf', err)
 					})
 				} else if(extension === 'obj'){
-					spaciblo.three.OBJLoader.load(group.template.getBaseURL(), group.template.get('source')).then(obj => {
-						group.setOBJ(obj)
+					spaciblo.three.OBJLoader.load(loadingGroup.template.getBaseURL(), loadingGroup.template.get('source')).then(obj => {
+						loadingGroup.setOBJ(obj)
 					}).catch(err => {
 						console.error('Could not fetch obj', err)
 					})
 				} else {
-					console.error('Unknown extension for template source.', extension, group.template)
+					console.error('Unknown extension for template source.', extension, loadingGroup.template)
 				}
 			}
 
 			if(group.template.loading === false){
-				loadIt()
+				loadIt(group)
 			} else {
 				group.template.addListener(() => {
-					loadIt()
+					loadIt(group)
 				}, 'fetched', true)
 			}
 		}
@@ -622,7 +623,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.scene.updateMatrixWorld(true)
 			this.renderer.render(this.scene, this.camera)
 
-			if(this.avatarGroup !== null){
+			if(this.avatarGroup !== null && this.avatarGroup.head !== null){
 				// Update the head 
 				if(this.vrFrameData.pose.orientation !== null){
 					this.avatarGroup.head.quaternion.set(...this.vrFrameData.pose.orientation)
@@ -822,52 +823,32 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 	},
 	setGLTF: function(gltf){
 		this.add(gltf.scene)
-		if(this.isAvatar){
-			console.error('TODO: find avatar body parts in glTF groups')
-		}
 	},
 	setOBJ: function(obj){
 		this.add(obj)
-		if(this.isAvatar){
-			// First, find the body nodes created by update additions from the simulator
-			this.head = spaciblo.three.findChildNodeByName(spaciblo.three.HEAD_NODE_NAME, this, false)[0]
-			this.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
-			this.leftHand = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, this, false)[0]
-			this.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
-			this.rightHand = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, this, false)[0]
-			this.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
-
-			this.leftLine = this._makeHandLine()
-			this.leftHand.add(this.leftLine)
-			this.leftLine.visible = false // Shown when the user initiates a point gesture
-			this.rightLine = this._makeHandLine()
-			this.rightHand.add(this.rightLine)
-			this.rightLine.visible = false // Shown when the user initiates a point gesture
-
-			// Then, find the body nodes in the OBJ tree and add each to its corresponding node found above
-			// TODO Use a more flexible method than OBJ named groups for associating body part nodes to model parts
-			let targets = spaciblo.three.findChildNodeByName(spaciblo.three.HEAD_NODE_NAME, obj, true)
-			if(targets.length === 1){
-				this.head.add(targets[0])
-				if(this.isLocalAvatar){
-					targets[0].visible = false // Local avatar shows the hands but not the head model
-				}
-			} else {
-				console.error('Could not find a head for avatar group', this)
-			}
-			targets = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, obj, true)
-			if(targets.length === 1){
-				this.leftHand.add(targets[0])
-			} else {
-				console.error('Could not find a left hand for avatar group', this)
-			}
-			targets = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, obj, true)
-			if(targets.length === 1){
-				this.rightHand.add(targets[0])
-			} else {
-				console.error('Could not find a right hand for avatar group', this)
-			}
+	},
+	setupParts: function(){
+		// Find the body nodes created by update additions from the simulator
+		this.head = spaciblo.three.findChildNodeByName(spaciblo.three.HEAD_NODE_NAME, this, true)[0]
+		if(typeof this.head === 'undefined' || this.head === null){
+			console.error('Could not set up avatar head, aborting parts setup', this)
+			return
 		}
+		if(this.isLocalAvatar){
+			this.head.visible = false
+		}
+		this.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+		this.leftHand = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, this, true)[0]
+		this.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
+		this.rightHand = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, this, true)[0]
+		this.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
+
+		this.leftLine = this._makeHandLine()
+		this.leftHand.add(this.leftLine)
+		this.leftLine.visible = false // Shown when the user initiates a point gesture
+		this.rightLine = this._makeHandLine()
+		this.rightHand.add(this.rightLine)
+		this.rightLine.visible = false // Shown when the user initiates a point gesture
 	},
 	_makeHandLine: function(){
 		// Return a THREE.Line to point out from leftHand or rightHand

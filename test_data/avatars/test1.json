@@ -1,0 +1,37 @@
+{
+	"name": "Test Avatar",
+	"parts": [
+		{
+			"name": "Head",
+			"part": "head",
+			"templateName": "Test Head",
+			"position": [0, 0.6, 0]
+		},
+		{
+			"name": "Hat",
+			"part": "hat",
+			"parent": "head",
+			"templateName": "Test Hat",
+			"position": [0, 0.1, -0.5],
+			"scale": [0.5, 0.5, 0.5]
+		},
+		{
+			"name": "Torso",
+			"part": "torso",
+			"templateName": "Test Torso",
+			"position": [0, -0.5, 0]
+		},
+		{
+			"name": "Left Hand",
+			"part": "left_hand",
+			"templateName": "Test Left Hand",
+			"position": [0, -0.5, 0]
+		},
+		{
+			"name": "Right Hand",
+			"part": "right_hand",
+			"templateName": "Test Right Hand",
+			"position": [0, -0.5, 0]
+		}
+	]
+}

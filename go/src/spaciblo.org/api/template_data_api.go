@@ -80,7 +80,7 @@ func NewTemplateDataResource() *TemplateDataResource {
 
 func (TemplateDataResource) Name() string { return "template-data" }
 func (TemplateDataResource) Path() string {
-	return "/template/{uuid:[0-9,a-z,-]+}/data/{name:[0-9,a-z,A-Z,-,.,_]+}"
+	return "/template/{uuid:[0-9,a-z,-]+}/data/{name:[0-9,a-z,A-Z,-,.,_, ]+}"
 }
 func (TemplateDataResource) Title() string { return "TemplateData" }
 func (TemplateDataResource) Description() string {

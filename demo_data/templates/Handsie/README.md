@@ -1,2 +1,0 @@
-
-The hands in this test avatar are from Arturo Paracuellos (http://unboring.net/) who posted blend files for hands based on Oculus Touch recommendations: http://unboring.net/lab/oculusHandControllers/Hands.zip

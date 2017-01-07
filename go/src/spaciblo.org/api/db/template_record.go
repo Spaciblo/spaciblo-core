@@ -8,16 +8,20 @@ const TemplateTable = "templates"
 
 type TemplateRecord struct {
 	Id     int64  `json:"id" db:"id, primarykey, autoincrement"`
-	UUID   string `json:"uuid" db:"u_u_i_d"` // TODO make unique
-	Name   string `json:"name" db:"name"`
+	UUID   string `json:"uuid" db:"u_u_i_d"`  // TODO make unique
+	Name   string `json:"name" db:"name"`     // A human readable name like "Top Hat" or "Mountain"
 	Source string `json:"source" db:"source"` // TODO make not null
+	Part   string `json:"part" db:"part"`     // The default AvatarPartRecord.Part name (if any)
+	Parent string `json:"parent" db:"parent"` // The default AvatarPartRecord.Parent name (if any)
 }
 
-func CreateTemplateRecord(name string, source string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
+func CreateTemplateRecord(name string, source string, part string, parent string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
 	record := &TemplateRecord{
 		Name:   name,
 		UUID:   be.UUID(),
 		Source: source,
+		Part:   part,
+		Parent: parent,
 	}
 	err := dbInfo.Map.Insert(record)
 	if err != nil {
@@ -42,6 +46,15 @@ func DeleteAllTemplateRecords(dbInfo *be.DBInfo) error {
 
 func FindTemplateRecord(uuid string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
 	return FindTemplateRecordByField("u_u_i_d", uuid, dbInfo)
+}
+
+func FindTemplateRecordById(id int64, dbInfo *be.DBInfo) (*TemplateRecord, error) {
+	record := new(TemplateRecord)
+	err := dbInfo.Map.SelectOne(record, "select * from "+TemplateTable+" where id=$1", id)
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
 }
 
 func FindTemplateRecords(offset int, limit int, dbInfo *be.DBInfo) ([]TemplateRecord, error) {

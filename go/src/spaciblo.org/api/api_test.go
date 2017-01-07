@@ -74,7 +74,7 @@ func TestTemplateAPI(t *testing.T) {
 	arr := list.Objects.([]interface{})
 	AssertEqual(t, 0, len(arr))
 
-	record0, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", dbInfo)
+	record0, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", "", "", dbInfo)
 	AssertNil(t, err)
 
 	list, err = client.GetList("/template/")

@@ -14,19 +14,19 @@ type SpaceRecord struct {
 	UUID   string `json:"uuid" db:"u_u_i_d"`
 	Name   string `json:"name" db:"name"`
 	State  string `json:"-"`      // A JSON blob that stores a serialized SpaceStateNode scene graph and settings to initialize a space in a sim
-	Avatar string `json:"avatar"` // The template UUID of the default Avatar for the space
+	Avatar string `json:"avatar"` // The UUID of the default AvatarRecord for the space
 }
 
 func (record *SpaceRecord) DecodeState() (*SpaceStateNode, error) {
 	return DecodeSpaceStateNode(bytes.NewBufferString(record.State))
 }
 
-func CreateSpaceRecord(name string, state string, avatarTemplateUUID string, dbInfo *be.DBInfo) (*SpaceRecord, error) {
+func CreateSpaceRecord(name string, state string, avatarUUID string, dbInfo *be.DBInfo) (*SpaceRecord, error) {
 	record := &SpaceRecord{
 		Name:   name,
 		UUID:   be.UUID(),
 		State:  state,
-		Avatar: avatarTemplateUUID,
+		Avatar: avatarUUID,
 	}
 	err := dbInfo.Map.Insert(record)
 	if err != nil {

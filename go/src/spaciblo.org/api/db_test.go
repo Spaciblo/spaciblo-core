@@ -27,6 +27,63 @@ func init() {
 	}
 }
 
+func TestAvatarRecords(t *testing.T) {
+	err := be.CreateDB()
+	AssertNil(t, err)
+	dbInfo, err := db.InitDB()
+	AssertNil(t, err)
+	defer func() {
+		be.WipeDB(dbInfo)
+		dbInfo.Connection.Close()
+	}()
+
+	records, err := apiDB.FindAllAvatarRecords(dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, 0, len(records))
+
+	avatar1, err := apiDB.CreateAvatarRecord("Captain Janeway", dbInfo)
+	AssertNil(t, err)
+	AssertNotNil(t, avatar1)
+	AssertEqual(t, "Captain Janeway", avatar1.Name)
+
+	headTemplate, err := apiDB.CreateTemplateRecord("Janeway head", "head.obj", "head", "", dbInfo)
+	AssertNil(t, err)
+	headPart, err := apiDB.CreateAvatarPartRecord(avatar1.Id, headTemplate.Id, headTemplate.Name, headTemplate.Part, headTemplate.Parent, "0,1,0", "0,0,0,1", "1,1,1", dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, headTemplate.Name, headPart.Name)
+	AssertEqual(t, headPart.Position, "0,1,0")
+	headPart2, err := apiDB.FindAvatarPartRecord(headPart.UUID, dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, headTemplate.Name, headPart2.Name)
+	AssertEqual(t, headPart2.Position, "0,1,0")
+	parsedPosition, err := headPart2.ParsePosition()
+	AssertNil(t, err)
+	AssertEqual(t, []float64{0, 1, 0}, parsedPosition)
+	headPart2.SetPosition(0.0123, 123.3210, 444)
+	AssertEqual(t, "0.0123,123.321,444", headPart2.Position)
+	parsedPosition, err = headPart2.ParsePosition()
+	AssertNil(t, err)
+	AssertEqual(t, []float64{0.0123, 123.321, 444}, parsedPosition)
+
+	hairTemplate, err := apiDB.CreateTemplateRecord("Janeway hair", "hair.obj", "hair", "head", dbInfo)
+	AssertNil(t, err)
+	hairPart, err := apiDB.CreateAvatarPartRecord(avatar1.Id, hairTemplate.Id, hairTemplate.Name, hairTemplate.Part, hairTemplate.Parent, "0,0.1,0", "0,0,0,1", "1,1,1", dbInfo)
+	AssertNil(t, err)
+	AssertEqual(t, hairTemplate.Name, hairPart.Name)
+	AssertEqual(t, hairTemplate.Parent, hairPart.Parent)
+
+	// Test decoding JSON
+	filePath := path.Join(apiDB.TEST_DATA_DIR, apiDB.AVATARS_DATA_DIR, "test1.json")
+	file, err := os.Open(filePath)
+	AssertNil(t, err)
+	descriptor, err := apiDB.DecodeAvatarDescriptor(file)
+	AssertNil(t, err)
+	AssertEqual(t, "Test Avatar", descriptor.Name)
+	AssertEqual(t, 5, len(descriptor.Parts))
+	AssertEqual(t, []float64{0, 0.6, 0}, descriptor.Parts[0].Position)
+	AssertEqual(t, []float64{0.5, 0.5, 0.5}, descriptor.Parts[1].Scale)
+}
+
 func TestSpaceStateNode(t *testing.T) {
 	testState := func(stateNode *apiDB.SpaceStateNode) {
 		AssertEqual(t, "Test Space 1", stateNode.Settings["name"])
@@ -138,13 +195,15 @@ func TestTemplateRecords(t *testing.T) {
 	AssertNil(t, err)
 	AssertEqual(t, 0, len(records))
 
-	record, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", dbInfo)
+	record, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", "foo", "bar", dbInfo)
 	AssertNil(t, err)
 	record2, err := apiDB.FindTemplateRecord(record.UUID, dbInfo)
 	AssertNil(t, err)
 	AssertEqual(t, record.Id, record2.Id)
 	AssertEqual(t, record.UUID, record2.UUID)
 	AssertEqual(t, record.Name, record2.Name)
+	AssertEqual(t, record.Part, record2.Part)
+	AssertEqual(t, record.Parent, record2.Parent)
 	_, err = apiDB.FindTemplateRecord("bogusUUID", dbInfo)
 	AssertNotNil(t, err)
 
@@ -152,7 +211,7 @@ func TestTemplateRecords(t *testing.T) {
 	AssertNil(t, err)
 	AssertEqual(t, 1, len(records))
 	AssertEqual(t, records[0].UUID, record.UUID)
-	record3, err := apiDB.CreateTemplateRecord("Template 3", "test.gltf", dbInfo)
+	record3, err := apiDB.CreateTemplateRecord("Template 3", "test.gltf", "", "", dbInfo)
 	AssertNil(t, err)
 	records, err = apiDB.FindAllTemplateRecords(dbInfo)
 	AssertNil(t, err)

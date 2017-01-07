@@ -38,11 +38,11 @@ func TestHostStartup(t *testing.T) {
 		dbInfo.Connection.Close()
 	}()
 
-	avatarTemplateRecord, err := apiDB.CreateTemplateRecord("Avatar", "bogus-avatar.obj", dbInfo)
+	avatarRecord, err := apiDB.CreateAvatarRecord("Avatar", dbInfo)
 	AssertNil(t, err)
-	templateRecord0, err := apiDB.CreateTemplateRecord("Template 0", "bogus0.obj", dbInfo)
+	templateRecord0, err := apiDB.CreateTemplateRecord("Template 0", "bogus0.obj", "", "", dbInfo)
 	AssertNil(t, err)
-	templateRecord1, err := apiDB.CreateTemplateRecord("Template 1", "bogus1.obj", dbInfo)
+	templateRecord1, err := apiDB.CreateTemplateRecord("Template 1", "bogus1.obj", "", "", dbInfo)
 	AssertNil(t, err)
 
 	// Create a space for our test
@@ -52,7 +52,7 @@ func TestHostStartup(t *testing.T) {
 	groupNode := apiDB.NewSpaceStateNode(position, orientation, "")
 	rootNode.Nodes = append(rootNode.Nodes, *groupNode)
 	groupNode.Nodes = append(groupNode.Nodes, *apiDB.NewSpaceStateNode(position, orientation, templateRecord1.UUID))
-	_, err = apiDB.CreateSpaceRecord("Space 0", rootNode.ToString(), avatarTemplateRecord.UUID, dbInfo)
+	_, err = apiDB.CreateSpaceRecord("Space 0", rootNode.ToString(), avatarRecord.UUID, dbInfo)
 	AssertNil(t, err)
 
 	wsService, simService, err := createTestCluster(dbInfo)

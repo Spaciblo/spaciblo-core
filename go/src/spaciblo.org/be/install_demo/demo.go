@@ -19,6 +19,7 @@ var logger = log.New(os.Stdout, "[demo] ", 0)
 
 const DEMO_DATA_DIR = "demo_data"
 const DEMO_TEMPLATES_DIR = "templates"
+const DEMO_AVATARS_DIR = "avatars"
 const DEMO_SPACES_DIR = "spaces"
 const DEMO_SPACE_FILE_NAME = "space.json"
 
@@ -65,6 +66,16 @@ func main() {
 		logger.Fatal("Could not delete space records: ", err)
 		return
 	}
+	err = apiDB.DeleteAllAvatarPartRecords(dbInfo)
+	if err != nil {
+		logger.Fatal("Could not avatar part records: ", err)
+		return
+	}
+	err = apiDB.DeleteAllAvatarRecords(dbInfo)
+	if err != nil {
+		logger.Fatal("Could not avatar records: ", err)
+		return
+	}
 
 	createUser("alice@example.com", "Alice", "Smith", true, "1234", dbInfo)
 	createUser("bob@example.com", "Bob", "Garvey", false, "1234", dbInfo)
@@ -79,7 +90,21 @@ func main() {
 		createTemplate(path.Join(templatesDir, info.Name()), info.Name(), dbInfo, fs)
 	}
 
-	avatarTemplate, err := apiDB.FindTemplateRecordByField("name", "Handsie", dbInfo)
+	avatarsDir := path.Join(DEMO_DATA_DIR, DEMO_AVATARS_DIR)
+	avatarsFileInfos, err := ioutil.ReadDir(avatarsDir)
+	if err != nil {
+		logger.Fatal("Could not read avatars dir %s: %s", avatarsDir, err)
+		return
+	}
+	for _, info := range avatarsFileInfos {
+		_, err = createAvatar(path.Join(avatarsDir, info.Name()), dbInfo)
+		if err != nil {
+			logger.Fatal("Could not create an avatar %s: %s", info.Name, err)
+			return
+		}
+	}
+
+	avatarRecord, err := apiDB.FindAvatarRecordByField("name", "Default Avatar", dbInfo)
 	if err != nil {
 		logger.Fatal("Could not find default avatar: %s", err)
 		return
@@ -92,8 +117,48 @@ func main() {
 		return
 	}
 	for _, info := range spacesFileInfos {
-		createSpace(path.Join(spacesDir, info.Name()), info.Name(), avatarTemplate.UUID, dbInfo)
+		createSpace(path.Join(spacesDir, info.Name()), info.Name(), avatarRecord.UUID, dbInfo)
 	}
+}
+
+func createAvatar(descriptorPath string, dbInfo *be.DBInfo) (*apiDB.AvatarRecord, error) {
+	file, err := os.Open(descriptorPath)
+	if err != nil {
+		return nil, err
+	}
+	descriptor, err := apiDB.DecodeAvatarDescriptor(file)
+	if err != nil {
+		return nil, err
+	}
+	avatarRecord, err := apiDB.CreateAvatarRecord(descriptor.Name, dbInfo)
+	if err != nil {
+		return nil, err
+	}
+	for _, partDescriptor := range descriptor.Parts {
+		template, err := apiDB.FindTemplateRecordByField("name", partDescriptor.TemplateName, dbInfo)
+		if err != nil {
+			return nil, err
+		}
+		partRecord, err := apiDB.CreateAvatarPartRecord(avatarRecord.Id, template.Id, partDescriptor.Name, partDescriptor.Part, partDescriptor.Parent, "", "", "", dbInfo)
+		if err != nil {
+			return nil, err
+		}
+		if len(partDescriptor.Position) == 3 {
+			partRecord.SetPosition(partDescriptor.Position[0], partDescriptor.Position[1], partDescriptor.Position[2])
+		}
+		if len(partDescriptor.Orientation) == 4 {
+			partRecord.SetOrientation(partDescriptor.Orientation[0], partDescriptor.Orientation[1], partDescriptor.Orientation[2], partDescriptor.Orientation[3])
+		}
+		if len(partDescriptor.Scale) == 3 {
+			partRecord.SetScale(partDescriptor.Scale[0], partDescriptor.Scale[1], partDescriptor.Scale[2])
+		}
+		_, err = dbInfo.Map.Update(partRecord)
+		if err != nil {
+			return nil, err
+		}
+	}
+	logger.Println("Created avatar:", descriptor.Name+":", avatarRecord.UUID)
+	return avatarRecord, nil
 }
 
 func createSpace(directory string, name string, avatarUUID string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, error) {
@@ -151,7 +216,7 @@ func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.Loc
 		return nil, nil
 	}
 
-	template, err := apiDB.CreateTemplateRecord(name, sourceInfo.Name(), dbInfo)
+	template, err := apiDB.CreateTemplateRecord(name, sourceInfo.Name(), "", "", dbInfo)
 	logger.Printf("Creating template: %s: %s", name, template.UUID)
 	if err != nil {
 		logger.Fatal("Could not create a template: ", err)
