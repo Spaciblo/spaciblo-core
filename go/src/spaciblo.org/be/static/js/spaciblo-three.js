@@ -77,11 +77,12 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.mouse = new THREE.Vector2(-10000, -10000)
 		this.intersectedObj = null
 
-		this.renderer = new THREE.WebGLRenderer()
-		this.renderer.sortObjects = false
-		this.renderer.antialias = true
-		this.renderer.setClearColor(0xffffff)
+		this.renderer = new THREE.WebGLRenderer({
+			antialias: true
+		})
 		this.renderer.domElement.setAttribute('class', 'three-js-spaces-renderer spaces-renderer')
+		this.renderer.setClearColor(0xffffff)
+		this.renderer.shadowMap.enabled = true
 
 		// A list of spaces to show when no space is loaded
 		this.spaces = []
@@ -335,11 +336,14 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					case 'directional':
 						group.settingsLight = new THREE.DirectionalLight(color, intensity)
 						group.settingsLight.target.position.set(...target)
+						group.settingsLight.castShadow = true
+						group.settingsLight.shadow.camera.zoom = 4
 						group.settingsLight.add(group.settingsLight.target)
 						break
 
 					case 'point':
 						group.settingsLight = new THREE.PointLight(color, intensity, distance, decay)
+						group.settingsLight.castShadow = true
 						break
 
 					case 'spot':
@@ -849,6 +853,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.add(gltf.scene)
 	},
 	setOBJ: function(obj){
+		this._enableShadows(obj)
 		this.add(obj)
 	},
 	setupParts: function(){
@@ -873,6 +878,17 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.rightLine = this._makeHandLine()
 		this.rightHand.add(this.rightLine)
 		this.rightLine.visible = false // Shown when the user initiates a point gesture
+	},
+	_enableShadows: function(node){
+		if(node.type === 'Mesh'){
+			node.castShadow = true
+			node.receiveShadow = true
+		}
+		if(Array.isArray(node.children)){
+			for(let child of node.children){
+				this._enableShadows(child)
+			}
+		}
 	},
 	_makeHandLine: function(){
 		// Return a THREE.Line to point out from leftHand or rightHand
