@@ -89,6 +89,12 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.spaceMenu = new THREE.Group()
 		this.spaceMenu.name = 'Space Menu'
 		this.spaceMenu.position.z = -8
+		this.spaceMenu.add(new THREE.AmbientLight(0xffffff, 0.4))
+		let smDirLight = new THREE.DirectionalLight(0xffffff, 2)
+		this.spaceMenu.add(smDirLight)
+		smDirLight.target.position.set(-0.5, -0.2, -0.5)
+		this.spaceMenu.add(smDirLight.target)
+
 		this.scene.add(this.spaceMenu)
 
 		this.el.addEventListener('mousemove', this._onDocumentMouseMove.bind(this), false)
@@ -528,9 +534,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		if(this.avatarGroup !== null){
 			/*
-			Many of the these calculations are reversed because we move the rootGroup
-			and rotate the pivot point instead of changing the camera.
-			The camera is moved by the matrices we receive from the WebVR.
+			Many of the these calculations are reversed because for moving around in the world we move 
+			the rootGroup and rotate the pivot point instead of moving the camera.
+			The camera _is_ moved by the matrices we receive from the WebVR frame pose.
+			The hands are moved also moved using data from the WebVR frame pose.
 			*/
 
 			// Apply reversed input rotation to the pivot point
@@ -568,12 +575,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.avatarGroup.quaternion.copy(spaciblo.three.WORKING_QUAT)
 		}
 
-		this._animateSpaceMenu(delta)
+		// Move things that need moving since their last update from the server
 		if(this.rootGroup){
 			this.rootGroup.interpolate(this.clock.elapsedTime)
 		}
 
 		if(this.spaceMenu && this.spaceMenu.visible){
+			this._animateSpaceMenu(delta)
 			this.raycaster.setFromCamera(this.mouse, this.camera)
 			let intersects = this.raycaster.intersectObjects(this.scene.children, true)
 			if(intersects.length > 0){
