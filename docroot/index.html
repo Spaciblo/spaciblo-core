@@ -5,6 +5,7 @@
 
 		<title>Spaciblō</title>
 
+		<link rel="stylesheet" href="/api/static/css/be-ui.css" type='text/css'>
 		<link rel="stylesheet" href="/api/static/css/spaciblo-components.css" type='text/css'>
 
 		<script src="/api/static/js/potassium.js"></script>
@@ -13,15 +14,29 @@
 		<script src="/api/static/js/mtl-loader.js"></script>
 		<script src="/api/static/js/obj-loader.js"></script>
 		<script src="/api/static/js/be-api.js"></script>
+		<script src="/api/static/js/be-ui.js"></script>
 		<script src="/api/static/js/spaciblo-api.js"></script>
 		<script src="/api/static/js/spaciblo-three.js"></script>
 		<script src="/api/static/js/spaciblo-components.js"></script>
 		<script src="/api/static/js/spaciblo-input.js"></script>
+
+		<style>
+			.top-nav-component {
+				margin-bottom: 0;
+				opacity: 0.5;
+				position: absolute;
+				top: 0;
+				left: 0;
+				z-index: 2;
+				width: 100%;
+			}
+			#page-component {
+				z-index: 1;
+			}
+		</style>
 	</head>
 	<body>
-		<div id="page-component">
-			<h1>Spaciblō</h1>
-		</div>
+		<div id="page-component"></div>
 		<script>
 			function initPage(){
 				window.spaces = new be.api.Spaces()

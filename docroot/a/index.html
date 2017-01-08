@@ -1,0 +1,27 @@
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+
+		<title>Account | Spaciblō</title>
+
+		<link rel="stylesheet" href="/api/static/css/be-ui.css" type='text/css'>
+		<link rel="stylesheet" href="/api/static/css/spaciblo-components.css" type='text/css'>
+
+		<script src="/api/static/js/potassium.js"></script>
+		<script src="/api/static/js/be-api.js"></script>
+		<script src="/api/static/js/be-ui.js"></script>
+		<script src="/api/static/js/spaciblo-api.js"></script>
+		<script src="/api/static/js/spaciblo-components.js"></script>
+	</head>
+	<body>
+		<div id="page-component"></div>
+		<script>
+			function initPage(){
+				window.pageComponent = new spaciblo.components.AccountPageComponent()
+				document.getElementById('page-component').appendChild(window.pageComponent.el)
+			}
+			document.addEventListener("schema-populated", initPage)
+		</script>
+	</body>
+</html>

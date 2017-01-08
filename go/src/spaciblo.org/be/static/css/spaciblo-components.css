@@ -1,27 +1,7 @@
-body, html {
-	width: 100%;
-	height: 100%;
-}
-body, html, div, p, span, a {
-	padding: 0;
-	margin: 0;
-}
-
-body {
-	font-family: sans-serif;
-}
-
-#page-component {
-	padding: 10px;
-}
-#page-component h1 {
-	margin: 0 0 5px 0;
-}
-
 .spaces-component {
 	position: relative;
 	width: 100%;
-	height: calc(100vh - 110px);
+	height: 100%;
 	background-color: #DDD;
 }
 .spaces-component .spaces-renderer {

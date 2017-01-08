@@ -96,17 +96,21 @@ k.eventMixin = Base => class extends Base {
 k.DataObject = k.eventMixin(class {
 	constructor(options={}){
 		this.options = options
+		this._new = true // True until the first fetch returns, regardless of http status
 	}
 	cleanup(){
 		this.clearListeners()
 	}
-
+	// Return true until a fetch (even a failed fetch) returns
+	get isNew(){
+		return this._new
+	}
 	// Return the URL (relative or full) as a string for the endpoint used by this.fetch
 	get url(){
 		throw new Error("Extending classes must implement url()")
 	}
 
-	// Clear out old data and set it to data
+	// Clear out old data and set it to data, should trigger a 'reset' event
 	reset(data={}){
 		throw new Error("Extending classes must implement reset")
 	}
@@ -120,7 +124,9 @@ k.DataObject = k.eventMixin(class {
 	}
 	get fetchOptions(){
 		// Extending classes can override this to add headers, methods, etc to the fetch call
-		return {}
+		return {
+			credentials: 'same-origin'
+		}
 	}
 	fetch(){
 		// Ask the server for data for this model or collection
@@ -133,10 +139,12 @@ k.DataObject = k.eventMixin(class {
 				return response.json() 
 			}).then(data => {
 				data = this.parse(data)
+				this._new = false
 				this.reset(data)
 				this.trigger("fetched", this, data, null)
-				resolve()
+				resolve(this)
 			}).catch(err => {
+				this._new = false
 				this.trigger("fetched", this, null, err)
 				reject(err)
 			})
@@ -239,6 +247,7 @@ k.DataModel = class extends k.DataObject {
 			}
 		}
 		this.setBatch(data)
+		this.trigger("reset", this)
 	}
 	equals(obj){
 		if(obj === null || typeof obj === "undefined") return false

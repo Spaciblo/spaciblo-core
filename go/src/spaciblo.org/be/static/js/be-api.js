@@ -7,6 +7,8 @@ be.events = be.events || {}
 
 be.API_VERSION = '0.1.0';
 
+be.currentUser = null // This will be populated when the schema is loaded
+
 be.events.registerDOMEvent = function(eventName, humanReadableName=eventName){
 	var event = new CustomEvent(humanReadableName)
 	event.initEvent(eventName, true, true)
@@ -24,6 +26,91 @@ be.api.emailCookie = "be_email"
 be.schema.acceptFormat = "application/vnd.api+json; version="
 
 be.schema.pathVariablesRegex = new RegExp('{[^{]+}', 'g');
+
+/*
+Authenticate with the back-end.
+Returns a promise that resolves to [http status code, response data]
+On successful response, it will resolve to [200, <user data>]
+On unsuccessful response, it will resolve to [400, <error data>]
+*/
+be.api.login = function(email, password){
+	return new Promise(function(resolve, reject){
+		const url = `/api/${be.API_VERSION}/user/current`
+		const data = JSON.stringify({
+			'email': email,
+			'password': password
+		})
+		var headers = new Headers()
+		headers.set('Accept', be.schema.acceptFormat + be.API_VERSION)
+		let fetchOptions = {
+			method: 'post',
+			body: data,
+			headers: headers,
+			credentials: 'same-origin' // So that cookies are sent and handled when received
+		}
+		let responseStatus = -1
+		fetch(url, fetchOptions).then(response => {
+			responseStatus = response.status
+			if(response.status === 200 || response.status === 400){
+				return response.json()
+			} else {
+				throw 'Login failed with status ' + response.status
+			}
+		}).then(data => {
+			if(responseStatus === 200){
+				be.currentUser.reset(data)
+			}
+			resolve([responseStatus, data])
+		}).catch(err => {
+			reject(err)
+		})
+	})
+}
+
+/*
+logout asks the service to terminate delete the session cookie
+This also resets be.currentUser so that dependent UIs can react
+*/
+be.api.logout = function(){
+	return new Promise(function(resolve, reject){
+		const url = `/api/${be.API_VERSION}/user/current`
+		var headers = new Headers()
+		headers.set('Accept', be.schema.acceptFormat + be.API_VERSION)
+		let fetchOptions = {
+			method: 'delete',
+			headers: headers,
+			credentials: 'same-origin' // So that cookies are sent and handled when received
+		}
+		fetch(url, fetchOptions).then(response => {
+			localStorage.removeItem('user')
+			be.currentUser.reset({})
+			resolve()
+		}).catch(err => {
+			reject(err)
+		})
+	})
+}
+
+/*
+Returns true if the session cookie exists
+*/
+be.api.hasSession = function(){
+	let sessionCookie = be.getCookie(be.api.sessionCookie)
+	return sessionCookie !== null && sessionCookie !== ''
+}
+
+be.getCookie = function(name) {
+    if (document.cookie && document.cookie != '') {
+        let cookies = document.cookie.split(';')
+        for (let i = 0; i < cookies.length; i++) {
+            let cookie = cookies[i].trim()
+            if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                return decodeURIComponent(cookie.substring(name.length + 1))
+            }
+        }
+    }
+    return null
+}
 
 /*
 SchemaModel fetches data on each endpoint and generates the models and collections in be.api
@@ -124,7 +211,8 @@ be.schema.BaseEndpointCollection = class extends k.DataCollection {
 		var headers = new Headers()
 		headers.set('Accept', be.schema.acceptFormat + be.API_VERSION)
 		return {
-			headers: headers
+			headers: headers,
+			credentials: 'same-origin'
 		}
 	}
 	get url(){
@@ -138,7 +226,8 @@ be.schema.BaseEndpointModel = class extends k.DataModel {
 		var headers = new Headers()
 		headers.set('Accept', be.schema.acceptFormat + be.API_VERSION)
 		return {
-			headers: headers
+			headers: headers,
+			credentials: 'same-origin' // So that cookies are sent and handled when received
 		}
 	}
 	get url(){
@@ -187,9 +276,34 @@ be.schema._generateURL = function(path, attributes){
 document.addEventListener("DOMContentLoaded", function(){
 	be.schema.Schema = new be.schema.SchemaModel()
 	be.schema.Schema.fetch().then(() => {
+		// Set up the be.currentUser
+		if(localStorage.user){
+			try  {
+				be.currentUser = new be.api.User(JSON.parse(localStorage.user))
+			} catch (e) {
+				be.currentUser = new be.api.User()
+			}
+		} else {
+			be.currentUser = new be.api.User()
+		}
+		be.currentUser.addListener(() => {
+			localStorage.user = JSON.stringify(be.currentUser.data);
+		}, 'reset')
+
+		// Ask the server for the authed user info
+		new be.api.CurrentUser().fetch().then(currentUser => {
+			be.currentUser._new = false
+			be.currentUser.reset(currentUser.data)
+		}).catch((...params) => {
+			be.currentUser._new = false
+			be.currentUser.reset({})
+		})
+
+		// Announce that the schema is ready for use
 		document.dispatchEvent(be.events.SchemaPopulatedEvent)
-	}).catch(() => {
-		console.error("Error fetching API schema", arguments)
+	}).catch((...params) => {
+		console.error("Error fetching API schema", ...params)
 	})
 })
+
 

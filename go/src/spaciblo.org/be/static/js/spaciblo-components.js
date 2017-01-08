@@ -15,6 +15,62 @@ spaciblo.events.GamepadAdded = 'spaciblo-gamepad-added'
 spaciblo.events.GamepadRemoved = 'spaciblo-gamepad-removed'
 
 /*
+AccountPageComponent wraps all of the logic for a/index.html
+*/
+spaciblo.components.AccountPageComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('account-page-component')
+
+		this.topNav = new be.ui.TopNavComponent()
+		this.el.appendChild(this.topNav.el)
+
+		this.row = k.el.div({
+			class: 'row'
+		}).appendTo(this.el)
+		this.col = k.el.div({
+			class: 'col-12'
+		}).appendTo(this.row)
+
+		if(be.currentUser.isNew){
+			be.currentUser.addListener(() => {
+				this.handleCurrentUser()
+			}, 'reset', true)
+		} else {
+			this.handleCurrentUser()
+		}
+
+		this.loginComponent = new be.ui.LoginComponent()
+		this.loginComponent.addListener(() => {
+			document.location.href = '/'
+		}, be.events.LoginSuccessful)
+		this.loginComponent.el.style.display = 'none'
+		this.col.appendChild(this.loginComponent.el)
+
+		this.logoutButton = k.el.button('Logout').appendTo(this.col)
+		this.logoutButton.addEventListener('click', this.handleLogoutClick.bind(this))
+		this.logoutButton.style.display = 'none'
+	}
+	handleLogoutClick(ev){
+		ev.preventDefault()
+		be.api.logout().then(() => {
+			this.handleCurrentUser()
+		}).catch(err =>{
+			console.error('Could not log out', err)
+		})
+	}
+	handleCurrentUser(){
+		if(be.currentUser.get('uuid')){
+			this.loginComponent.el.style.display = 'none'
+			this.logoutButton.style.display = 'block'
+		} else {
+			this.loginComponent.el.style.display = 'block'
+			this.logoutButton.style.display = 'none'
+		}
+	}
+}
+
+/*
 SplashPageComponent wraps all of the logic for index.html
 It's main job is to create a canvas and render spaces into it.
 */
@@ -22,6 +78,9 @@ spaciblo.components.SplashPageComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('splash-page-component')
+
+		this.topNav = new be.ui.TopNavComponent()
+		this.el.appendChild(this.topNav.el)
 
 		this.spacesComponent = new spaciblo.components.SpacesComponent(dataObject)
 		this.el.appendChild(this.spacesComponent.el)
