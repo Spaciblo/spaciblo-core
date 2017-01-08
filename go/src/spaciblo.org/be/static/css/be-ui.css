@@ -85,6 +85,11 @@ button:hover {
 	width: 100%;
 	max-width: 20em;
 }
+.login-component .error {
+	font-size: 14px;
+	margin-bottom: 12px;
+	color: red;
+}
 
 .row {
 	display: flex;
