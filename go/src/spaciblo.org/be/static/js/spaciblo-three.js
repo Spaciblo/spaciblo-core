@@ -97,6 +97,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		this.scene.add(this.spaceMenu)
 
+		this.el.addEventListener('touchstart', this._onTouchStart.bind(this), false)
 		this.el.addEventListener('mousemove', this._onDocumentMouseMove.bind(this), false)
 		this.el.addEventListener('click', this._onClick.bind(this), false)
 		this.inputManager.addListener((...params) => { this._handleInputEventStarted(...params) }, spaciblo.events.InputActionStarted)
@@ -142,8 +143,20 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	_onClick(ev){
 		ev.preventDefault()
-		if(this.intersectedObj == null) return
-		if(typeof this.intersectedObj.space !== 'undefined'){
+		if(this.intersectedObj !== null && typeof this.intersectedObj.space !== 'undefined'){
+			this.trigger(spaciblo.events.SpaceSelected, this.intersectedObj.space)
+		}
+	}
+	_onTouchStart(ev){
+		ev.preventDefault()
+		if(this.spaceMenu === null || this.spaceMenu.visible === false){
+			return
+		}
+		let [offsetX, offsetY] = k.documentOffset(this.renderer.domElement)
+		this.mouse.x = ((ev.targetTouches[0].clientX - offsetX) / this.el.offsetWidth) * 2 - 1
+		this.mouse.y = - ((ev.targetTouches[0].clientY - offsetY) / this.el.offsetHeight) * 2 + 1
+		this._updateIntersects()
+		if(this.intersectedObj !== null && typeof this.intersectedObj.space !== 'undefined'){
 			this.trigger(spaciblo.events.SpaceSelected, this.intersectedObj.space)
 		}
 	}
@@ -449,6 +462,30 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			mesh.rotation.x -= 0.5 * delta
 		}
 	}
+	_updateIntersects(){
+		this.raycaster.setFromCamera(this.mouse, this.camera)
+		let intersects = this.raycaster.intersectObjects(this.scene.children, true)
+		if(intersects.length > 0){
+			if(typeof intersects[0].object.space === 'undefined'){
+				if(this.intersectedObj){
+					this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
+					this.intersectedObj = null
+				}
+			} else if(this.intersectedObj !== intersects[0].object && intersects[0].object.material.emissive){
+				if(this.intersectedObj !== null){
+					this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
+				}
+				this.intersectedObj = intersects[0].object
+				this.intersectedObj.currentHex = this.intersectedObj.material.emissive.getHex()
+				this.intersectedObj.material.emissive.setHex(0xff0000)
+			}
+		} else {
+			if(this.intersectedObj !== null){
+				this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
+				this.intersectedObj = null
+			}
+		}
+	}
 	_getTeleportLocation(){
 		/* 
 		If the user is pointing, return the world coordinate Vector3 location they're pointing to
@@ -582,28 +619,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		if(this.spaceMenu && this.spaceMenu.visible){
 			this._animateSpaceMenu(delta)
-			this.raycaster.setFromCamera(this.mouse, this.camera)
-			let intersects = this.raycaster.intersectObjects(this.scene.children, true)
-			if(intersects.length > 0){
-				if(typeof intersects[0].object.space === 'undefined'){
-					if(this.intersectedObj){
-						this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
-						this.intersectedObj = null
-					}
-				} else if(this.intersectedObj !== intersects[0].object && intersects[0].object.material.emissive){
-					if(this.intersectedObj !== null){
-						this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
-					}
-					this.intersectedObj = intersects[0].object
-					this.intersectedObj.currentHex = this.intersectedObj.material.emissive.getHex()
-					this.intersectedObj.material.emissive.setHex(0xff0000)
-				}
-			} else {
-				if(this.intersectedObj !== null){
-					this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
-					this.intersectedObj = null
-				}
-			}
+			this._updateIntersects()
 		}
 
 		if(this.vrDisplay){
