@@ -225,18 +225,18 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			if(this.objectMap.has(addition.id)){
 				continue
 			}
-			if(addition.id === 0){
+			if(addition.parent === -1){
 				var parent = null
 			} else {
 				var parent = this.objectMap.get(addition.parent)
 				if(typeof parent === 'undefined') {
-					console.error('Tried to add to an unknown parent', addition)
+					console.error('Tried to add to an unknown parent', this.objectMap, addition)
 					continue
 				}
 			}
 			let group = this._createGroupFromAddition(addition)
 			group.lastUpdate = this.clock.elapsedTime + spaciblo.three.UPDATE_DELTA
-			if(addition.id == 0){
+			if(addition.parent === -1){
 				// This is the root
 				this.rootGroup = group
 				this.rootGroup.name = 'Root'

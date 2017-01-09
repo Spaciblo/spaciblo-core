@@ -207,7 +207,9 @@ func (spaceSim *SpaceSimulator) additionsForSceneNode(sceneNode *SceneNode, pare
 	addition := &SceneAddition{
 		Node: sceneNode,
 	}
-	if parentNode != nil {
+	if parentNode == nil {
+		addition.ParentId = -1
+	} else {
 		addition.ParentId = parentNode.Id
 	}
 	results = append(results, addition)
