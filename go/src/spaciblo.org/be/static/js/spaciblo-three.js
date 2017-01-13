@@ -25,10 +25,14 @@ spaciblo.three.DEFAULT_LIGHT_INTENSITY = 0.7
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
 
 spaciblo.three.DEFAULT_HEAD_POSITION = [0, 0.6, 0]
+spaciblo.three.DEFAULT_TORSO_POSITION = [0, 0, 0]
+spaciblo.three.DEFAULT_FOOT_POSITION = [0, -1.4, 0]
+spaciblo.three.DEFAULT_AVATAR_HEIGHT = spaciblo.three.DEFAULT_HEAD_POSITION[1] - spaciblo.three.DEFAULT_FOOT_POSITION[1]
 spaciblo.three.MINIMUM_HEAD_POSITION_DISTANCE = 0.12 // If vrframe.pose.position is less that this from origin, use DEFAULT_HEAD_POSITION (hides odd Daydream pose positions)
 spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, -0.5, -0.5]
 spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, -0.5, -0.5]
 spaciblo.three.HEAD_NODE_NAME = 'head'
+spaciblo.three.TORSO_NODE_NAME = 'torso'
 spaciblo.three.LEFT_HAND_NODE_NAME = 'left_hand'
 spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
 
@@ -45,9 +49,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.scene.background = background
 		this.pivotPoint = new THREE.Object3D() // Will hold the rootGroup and let us move the scene around the camera instead of moving the camera around in the scene, which doesn't work in VR
 		this.pivotPoint.name = "PivotPoint"
-		this.pivotPoint.position.set(spaciblo.three.DEFAULT_HEAD_POSITION[0] * -1, spaciblo.three.DEFAULT_HEAD_POSITION[1] * -1, spaciblo.three.DEFAULT_HEAD_POSITION[2] * -1)
+		this.pivotPoint.position.set(
+			spaciblo.three.DEFAULT_HEAD_POSITION[0] * -1,
+			spaciblo.three.DEFAULT_HEAD_POSITION[1] * -1,
+			spaciblo.three.DEFAULT_HEAD_POSITION[2] * -1
+		)
 		this.scene.add(this.pivotPoint)
-		this.camera = new THREE.PerspectiveCamera(75, 1, 0.5, 10000)
+		this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 10000)
 
 		this.shouldTeleport = false // Set to true when the input manager triggers an InputEventStarted for the 'teleport' action
 
@@ -82,7 +90,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		})
 		this.renderer.domElement.setAttribute('class', 'three-js-spaces-renderer spaces-renderer')
 		this.renderer.setClearColor(0xffffff)
-		this.renderer.shadowMap.enabled = true
+		//this.renderer.shadowMap.enabled = true
+		//this.renderer.shadowMap.type = THREE.PCFShadowMap
 
 		// A list of spaces to show when no space is loaded
 		this.spaces = []
@@ -336,14 +345,20 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					case 'directional':
 						group.settingsLight = new THREE.DirectionalLight(color, intensity)
 						group.settingsLight.target.position.set(...target)
-						group.settingsLight.castShadow = true
-						group.settingsLight.shadow.camera.zoom = 4
 						group.settingsLight.add(group.settingsLight.target)
+						//group.settingsLight.castShadow = true
+						//group.settingsLight.shadow.mapSize.width = 512
+						//group.settingsLight.shadow.mapSize.height = 512
+						//group.settingsLight.shadow.camera.zoom = 0.3
+						//group.settingsLight.shadow.bias = 0.0001
 						break
 
 					case 'point':
 						group.settingsLight = new THREE.PointLight(color, intensity, distance, decay)
-						group.settingsLight.castShadow = true
+						//group.settingsLight.castShadow = true
+						//group.settingsLight.shadow.mapSize.width = 1024
+						//group.settingsLight.shadow.mapSize.height = 1024
+						//group.settingsLight.shadow.bias = 0.0001
 						break
 
 					case 'spot':
@@ -524,6 +539,28 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		return intersects[0].point // This is a world coordinate Vector3
 	}
+	_findGroundIntersection(){
+		/*
+		Returns a height in worldspace if there is something below the avatar to stand on, otherwise null
+		*/
+		if(this.avatarGroup === null || this.avatarGroup.torso === null){
+			return null
+		}
+		this.scene.updateMatrixWorld(true)
+		this.raycaster.ray.origin.setFromMatrixPosition(this.avatarGroup.torso.matrixWorld)
+		this.avatarGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+		this.raycaster.ray.direction.set(0, -1, 0).applyQuaternion(spaciblo.three.WORKING_QUAT)
+		this.raycaster.ray.direction.normalize()
+		// Turn off the avatarGroup while picking so we don't pick ourselves
+		this.avatarGroup.visible = false
+		let intersects = this.raycaster.intersectObjects([this.pivotPoint], true)
+		this.avatarGroup.visible = true
+		if(intersects.length === 0){
+			return null
+		}
+
+		return intersects[0].point.y - spaciblo.three.DEFAULT_FOOT_POSITION[1]
+	}
 	_animate(){
 		let delta = this.clock.getDelta()
 		if(this.vrDisplay !== null){
@@ -605,7 +642,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				this.translationVector.applyMatrix4(spaciblo.three.WORKING_MATRIX4)
 				this.translationVector.x *= -1
 				this.translationVector.y *= -1
-				// Now add the rotated and scaled motion vector to the camera position
+				// Now add the rotated and scaled motion vector to the scene position
 				this.rootGroup.position.add(this.translationVector)
 			}
 
@@ -630,6 +667,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.vrDisplay.getFrameData(this.vrFrameData)
 			this.renderer.autoClear = false
 			this.scene.matrixAutoUpdate = false
+
+			spaciblo.input.throttledConsoleLog('vrame', this.vrFrameData)
 
 			// The view is assumed to be full-window in VR
 			this.renderer.clear()
@@ -657,14 +696,16 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					this.avatarGroup.head.quaternion.set(...this.vrFrameData.pose.orientation)
 				}
 				if(this.vrFrameData.pose.position !== null){
-					// We check that the position is more than MINIMUM_HEAD_POSITION_DISTANCE from 0,0,0 because Daydream sends tiny position changes for some reason
-					// If it is not far from 0,0,0 we set it to DEFAULT_HEAD_POSITION
-					// TODO Figure out Daydream's pose.position.
-					spaciblo.three.WORKING_VECTOR3.set(...this.vrFrameData.pose.position)
-					if(spaciblo.three.WORKING_VECTOR3.length() > spaciblo.three.MINIMUM_HEAD_POSITION_DISTANCE){
+					if(this.vrDisplay.capabilities.hasPosition){
+						// pose.position is relative to sitting origin
 						this.avatarGroup.head.position.set(...this.vrFrameData.pose.position)
 					} else {
-						this.avatarGroup.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+						// pose.position is probably a neck model and relative a standing position
+						this.avatarGroup.head.position.set(
+							spaciblo.three.DEFAULT_HEAD_POSITION[0] + this.vrFrameData.pose.position[0],
+							spaciblo.three.DEFAULT_HEAD_POSITION[1] + this.vrFrameData.pose.position[1],
+							spaciblo.three.DEFAULT_HEAD_POSITION[2] + this.vrFrameData.pose.position[2]
+						)
 					}
 				}
 
@@ -828,6 +869,7 @@ spaciblo.three.Group = function(){
 	this.isLocalAvatar = false	// True if the group represents the local user's avatar
 	// head, leftHand, and rightHand are three.js Object3Ds (Groups or Meshes) that are avatar body parts 
 	this.head = null
+	this.torso = null
 	this.leftHand = null
 	this.rightHand = null
 	// left and right lines are the rays used to point at things
@@ -853,7 +895,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.add(gltf.scene)
 	},
 	setOBJ: function(obj){
-		this._enableShadows(obj)
+		//this._enableShadows(obj)
 		this.add(obj)
 	},
 	setupParts: function(){
@@ -867,6 +909,8 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			this.head.visible = false
 		}
 		this.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+		this.torso = spaciblo.three.findChildNodeByName(spaciblo.three.TORSO_NODE_NAME, this, true)[0]
+		this.torso.position.set(...spaciblo.three.DEFAULT_TORSO_POSITION)
 		this.leftHand = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, this, true)[0]
 		this.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
 		this.rightHand = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, this, true)[0]
