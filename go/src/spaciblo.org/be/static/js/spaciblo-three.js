@@ -28,7 +28,6 @@ spaciblo.three.DEFAULT_HEAD_POSITION = [0, 0.6, 0]
 spaciblo.three.DEFAULT_TORSO_POSITION = [0, 0, 0]
 spaciblo.three.DEFAULT_FOOT_POSITION = [0, -1.4, 0]
 spaciblo.three.DEFAULT_AVATAR_HEIGHT = spaciblo.three.DEFAULT_HEAD_POSITION[1] - spaciblo.three.DEFAULT_FOOT_POSITION[1]
-spaciblo.three.MINIMUM_HEAD_POSITION_DISTANCE = 0.12 // If vrframe.pose.position is less that this from origin, use DEFAULT_HEAD_POSITION (hides odd Daydream pose positions)
 spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, -0.5, -0.5]
 spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, -0.5, -0.5]
 spaciblo.three.HEAD_NODE_NAME = 'head'
@@ -905,9 +904,6 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			console.error('Could not set up avatar head, aborting parts setup', this)
 			return
 		}
-		if(this.isLocalAvatar){
-			this.head.visible = false
-		}
 		this.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
 		this.torso = spaciblo.three.findChildNodeByName(spaciblo.three.TORSO_NODE_NAME, this, true)[0]
 		this.torso.position.set(...spaciblo.three.DEFAULT_TORSO_POSITION)
@@ -915,6 +911,11 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
 		this.rightHand = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, this, true)[0]
 		this.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
+
+		if(this.isLocalAvatar){
+			this.head.visible = false
+			this.torso.visible = false
+		}
 
 		this.leftLine = this._makeHandLine()
 		this.leftHand.add(this.leftLine)
