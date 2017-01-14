@@ -595,20 +595,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		this.inputManager.updateGamepadActions()
 
-		if(this.shouldTeleport){
-			this.shouldTeleport = false
-			if(this.avatarGroup !== null){
-				let destination = this._getTeleportLocation() // Returns a world coordinate Vector3
-				if(destination !== null){
-					spaciblo.three.WORKING_VECTOR3.copy(destination)
-					this.rootGroup.worldToLocal(spaciblo.three.WORKING_VECTOR3) // Convert to rootGroup local coordinates
-					spaciblo.three.WORKING_VECTOR3.negate() // Negate because we move the rootGroup instead of the camera
-					spaciblo.three.WORKING_VECTOR3.y = this.rootGroup.position.y // TODO handle teleporting on non-flat surfaces
-					this.rootGroup.position.copy(spaciblo.three.WORKING_VECTOR3)
-				}
-			}
-		}
-
 		if(this.avatarGroup !== null){
 			/*
 			Many of the these calculations are reversed because for moving around in the world we move 
@@ -652,6 +638,20 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.avatarGroup.quaternion.copy(spaciblo.three.WORKING_QUAT)
 		}
 
+		if(this.shouldTeleport){
+			this.shouldTeleport = false
+			if(this.avatarGroup !== null){
+				let destination = this._getTeleportLocation() // Returns a world coordinate Vector3
+				if(destination !== null){
+					spaciblo.three.WORKING_VECTOR3.copy(destination)
+					this.rootGroup.worldToLocal(spaciblo.three.WORKING_VECTOR3) // Convert to rootGroup local coordinates
+					spaciblo.three.WORKING_VECTOR3.set(spaciblo.three.WORKING_VECTOR3.x, spaciblo.three.WORKING_VECTOR3.y - spaciblo.three.DEFAULT_FOOT_POSITION[1], spaciblo.three.WORKING_VECTOR3.z)
+					spaciblo.three.WORKING_VECTOR3.negate() // Negate because we move the rootGroup instead of the camera
+					this.rootGroup.position.copy(spaciblo.three.WORKING_VECTOR3)
+				}
+			}
+		}
+
 		// Move things that need moving since their last update from the server
 		if(this.rootGroup){
 			this.rootGroup.interpolate(this.clock.elapsedTime)
@@ -666,8 +666,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.vrDisplay.getFrameData(this.vrFrameData)
 			this.renderer.autoClear = false
 			this.scene.matrixAutoUpdate = false
-
-			spaciblo.input.throttledConsoleLog('vrame', this.vrFrameData)
 
 			// The view is assumed to be full-window in VR
 			this.renderer.clear()
