@@ -334,7 +334,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				let intensity = spaciblo.three.parseSettingFloat('light-intensity', state.settings, spaciblo.three.DEFAULT_LIGHT_INTENSITY)
 				let distance = spaciblo.three.parseSettingFloat('light-distance', state.settings, 0)
 				let decay = spaciblo.three.parseSettingFloat('light-decay', state.settings, 1)
-				let target = spaciblo.three.parseSettingFloatArray('light-target', state.settings, [0, -1, 0])
+				let target = spaciblo.three.parseSettingFloatArray('light-target', state.settings, [0, 0, 0])
 
 				switch(state.settings['light-type']){
 					case 'ambient':
