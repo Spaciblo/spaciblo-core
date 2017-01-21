@@ -139,6 +139,12 @@ func createAvatar(descriptorPath string, dbInfo *be.DBInfo) (*apiDB.AvatarRecord
 		if err != nil {
 			return nil, err
 		}
+		template.Part = partDescriptor.Part
+		template.Parent = partDescriptor.Parent
+		err = apiDB.UpdateTemplateRecord(template, dbInfo)
+		if err != nil {
+			return nil, err
+		}
 		partRecord, err := apiDB.CreateAvatarPartRecord(avatarRecord.Id, template.Id, partDescriptor.Name, partDescriptor.Part, partDescriptor.Parent, "", "", "", dbInfo)
 		if err != nil {
 			return nil, err

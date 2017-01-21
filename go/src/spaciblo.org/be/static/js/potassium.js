@@ -150,6 +150,23 @@ k.DataObject = k.eventMixin(class {
 			})
 		}.bind(this))
 	}
+	delete(){
+		return new Promise(function(resolve, reject){
+			this.trigger("deleting", this)
+			let options = Object.assign({}, this.fetchOptions)
+			options.method = 'delete'
+			fetch(this.url, options).then(response => {
+				if(response.status != 200){
+					throw 'Delete failed with status ' + response.status
+				}
+				this.trigger("deleted", this, null)
+				resolve()
+			}).catch(err => {
+				this.trigger("deleted", this, err)
+				reject(err)
+			})
+		}.bind(this))
+	}
 })
 
 k._NO_CHANGE = Symbol("no change")

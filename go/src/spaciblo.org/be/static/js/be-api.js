@@ -263,7 +263,7 @@ be.schema._generateURL = function(path, attributes){
 		index = tokenIndex + tokens[i].length;
 		var name = tokens[i].substring(1, tokens[i].length - 1).split(':')[0];
 		if(typeof attributes[name] != 'undefined'){
-			result += attributes[name]
+			result += encodeURIComponent(attributes[name])
 		}
 	}
 	if(index < path.length){

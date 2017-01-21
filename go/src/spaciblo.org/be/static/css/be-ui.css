@@ -44,6 +44,11 @@ button:hover {
 	background-color: #DDD;
 }
 
+.small-button {
+	padding: 2px;
+	font-size: 12px;
+}
+
 .form-group {
 	margin-bottom: 20px;
 }
@@ -80,6 +85,9 @@ button:hover {
 	top: 0;
 	right: var(--row-padding);
 }
+.top-nav-component .right-links li {
+	padding-left: 10px;
+}
 
 .login-component {
 	width: 100%;
@@ -91,18 +99,57 @@ button:hover {
 	color: red;
 }
 
+.file-drop-target {
+	border: dashed 2px #EFEFEF;
+	text-align: center;
+	min-height: 80px;
+	max-width: 250px;
+	position: relative;
+}
+.file-drop-target.file-hover {
+	border-color: #00FF00;	
+	background-color: #DDFFDD;
+}
+.file-drop-target .label {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	color: #999;
+	font-size: 1.2em;
+}
+
 .row {
 	display: flex;
 	flex-direction: row;
 	padding-left: var(--row-padding);
 	padding-right: var(--row-padding);
 }
+.col-2 {
+	flex: 1 16.66%;
+	padding-left: var(--col-padding);
+	padding-right: var(--col-padding);
+}
 .col-4 {
 	flex: 1 30%;
 	padding-left: var(--col-padding);
 	padding-right: var(--col-padding);
 }
-
+.col-6 {
+	flex: 1 50%;
+	padding-left: var(--col-padding);
+	padding-right: var(--col-padding);
+}
+.col-8 {
+	flex: 1 66.66%;
+	padding-left: var(--col-padding);
+	padding-right: var(--col-padding);
+}
+.col-10 {
+	flex: 1 83.33%;
+	padding-left: var(--col-padding);
+	padding-right: var(--col-padding);
+}
 .col-12 {
 	flex: 1 100%;
 	padding-left: var(--col-padding);

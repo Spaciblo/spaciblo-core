@@ -41,6 +41,65 @@ func (resource TemplateDataListResource) Properties() []be.Property {
 	return TemplateDataListProperties
 }
 
+func (resource TemplateDataListResource) PostForm(request *be.APIRequest) (int, interface{}, http.Header) {
+	responseHeader := map[string][]string{}
+	if request.User == nil {
+		return 401, be.NotLoggedInError, responseHeader
+	}
+	if request.User.Staff != true {
+		return 401, be.StaffOnlyError, responseHeader
+	}
+
+	uuid, _ := request.PathValues["uuid"]
+	template, err := apiDB.FindTemplateRecord(uuid, request.DBInfo)
+	if err != nil {
+		return 404, be.APIError{
+			Id:      "no_such_template_error",
+			Message: "No such template: " + uuid,
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
+	file, fileHeader, err := request.Raw.FormFile("file")
+	if err != nil {
+		return http.StatusBadRequest, be.APIError{
+			Id:      "bad_request",
+			Message: "A `file` field is required",
+		}, responseHeader
+	}
+	fileKey, err := request.FS.Put(fileHeader.Filename, file)
+	if err != nil {
+		return http.StatusInternalServerError, be.APIError{
+			Id:      "storage_error",
+			Message: "Could not store the file: " + err.Error(),
+		}, responseHeader
+	}
+
+	templateData, err := apiDB.FindTemplateDataRecord(template.Id, fileHeader.Filename, request.DBInfo)
+	if err == nil {
+		// TemplateDataRecord exists, update it
+		request.FS.Delete(templateData.Key, "")
+		templateData.Key = fileKey
+		err = apiDB.UpdateTemplateDataRecord(templateData, request.DBInfo)
+		if err != nil {
+			return http.StatusInternalServerError, be.APIError{
+				Id:      "update_error",
+				Message: "Could not update the record: " + err.Error(),
+			}, responseHeader
+		}
+	} else {
+		// TemplateDataRecord does not exist, create one
+		templateData, err = apiDB.CreateTemplateDataRecord(template.Id, fileHeader.Filename, fileKey, request.DBInfo)
+		if err != nil {
+			return http.StatusInternalServerError, be.APIError{
+				Id:      "creation_error",
+				Message: "Could not create the record: " + err.Error(),
+			}, responseHeader
+		}
+	}
+	return 200, templateData, responseHeader
+}
+
 func (resource TemplateDataListResource) Get(request *be.APIRequest) (int, interface{}, http.Header) {
 	responseHeader := map[string][]string{}
 	offset, limit := be.GetOffsetAndLimit(request.Raw.Form)
@@ -80,7 +139,7 @@ func NewTemplateDataResource() *TemplateDataResource {
 
 func (TemplateDataResource) Name() string { return "template-data" }
 func (TemplateDataResource) Path() string {
-	return "/template/{uuid:[0-9,a-z,-]+}/data/{name:[0-9,a-z,A-Z,-,.,_, ]+}"
+	return "/template/{uuid:[0-9,a-z,-]+}/data/{name:[^/]+}"
 }
 func (TemplateDataResource) Title() string { return "TemplateData" }
 func (TemplateDataResource) Description() string {
@@ -131,12 +190,56 @@ func (resource TemplateDataResource) Get(request *be.APIRequest) (int, interface
 
 	err = request.ServeFile(file, responseHeader)
 	if err != nil {
-		return 500, &be.APIError{
+		return 500, be.APIError{
 			Id:      be.InternalServerError.Id,
 			Message: "Error serving template data: " + err.Error(),
 		}, responseHeader
 	}
 	return be.StatusInternallyHandled, nil, nil
+}
+
+func (resource TemplateDataResource) Delete(request *be.APIRequest) (int, interface{}, http.Header) {
+	if request.User == nil {
+		return 401, be.NotLoggedInError, responseHeader
+	}
+	if request.User.Staff != true {
+		return 401, be.StaffOnlyError, responseHeader
+	}
+
+	responseHeader := map[string][]string{}
+	uuid, _ := request.PathValues["uuid"]
+	name, _ := request.PathValues["name"]
+
+	template, err := apiDB.FindTemplateRecord(uuid, request.DBInfo)
+	if err != nil {
+		return 404, be.APIError{
+			Id:      "no_such_template",
+			Message: "No such template: " + uuid,
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
+	templateData, err := apiDB.FindTemplateDataRecord(template.Id, name, request.DBInfo)
+	if err != nil {
+		return 404, be.APIError{
+			Id:      "no_such_template_data",
+			Message: "No such template data: " + uuid + ", " + name,
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
+	err = apiDB.DeleteTemplateDataRecord(templateData.Id, request.DBInfo)
+	if err != nil {
+		return http.StatusInternalServerError, be.APIError{
+			Id:      "deletion_error",
+			Message: "Could not delete the record: " + err.Error(),
+		}, responseHeader
+	}
+	err = request.FS.Delete(templateData.Key, "")
+	if err != nil {
+		logger.Println("Ignored error deleting template data file: " + templateData.Key + ": " + err.Error())
+	}
+	return 200, "{}", responseHeader
 }
 
 func etagForTemplateData(templateData *apiDB.TemplateDataRecord, version string) []string {

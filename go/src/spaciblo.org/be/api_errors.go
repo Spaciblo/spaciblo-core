@@ -12,6 +12,10 @@ var (
 		Id:      "not_logged_in",
 		Message: "Not logged in",
 	}
+	StaffOnlyError = APIError{
+		Id:      "staff_only",
+		Message: "Forbidden for all but staff",
+	}
 	ForbiddenError = APIError{
 		Id:      "forbidden",
 		Message: "Forbidden for this user",

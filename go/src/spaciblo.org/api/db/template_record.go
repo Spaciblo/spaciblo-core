@@ -44,6 +44,11 @@ func DeleteAllTemplateRecords(dbInfo *be.DBInfo) error {
 	return nil
 }
 
+func UpdateTemplateRecord(templateRecord *TemplateRecord, dbInfo *be.DBInfo) error {
+	_, err := dbInfo.Map.Update(templateRecord)
+	return err
+}
+
 func FindTemplateRecord(uuid string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
 	return FindTemplateRecordByField("u_u_i_d", uuid, dbInfo)
 }

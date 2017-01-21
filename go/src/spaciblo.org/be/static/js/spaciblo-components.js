@@ -15,6 +15,169 @@ spaciblo.events.GamepadAdded = 'spaciblo-gamepad-added'
 spaciblo.events.GamepadRemoved = 'spaciblo-gamepad-removed'
 
 /*
+InventoryPageComponent wraps all of the logic for i/index.html
+*/
+spaciblo.components.InventoryPageComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('inventory-page-component')
+
+		this.topNav = new be.ui.TopNavComponent()
+		this.el.appendChild(this.topNav.el)
+
+		this.row = k.el.div({
+			class: 'row'
+		}).appendTo(this.el)
+		this.leftCol = k.el.div({
+			class: 'col-2'
+		}).appendTo(this.row)
+		this.rightCol = k.el.div({
+			class: 'col-10'
+		}).appendTo(this.row)
+
+		this.templates = new be.api.Templates()
+
+		this.templatesComponent = new be.ui.CollectionComponent(this.templates, {
+			itemComponent: spaciblo.components.TemplateItemComponent,
+			onClick: (dataObject) => { this._handleItemClick(dataObject) }
+		})
+		this.templatesComponent.el.addClass('inventory-templates-component')
+		this.leftCol.appendChild(this.templatesComponent.el)
+
+		this.templateDetailComponent = null
+
+		this.templates.fetch().then(() => {
+			let component = this.templatesComponent.at(0)
+			if(component !== null){
+				this._setSelected(component.dataObject)
+			}
+		})
+	}
+	_handleItemClick(dataObject){
+		this._setSelected(dataObject)
+	}
+	_setSelected(dataObject){
+		if(this.templateDetailComponent !== null){
+			this.rightCol.removeChild(this.templateDetailComponent.el)
+			this.templateDetailComponent.cleanup()
+		}
+		for(let li of this.templatesComponent.el.querySelectorAll('.template-item-component')){
+			if(li.component.dataObject === dataObject){
+				li.addClass('selected')
+			} else {
+				li.removeClass('selected')
+			}
+		}
+
+		this.templateDetailComponent = new spaciblo.components.TemplateDetailComponent(dataObject)
+		this.rightCol.appendChild(this.templateDetailComponent.el)
+	}
+}
+
+/*
+TemplateDetailComponent is used to show and edit the metadata of a Template
+*/
+spaciblo.components.TemplateDetailComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('template-detail-component')
+		if(dataObject === null) throw 'TemplateDetailComponent requires a Template dataObject'
+
+		k.el.h3('Name').appendTo(this.el)
+		this.nameInput = new be.ui.DataTextInputComponent(dataObject, 'name')
+		this.el.appendChild(this.nameInput.el)
+
+		k.el.h3('Source').appendTo(this.el)
+		this.sourceInput = new be.ui.DataTextInputComponent(dataObject, 'source')
+		this.el.appendChild(this.sourceInput.el)
+
+		k.el.h3('Parent').appendTo(this.el)
+		this.parentInput = new be.ui.DataTextInputComponent(dataObject, 'parent')
+		this.el.appendChild(this.parentInput.el)
+
+		k.el.h3('Part').appendTo(this.el)
+		this.partInput = new be.ui.DataTextInputComponent(dataObject, 'part')
+		this.el.appendChild(this.partInput.el)
+
+		this.dropTarget = new be.ui.FileDropTarget()
+		this.dropTarget.addListener((...params) => { this._handleFilesDropped(...params) }, be.events.FilesDropped)
+		this.el.appendChild(this.dropTarget.el)
+
+		this.templateDataList = new be.api.TemplateDataList([], {
+			uuid: this.dataObject.get('uuid')
+		})
+		this.templateDataListComponent = new be.ui.CollectionComponent(this.templateDataList, {
+			itemComponent: spaciblo.components.TemplateDataItemComponent,
+			itemOptions: { templateUUID: this.dataObject.get('uuid') }
+		})
+		this.templateDataListComponent.el.addClass('template-data-list-component')
+		this.el.appendChild(this.templateDataListComponent.el)
+		this.templateDataList.fetch()
+	}
+	cleanup(){
+		super.cleanup()
+		this.nameInput.cleanup()
+		this.sourceInput.cleanup()
+		this.parentInput.cleanup()
+		this.partInput.cleanup()
+		this.dropTarget.cleanup()
+	}
+	_handleFilesDropped(eventName, component, files){
+		let fileCount = files.length
+		for(let file of files){
+			be.api.TemplateData.postFile(this.dataObject.get('uuid'), file).then((...params) => {
+				console.log('Posted', ...params)
+				fileCount -= 1
+				if(fileCount == 0){
+					this.templateDataList.fetch()
+				}
+			}).catch((...params) => {
+				console.log('Error', ...params)
+				fileCount -= 1
+				if(fileCount == 0){
+					this.templateDataList.fetch()
+				}
+			})
+		}
+	}
+}
+
+/*
+TemplateDataItemComponent renders a TemplateData as part of a list
+*/
+spaciblo.components.TemplateDataItemComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('template-data-item-component')
+		this.el.appendChild(k.el.span(dataObject.get('name')))
+		this.deleteLink = k.el.button({ class: 'small-button' }, 'x').appendTo(this.el)
+		this.deleteLink.addEventListener('click', () => { this._handleDeleteClick() })
+	}
+	_handleDeleteClick(){
+		this.dataObject.set('uuid', this.options.templateUUID)
+		this.dataObject.delete()
+	}
+	cleanup(){
+		super.cleanup()
+		this.deleteLink.removeEventListener('click', null)
+	}
+}
+
+/*
+TemplateItemComponent is used as a list item in a list of Templates 
+*/
+spaciblo.components.TemplateItemComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, Object.assign({ el: k.el.li() }, options))
+		this.el.addClass('template-item-component')
+		if(dataObject === null){
+			throw 'TemplateItemComponent requires a Template dataObject'
+		}
+		this.el.appendChild(k.el.div(dataObject.get('name')))
+	}
+}
+
+/*
 AccountPageComponent wraps all of the logic for a/index.html
 */
 spaciblo.components.AccountPageComponent = class extends k.Component {
@@ -42,7 +205,13 @@ spaciblo.components.AccountPageComponent = class extends k.Component {
 
 		this.loginComponent = new be.ui.LoginComponent()
 		this.loginComponent.addListener(() => {
-			document.location.href = '/'
+			let url = new URL(document.location.toString())
+			let next = url.searchParams.get('next')
+			if(next){
+				document.location.href = next
+			} else {
+				document.location.href = '/'
+			}
 		}, be.events.LoginSuccessful)
 		this.loginComponent.el.style.display = 'none'
 		this.col.appendChild(this.loginComponent.el)

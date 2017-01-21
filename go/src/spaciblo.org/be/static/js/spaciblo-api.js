@@ -99,5 +99,33 @@ spaciblo.api.handleSchemaPopulated = function(){
 		}
 		return source.split('.')[source.split('.').length - 1].toLowerCase()
 	}
+
+	be.api.TemplateData.postFile = function(templateUUID, file){
+		return new Promise((resolve, reject) => {
+			const url = `/api/${be.API_VERSION}/template/${templateUUID}/data/`
+			const data = new FormData()
+			data.append('file', file)
+			const headers = new Headers()
+			headers.set('Accept', be.schema.acceptFormat + be.API_VERSION)
+			const fetchOptions = {
+				method: 'post',
+				body: data,
+				headers: headers,
+				credentials: 'same-origin' // So that cookies are sent and handled when received
+			}
+			fetch(url, fetchOptions).then(response => {
+				if(response.status === 200){
+					return response.json()
+				} else {
+					console.error('Failed to post TemplateData', response)
+					throw 'Failed with status: ' + response.status
+				}
+			}).then(data => {
+				resolve(new be.api.TemplateData(data))
+			}).catch(err => {
+				reject(err)
+			})
+		})
+	}
 }
 document.addEventListener('schema-populated', spaciblo.api.handleSchemaPopulated)

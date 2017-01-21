@@ -5,6 +5,9 @@ be.ui = be.ui || {}
 be.events = be.events || {}
 
 be.events.LoginSuccessful = 'be-login-successful'
+be.events.Resetting = 'be-resetting'
+be.events.Reset = 'be-reset'
+be.events.FilesDropped = 'be-files-dropped'
 
 /*
 Generate a form for use in a bootstrap style form.
@@ -41,6 +44,158 @@ be.ui.generateInputFormGroup = function(inputType, name, id, label, placeholder)
 	return formGroup
 }
 
+be.ui.FileDropTarget = class extends k.Component {
+	constructor(options={ label: 'Drop files here' }){
+		super(null, options)
+		this.el.addClass('file-drop-target')
+		this.label = k.el.div({
+			class: 'label'
+		}, options.label || '').appendTo(this.el)
+
+		this.el.addEventListener('dragover', ev => { this._handleDragOver(ev) }, false)
+		this.el.addEventListener('dragexit', ev => { this._handleDragExit(ev) }, false)
+		this.el.addEventListener('drop', ev => { this._handleDrop(ev) }, false)
+	}
+	_handleNewFiles(files){
+		console.log('Files', files)
+		this.trigger(be.events.FilesDropped, this, files)
+	}
+	_handleDragOver(ev){
+		ev.stopPropagation()
+		ev.preventDefault()
+		ev.dataTransfer.dropEffect = 'copy';
+		this.el.addClass('file-hover')
+	}
+	_handleDragExit(ev){
+		ev.stopPropagation();
+		ev.preventDefault();
+		this.el.removeClass('file-hover')
+	}
+	_handleDrop(ev){
+		ev.stopPropagation();
+		ev.preventDefault();
+		this.el.removeClass('file-hover')
+		if(ev.dataTransfer.files.length == 0) return
+		this._handleNewFiles(ev.dataTransfer.files)
+	}
+}
+
+/*
+DataTextInputComponent exposes a DataModel's field for editing via text input
+*/
+be.ui.DataTextInputComponent = class extends k.Component {
+	constructor(dataObject, fieldName, options={}){
+		super(dataObject, Object.assign({ el: k.el.input() }, options))
+		this.el.addClass('data-text-input')
+		this.el.addClass('form-control')
+		this._fieldName = fieldName
+		this._boundHandleChange = this._handleChange.bind(this)
+		this.dataObject.addListener(this._boundHandleChange, `change:${this._fieldName}`)
+		this.el.value = this.dataObject.get(fieldName)
+	}
+	get value(){
+		return this.el.value
+	}
+	_handleChange(ev){
+		if(this.dataObject.get(this._fieldName) === this.value) return
+		this.el.innerText = this.dataObject.get(this._fieldName)
+	}
+	cleanup(){
+		super.cleanup()
+		this.dataObject.removeListener(this._boundHandleChange)
+	}
+}
+
+/*
+CollectionComponent provides a generic list UI for DataCollections.
+Options:
+	itemComponent (be.ui.DefaultItemComponent): a k.Component class used to render each item in this list
+	itemOptions ({}): a set of options to pass to each item Component
+	onClick (null): a function to call with the dataObject whose item Component is clicked
+*/
+be.ui.CollectionComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('be-collection-component')
+		if(dataObject instanceof k.DataCollection === false) throw 'CollectionComponent requires a DataCollection dataObject'
+		this._inGroupChange = false // True while resetting or other group change
+ 		this._dataObjectComponents = new Map() // dataObject.id -> k.Component
+
+		this._ul = k.el.ul().appendTo(this.el)
+
+		this.dataObject.addListener(() => { this._reset() }, 'reset')
+		if(this.dataObject.isNew === false){
+			this._reset()
+		}
+	}
+	at(index){
+		// Returns the Component at index, or null if index is out of bounds
+		if(index < 0) return null
+		if(index >= this._ul.children.length) return null
+		return this._ul.children.item(index).component
+	}
+	_reset(){
+		this._inGroupChange = true
+		this.trigger(be.events.Resetting, this)
+		for(let [_, itemComponent] of this._dataObjectComponents){
+			this._remove(itemComponent)
+		}
+		this._dataObjectComponents.clear()
+		for(let dataObject of this.dataObject){
+			this._add(this._createItemComponent(dataObject))
+		}
+		this._inGroupChange = false
+		this.trigger(be.events.Reset, this)
+	}
+	_handleItemClick(ev, itemComponent){
+		if(this.options.onClick){
+			ev.preventDefault()
+			this.options.onClick(itemComponent.dataObject)
+		}
+	}
+	_add(itemComponent){
+		this._dataObjectComponents.set(itemComponent.dataObject.get('id'), itemComponent)
+		this._ul.appendChild(itemComponent.el)
+		if(this.options.onClick){
+			itemComponent.el.addEventListener('click', (ev) => { this._handleItemClick(ev, itemComponent) })
+		}
+		itemComponent.dataObject.addListener(this._handleDeleted.bind(this), 'deleted', true)
+	}
+	_remove(itemComponent){
+		this._dataObjectComponents.delete(itemComponent.dataObject.get('id'))
+		this._ul.removeChild(itemComponent.el)
+		itemComponent.el.removeEventListener('click', null)
+		itemComponent.cleanup()
+	}
+	_handleDeleted(eventName, dataObject, error){
+		if(error) return
+		let component = this._dataObjectComponents.get(dataObject.get('id'))
+		if(component){
+			this._remove(component)
+		}
+	}
+	_createItemComponent(itemDataObject){
+		if(this.options.itemOptions){
+			var options = Object.assign({}, this.options.itemOptions)
+		} else {
+			var options = {}
+		}
+		if(this.options.itemComponent){
+			return new this.options.itemComponent(itemDataObject, options)
+		} else {
+			return new be.ui.DefaultItemComponent(itemDataObject, options)
+		}
+	}
+}
+
+be.ui.DefaultItemComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, Object.assign({ el: k.el.li() }, options))
+		if(dataObject === null) throw 'DefaultItemComponent requires a dataObject'
+		this.el.appendChild(k.el.span('Item: ' + dataObject))
+	}
+}
+
 /*
 TopNavComponent renders the top navigation links as well as login/out links.
 */
@@ -58,6 +213,23 @@ be.ui.TopNavComponent = class extends k.Component {
 			{ class: 'right-links'},
 			k.el.li(k.el.a({ href: '/a/' }, 'account'))
 		).appendTo(this.nav)
+
+		if(be.currentUser.isNew){
+			be.currentUser.addListener((...params) => {
+				if(be.currentUser.get('staff') === true){
+					this._addStaffLinks()
+				}
+			}, 'reset', true)
+		} else if (be.currentUser.get('staff') === true) {
+			this._addStaffLinks()
+		}
+
+	}
+	_addStaffLinks(){
+		this.addLink('/i/', 'inventory', 'inventory-nav')
+	}
+	addLink(href, anchorText, className) {
+		this.rightLinks.append(k.el.li(k.el.a({ 'href': href, 'class': className }, anchorText )))
 	}
 }
 

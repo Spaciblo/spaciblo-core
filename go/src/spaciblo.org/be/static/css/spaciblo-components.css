@@ -21,6 +21,7 @@
 	bottom: 10px;
 	left: 50%;
 }
+
 .touch-motion-component {
 	width: 100px;
 	height: 100px;
@@ -30,4 +31,50 @@
 	opacity: 0.5;
 	width: 100px;
 	height: 100px;
+}
+
+.inventory-templates-component {
+	z-index: 0;
+}
+.inventory-templates-component li:hover, .inventory-templates-component li.selected {
+	border: solid 1px #EFEFEF;
+	margin-right: 15px;
+}
+.inventory-templates-component li {
+	background-color: white;
+	border: solid 1px white;
+	cursor: pointer;
+	display: block;
+	padding: 5px 15px;
+	margin-bottom: 15px;
+	z-index: 2;
+}
+
+.template-detail-component {
+	background-color: white;
+	min-height: 20em;
+	padding: 15px;
+	border: solid 1px #EFEFEF;
+	z-index: 1;
+}
+.template-detail-component input {
+	margin-bottom: 20px;
+	width: 250px;
+}
+
+.template-data-list-component {
+	margin-top: 20px;
+}
+
+.template-data-item-component {
+	margin-bottom: 10px;
+}
+.template-data-item-component span {
+	padding-right: 10px;
+}
+.template-data-item-component button {
+	visibility: hidden;
+}
+.template-data-item-component:hover button {
+	visibility: visible;
 }
