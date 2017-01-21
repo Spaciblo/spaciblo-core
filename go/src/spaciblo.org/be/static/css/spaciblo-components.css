@@ -37,16 +37,23 @@
 	text-align: center;
 	margin-bottom: 20px;
 }
+.inventory-page-component .button-group button {
+	font-size: 16px;
+}
+
+.editor-component {
+	margin-bottom: 20px;
+}
 
 .templates-editor-component .add-template {
 	text-align: center;
 	padding: 15px;
 }
 
-.inventory-templates-component {
+.editor-templates-list-component {
 	z-index: 0;
 }
-.inventory-templates-component li {
+.editor-templates-list-component li {
 	position: relative;
 	margin-right: 15px;
 	background-color: white;
@@ -54,10 +61,12 @@
 	cursor: pointer;
 	display: block;
 	padding: 8px 40px 8px 15px;
-	margin-bottom: 15px;
+	margin-bottom: 5px;
 	z-index: 2;
+	font-size: 16px;
+	font-weight: 300;
 }
-.inventory-templates-component li:hover, .inventory-templates-component li.selected {
+.editor-templates-list-component li:hover, .editor-templates-list-component li.selected {
 	border: solid 1px #EFEFEF;
 }
 
@@ -69,9 +78,14 @@
 	border: solid 1px #EFEFEF;
 	z-index: 1;
 }
+.template-detail-component h3 {
+	font-weight: 300;
+	font-size: 16px;
+}
 .template-detail-component input {
 	margin-bottom: 20px;
 	width: 250px;
+	padding: 5px 3px;
 }
 .template-detail-component .delete-button {
 	position: absolute;
@@ -85,7 +99,8 @@
 }
 
 .template-data-item-component {
-	margin-bottom: 10px;
+	font-size: 12px;
+	margin-bottom: 6px;
 }
 .template-data-item-component span {
 	padding-right: 10px;

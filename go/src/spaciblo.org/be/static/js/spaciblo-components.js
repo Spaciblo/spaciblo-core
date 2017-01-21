@@ -168,7 +168,7 @@ spaciblo.components.TemplatesEditorComponent = class extends k.Component {
 			itemComponent: spaciblo.components.TemplateItemComponent,
 			onClick: (dataObject) => { this._handleItemClick(dataObject) }
 		})
-		this.templatesComponent.el.addClass('inventory-templates-component')
+		this.templatesComponent.el.addClass('editor-templates-list-component')
 		this.leftCol.appendChild(this.templatesComponent.el)
 
 		this.templateDetailComponent = null
@@ -322,7 +322,8 @@ spaciblo.components.TemplateItemComponent = class extends k.Component {
 		if(dataObject === null){
 			throw 'TemplateItemComponent requires a Template dataObject'
 		}
-		this.el.appendChild(k.el.div(dataObject.get('name')))
+		this.nameEl = k.el.div().appendTo(this.el)
+		this.bindText('name', this.nameEl)
 	}
 }
 
