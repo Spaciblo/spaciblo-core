@@ -61,6 +61,31 @@ func (resource TemplatesResource) Get(request *be.APIRequest) (int, interface{},
 	return 200, list, responseHeader
 }
 
+func (resource TemplatesResource) Post(request *be.APIRequest) (int, interface{}, http.Header) {
+	responseHeader := map[string][]string{}
+	if request.User == nil {
+		return 401, be.NotLoggedInError, responseHeader
+	}
+	if request.User.Staff == false {
+		return 401, be.StaffOnlyError, responseHeader
+	}
+
+	var data apiDB.TemplateRecord
+	err := json.NewDecoder(request.Raw.Body).Decode(&data)
+	if err != nil {
+		return 400, be.BadRequestError, responseHeader
+	}
+	record, err := apiDB.CreateTemplateRecord(data.Name, data.Source, data.Part, data.Parent, request.DBInfo)
+	if err != nil {
+		return 500, be.APIError{
+			Id:      "db_error",
+			Message: "Database error",
+			Error:   err.Error(),
+		}, responseHeader
+	}
+	return 200, record, responseHeader
+}
+
 type TemplateResource struct {
 }
 
@@ -133,4 +158,35 @@ func (resource TemplateResource) Put(request *be.APIRequest) (int, interface{}, 
 	}
 
 	return 200, template, responseHeader
+}
+
+func (resource TemplateResource) Delete(request *be.APIRequest) (int, interface{}, http.Header) {
+	responseHeader := map[string][]string{}
+	if request.User == nil {
+		return 401, be.NotLoggedInError, responseHeader
+	}
+	if request.User.Staff != true {
+		return 401, be.StaffOnlyError, responseHeader
+	}
+
+	uuid, _ := request.PathValues["uuid"]
+
+	template, err := apiDB.FindTemplateRecord(uuid, request.DBInfo)
+	if err != nil {
+		return 404, be.APIError{
+			Id:      "no_such_template",
+			Message: "No such template: " + uuid,
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
+	err = apiDB.DeleteTemplateRecord(template, request.FS, request.DBInfo)
+	if err != nil {
+		return 500, be.APIError{
+			Id:      "error_deleting",
+			Message: "Error deleting",
+			Error:   err.Error(),
+		}, responseHeader
+	}
+	return 200, "{}", responseHeader
 }

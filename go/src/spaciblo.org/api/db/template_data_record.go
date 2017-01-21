@@ -82,10 +82,15 @@ func FindTemplateDataRecordByTemplateId(id int64, name string, dbInfo *be.DBInfo
 	return record, nil
 }
 
-func FindTemplateDataRecords(template int64, offset int, limit int, dbInfo *be.DBInfo) ([]TemplateDataRecord, error) {
-	var records []TemplateDataRecord
-	_, err := dbInfo.Map.Select(&records, "select * from "+TemplateDataTable+" where template=$1 order by id desc limit $2 offset $3", template, limit, offset)
-	return records, err
+func FindTemplateDataRecords(template int64, offset int, limit int, dbInfo *be.DBInfo) ([]*TemplateDataRecord, error) {
+	var records []*TemplateDataRecord
+	if limit > -1 {
+		_, err := dbInfo.Map.Select(&records, "select * from "+TemplateDataTable+" where template=$1 order by id desc limit $2 offset $3", template, limit, offset)
+		return records, err
+	} else {
+		_, err := dbInfo.Map.Select(&records, "select * from "+TemplateDataTable+" where template=$1 order by id desc offset $2", template, offset)
+		return records, err
+	}
 }
 
 func FindAllTemplateDataRecords(dbInfo *be.DBInfo) ([]*TemplateDataRecord, error) {

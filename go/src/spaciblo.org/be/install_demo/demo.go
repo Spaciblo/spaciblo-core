@@ -51,12 +51,7 @@ func main() {
 		logger.Fatal("Could not delete users: ", err)
 		return
 	}
-	err = apiDB.DeleteAllTemplateDataRecords(dbInfo)
-	if err != nil {
-		logger.Fatal("Could not delete template datarecords: ", err)
-		return
-	}
-	err = apiDB.DeleteAllTemplateRecords(dbInfo)
+	err = apiDB.DeleteAllTemplateRecords(fs, dbInfo)
 	if err != nil {
 		logger.Fatal("Could not delete template records: ", err)
 		return

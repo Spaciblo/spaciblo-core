@@ -30,13 +30,35 @@ func CreateTemplateRecord(name string, source string, part string, parent string
 	return record, nil
 }
 
-func DeleteAllTemplateRecords(dbInfo *be.DBInfo) error {
+/*
+DeleteTemplateRecord deletes the TemplateRecord and
+*/
+func DeleteTemplateRecord(templateRecord *TemplateRecord, fileStorage be.FileStorage, dbInfo *be.DBInfo) error {
+	dataRecords, err := FindTemplateDataRecords(templateRecord.Id, 0, -1, dbInfo)
+	if err != nil {
+		return err
+	}
+	for _, dataRecord := range dataRecords {
+		_, err = dbInfo.Map.Delete(dataRecord)
+		if err != nil {
+			return err
+		}
+		fileStorage.Delete(dataRecord.Key, "")
+	}
+	_, err = dbInfo.Map.Delete(templateRecord)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteAllTemplateRecords(fileStorage be.FileStorage, dbInfo *be.DBInfo) error {
 	records, err := FindAllTemplateRecords(dbInfo)
 	if err != nil {
 		return err
 	}
 	for _, record := range records {
-		_, err = dbInfo.Map.Delete(record)
+		err = DeleteTemplateRecord(record, fileStorage, dbInfo)
 		if err != nil {
 			return err
 		}

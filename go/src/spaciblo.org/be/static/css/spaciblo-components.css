@@ -33,24 +33,36 @@
 	height: 100px;
 }
 
+.inventory-page-component .top-row {
+	text-align: center;
+	margin-bottom: 20px;
+}
+
+.templates-editor-component .add-template {
+	text-align: center;
+	padding: 15px;
+}
+
 .inventory-templates-component {
 	z-index: 0;
 }
-.inventory-templates-component li:hover, .inventory-templates-component li.selected {
-	border: solid 1px #EFEFEF;
-	margin-right: 15px;
-}
 .inventory-templates-component li {
+	position: relative;
+	margin-right: 15px;
 	background-color: white;
 	border: solid 1px white;
 	cursor: pointer;
 	display: block;
-	padding: 5px 15px;
+	padding: 8px 40px 8px 15px;
 	margin-bottom: 15px;
 	z-index: 2;
 }
+.inventory-templates-component li:hover, .inventory-templates-component li.selected {
+	border: solid 1px #EFEFEF;
+}
 
 .template-detail-component {
+	position: relative;
 	background-color: white;
 	min-height: 20em;
 	padding: 15px;
@@ -60,6 +72,12 @@
 .template-detail-component input {
 	margin-bottom: 20px;
 	width: 250px;
+}
+.template-detail-component .delete-button {
+	position: absolute;
+	top: 15px;
+	right: 15px;
+	color: red;
 }
 
 .template-data-list-component {
@@ -74,6 +92,7 @@
 }
 .template-data-item-component button {
 	visibility: hidden;
+	color: red;
 }
 .template-data-item-component:hover button {
 	visibility: visible;

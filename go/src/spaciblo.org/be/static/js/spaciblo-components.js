@@ -21,9 +21,108 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('inventory-page-component')
-
 		this.topNav = new be.ui.TopNavComponent()
 		this.el.appendChild(this.topNav.el)
+
+		this.topRow = k.el.div({ class: 'top-row' }).appendTo(this.el)
+		this.buttonGroup = k.el.div({ class: 'button-group' }).appendTo(this.topRow)
+		this.templatesButton = k.el.button('Templates').appendTo(this.buttonGroup)
+		this.listenTo('click', this.templatesButton, this._showTemplates, this)
+		this.spacesButton = k.el.button('Spaces').appendTo(this.buttonGroup)
+		this.listenTo('click', this.spacesButton, this._showSpaces, this)
+		this.avatarsButton = k.el.button('Avatars').appendTo(this.buttonGroup)
+		this.listenTo('click', this.avatarsButton, this._showAvatars, this)
+
+		this.templatesEditorComponent = new spaciblo.components.TemplatesEditorComponent()
+		this.el.appendChild(this.templatesEditorComponent.el)
+
+		this.spacesEditorComponent = new spaciblo.components.SpacesEditorComponent()
+		this.el.appendChild(this.spacesEditorComponent.el)
+
+		this.avatarsEditorComponent = new spaciblo.components.AvatarsEditorComponent()
+		this.el.appendChild(this.avatarsEditorComponent.el)
+
+		this._showTemplates()
+	}
+	_clearDisplay(){
+		for(let button of this.buttonGroup.querySelectorAll('button')){
+			button.removeClass('selected')
+		}
+		for(let editor of this.el.querySelectorAll('.editor-component')){
+			editor.style.display = 'none'
+		}
+	}
+	_showTemplates(){
+		this._clearDisplay()
+		this.templatesEditorComponent.el.style.display = 'block'
+		this.templatesButton.addClass('selected')
+	}
+	_showSpaces(){
+		this._clearDisplay()
+		this.spacesEditorComponent.el.style.display = 'block'
+		this.spacesButton.addClass('selected')
+	}
+	_showAvatars(){
+		this._clearDisplay()
+		this.avatarsEditorComponent.el.style.display = 'block'
+		this.avatarsButton.addClass('selected')
+	}
+}
+
+/*
+SpacesEditorComponent shows a list of spaces and editable details for a space when it is selected
+*/
+spaciblo.components.SpacesEditorComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('spaces-editor-component')
+		this.el.addClass('editor-component')
+
+		this.row = k.el.div({
+			class: 'row'
+		}).appendTo(this.el)
+		this.leftCol = k.el.div({
+			class: 'col-2'
+		}).appendTo(this.row)
+		this.rightCol = k.el.div({
+			class: 'col-10'
+		}).appendTo(this.row)
+
+		k.el.div('Spaces editor will go here').appendTo(this.rightCol)
+	}
+}
+
+/*
+AvatarsEditorComponent shows a list of avatars and editable details for an avatar when it is selected
+*/
+spaciblo.components.AvatarsEditorComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('avatars-editor-component')
+		this.el.addClass('editor-component')
+
+		this.row = k.el.div({
+			class: 'row'
+		}).appendTo(this.el)
+		this.leftCol = k.el.div({
+			class: 'col-2'
+		}).appendTo(this.row)
+		this.rightCol = k.el.div({
+			class: 'col-10'
+		}).appendTo(this.row)
+
+		k.el.div('Avatars editor will go here').appendTo(this.rightCol)
+	}
+}
+
+/*
+TemplatesEditorComponent shows a list of templates and editable details for a template when it is selected
+*/
+spaciblo.components.TemplatesEditorComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('templates-editor-component')
+		this.el.addClass('editor-component')
 
 		this.row = k.el.div({
 			class: 'row'
@@ -36,6 +135,12 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		}).appendTo(this.row)
 
 		this.templates = new be.api.Templates()
+
+		this.addTemplateEl = k.el.div(
+			{ class: 'add-template' },
+			k.el.button({ class: 'small-button' }, 'Add')
+		).appendTo(this.leftCol)
+		this.listenTo('click', this.addTemplateEl.querySelector('button'), this._handleAddClick, this)
 
 		this.templatesComponent = new be.ui.CollectionComponent(this.templates, {
 			itemComponent: spaciblo.components.TemplateItemComponent,
@@ -53,14 +158,29 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 			}
 		})
 	}
+	_handleAddClick(ev){
+		let template = new be.api.Template({
+			name: 'New Template'
+		})
+		template.save().then(() => {
+			console.log('Saved')
+			this.templates.add(template)
+			this._setSelected(template)
+		}).catch((...params) => {
+			console.error('Error creating template', ...params)
+		})
+	}
 	_handleItemClick(dataObject){
 		this._setSelected(dataObject)
 	}
-	_setSelected(dataObject){
+	_removeDetailComponent(){
 		if(this.templateDetailComponent !== null){
 			this.rightCol.removeChild(this.templateDetailComponent.el)
 			this.templateDetailComponent.cleanup()
 		}
+	}
+	_setSelected(dataObject){
+		this._removeDetailComponent()
 		for(let li of this.templatesComponent.el.querySelectorAll('.template-item-component')){
 			if(li.component.dataObject === dataObject){
 				li.addClass('selected')
@@ -70,6 +190,9 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		}
 
 		this.templateDetailComponent = new spaciblo.components.TemplateDetailComponent(dataObject)
+		this.templateDetailComponent.addListener(() => {
+			this._removeDetailComponent()
+		}, 'deleted', true)
 		this.rightCol.appendChild(this.templateDetailComponent.el)
 	}
 }
@@ -113,6 +236,9 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 		this.templateDataListComponent.el.addClass('template-data-list-component')
 		this.el.appendChild(this.templateDataListComponent.el)
 		this.templateDataList.fetch()
+
+		this.deleteLink = k.el.button({ class: 'small-button delete-button' }, 'Delete').appendTo(this.el)
+		this.listenTo('click', this.deleteLink, this._handleDeleteClick, this)
 	}
 	cleanup(){
 		super.cleanup()
@@ -121,6 +247,11 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 		this.parentInput.cleanup()
 		this.partInput.cleanup()
 		this.dropTarget.cleanup()
+	}
+	_handleDeleteClick(){
+		this.dataObject.delete().then(() => {
+			this.trigger('deleted', this)
+		})
 	}
 	_handleFilesDropped(eventName, component, files){
 		let fileCount = files.length
@@ -151,15 +282,11 @@ spaciblo.components.TemplateDataItemComponent = class extends k.Component {
 		this.el.addClass('template-data-item-component')
 		this.el.appendChild(k.el.span(dataObject.get('name')))
 		this.deleteLink = k.el.button({ class: 'small-button' }, 'x').appendTo(this.el)
-		this.deleteLink.addEventListener('click', () => { this._handleDeleteClick() })
+		this.listenTo('click', this.deleteLink, this._handleDeleteClick, this)
 	}
 	_handleDeleteClick(){
 		this.dataObject.set('uuid', this.options.templateUUID)
 		this.dataObject.delete()
-	}
-	cleanup(){
-		super.cleanup()
-		this.deleteLink.removeEventListener('click', null)
 	}
 }
 

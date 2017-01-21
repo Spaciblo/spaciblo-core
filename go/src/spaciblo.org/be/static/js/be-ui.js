@@ -136,9 +136,10 @@ be.ui.CollectionComponent = class extends k.Component {
 
 		this._ul = k.el.ul().appendTo(this.el)
 
-		this.dataObject.addListener(() => { this._reset() }, 'reset')
+		this.dataObject.addListener((...params) => { this._handleCollectionReset(...params) }, 'reset')
+		this.dataObject.addListener((...params) => { this._handleCollectionAdded(...params) }, 'added')
 		if(this.dataObject.isNew === false){
-			this._reset()
+			this._handleCollectionReset()
 		}
 	}
 	at(index){
@@ -147,7 +148,20 @@ be.ui.CollectionComponent = class extends k.Component {
 		if(index >= this._ul.children.length) return null
 		return this._ul.children.item(index).component
 	}
-	_reset(){
+	componentForDataObject(dataObject){
+		return this._dataObjectComponents.get(dataObject.get('id'))
+	}
+	_handleCollectionAdded(eventName, collection, dataObject){
+		this._add(this._createItemComponent(dataObject))
+	}
+	_handleCollectionRemoved(eventName, collection, dataObject){
+		let component = this.componentForDataObject(dataObject)
+		if(component){
+			this._remove(component)
+		}
+	}
+	_handleCollectionReset(eventName, target){
+		if(target !== this.dataObject) return // It was a reset for an item in the collection, not the collection itself
 		this._inGroupChange = true
 		this.trigger(be.events.Resetting, this)
 		for(let [_, itemComponent] of this._dataObjectComponents){

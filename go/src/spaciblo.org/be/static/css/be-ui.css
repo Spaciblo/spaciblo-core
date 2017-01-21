@@ -43,10 +43,23 @@ button {
 button:hover {
 	background-color: #DDD;
 }
+button:active {
+	background-color: #EFEFEF;
+}
 
 .small-button {
 	padding: 2px;
 	font-size: 12px;
+}
+
+.button-group button {
+	border-left: none;
+}
+.button-group button.selected {
+	background-color: #EFEFEF;
+}
+.button-group button:first-child {
+	border-left: solid 1px #DDD;
 }
 
 .form-group {
