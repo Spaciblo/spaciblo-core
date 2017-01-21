@@ -24,14 +24,19 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		this.topNav = new be.ui.TopNavComponent()
 		this.el.appendChild(this.topNav.el)
 
+		this.router = new k.Router()
+		this.router.addRoute(/^$/, 'templates')
+		this.router.addRoute(/^spaces$/, 'spaces')
+		this.router.addRoute(/^avatars$/, 'avatars')
+
 		this.topRow = k.el.div({ class: 'top-row' }).appendTo(this.el)
 		this.buttonGroup = k.el.div({ class: 'button-group' }).appendTo(this.topRow)
 		this.templatesButton = k.el.button('Templates').appendTo(this.buttonGroup)
-		this.listenTo('click', this.templatesButton, this._showTemplates, this)
+		this.listenTo('click', this.templatesButton, () => { document.location.hash = '#' }, this)
 		this.spacesButton = k.el.button('Spaces').appendTo(this.buttonGroup)
-		this.listenTo('click', this.spacesButton, this._showSpaces, this)
+		this.listenTo('click', this.spacesButton, () => { document.location.hash = '#spaces' }, this)
 		this.avatarsButton = k.el.button('Avatars').appendTo(this.buttonGroup)
-		this.listenTo('click', this.avatarsButton, this._showAvatars, this)
+		this.listenTo('click', this.avatarsButton, () => { document.location.hash = '#avatars' }, this)
 
 		this.templatesEditorComponent = new spaciblo.components.TemplatesEditorComponent()
 		this.el.appendChild(this.templatesEditorComponent.el)
@@ -42,7 +47,8 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		this.avatarsEditorComponent = new spaciblo.components.AvatarsEditorComponent()
 		this.el.appendChild(this.avatarsEditorComponent.el)
 
-		this._showTemplates()
+		this.router.addListener(this._handleRoutes.bind(this))
+		this.router.start()
 	}
 	_clearDisplay(){
 		for(let button of this.buttonGroup.querySelectorAll('button')){
@@ -50,6 +56,22 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		}
 		for(let editor of this.el.querySelectorAll('.editor-component')){
 			editor.style.display = 'none'
+		}
+	}
+	_handleRoutes(eventName, path, ...params){
+		switch(eventName){
+			case 'templates':
+				this._showTemplates()
+				break;
+			case 'spaces':
+				this._showSpaces()
+				break
+			case 'avatars':
+				this._showAvatars()
+				break
+			default:
+				console.error('Unknown route', eventName, ...params)
+				this._showTemplates()
 		}
 	}
 	_showTemplates(){
