@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 
 	apiDB "spaciblo.org/api/db"
@@ -89,5 +90,47 @@ func (resource TemplateResource) Get(request *be.APIRequest) (int, interface{}, 
 			Error:   err.Error(),
 		}, responseHeader
 	}
+	return 200, template, responseHeader
+}
+
+func (resource TemplateResource) Put(request *be.APIRequest) (int, interface{}, http.Header) {
+	responseHeader := map[string][]string{}
+	if request.User == nil {
+		return 401, be.NotLoggedInError, responseHeader
+	}
+	if request.User.Staff == false {
+		return 401, be.StaffOnlyError, responseHeader
+	}
+
+	uuid, _ := request.PathValues["uuid"]
+	template, err := apiDB.FindTemplateRecord(uuid, request.DBInfo)
+	if err != nil {
+		return 404, be.APIError{
+			Id:      "no_such_template",
+			Message: "No such template: " + uuid,
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
+	var updatedTemplate apiDB.TemplateRecord
+	err = json.NewDecoder(request.Raw.Body).Decode(&updatedTemplate)
+	if err != nil {
+		return 400, be.BadRequestError, responseHeader
+	}
+
+	// Only some attributes can be updated
+	template.Name = updatedTemplate.Name
+	template.Source = updatedTemplate.Source
+	template.Parent = updatedTemplate.Parent
+	template.Part = updatedTemplate.Part
+	err = apiDB.UpdateTemplateRecord(template, request.DBInfo)
+	if err != nil {
+		return 400, be.APIError{
+			Id:      "error_saving",
+			Message: "Error saving",
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
 	return 200, template, responseHeader
 }

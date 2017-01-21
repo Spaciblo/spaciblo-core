@@ -81,28 +81,41 @@ be.ui.FileDropTarget = class extends k.Component {
 }
 
 /*
-DataTextInputComponent exposes a DataModel's field for editing via text input
+TextInputComponent exposes a DataModel's field for editing via text input
 */
-be.ui.DataTextInputComponent = class extends k.Component {
+be.ui.TextInputComponent = class extends k.Component {
 	constructor(dataObject, fieldName, options={}){
 		super(dataObject, Object.assign({ el: k.el.input() }, options))
+		this._throttledSave = be.ui.throttle(this._save, 1000, false, true)
 		this.el.addClass('data-text-input')
 		this.el.addClass('form-control')
 		this._fieldName = fieldName
-		this._boundHandleChange = this._handleChange.bind(this)
-		this.dataObject.addListener(this._boundHandleChange, `change:${this._fieldName}`)
-		this.el.value = this.dataObject.get(fieldName)
+		this._boundHandleModelChange = this._handleModelChange.bind(this)
+		this.dataObject.addListener(this._boundHandleModelChange, `change:${this._fieldName}`)
+		this.el.value = this.dataObject.get(this._fieldName)
+		this.listenTo('keyup', this.el, this._handleKeyup, this)
 	}
 	get value(){
 		return this.el.value
 	}
-	_handleChange(ev){
-		if(this.dataObject.get(this._fieldName) === this.value) return
-		this.el.innerText = this.dataObject.get(this._fieldName)
+	get _valueEqualsModel(){
+		return this.el.value === this.dataObject.get(this._fieldName)
+	}
+	_handleKeyup(ev){
+		if(this._valueEqualsModel) return
+		this.dataObject.set(this._fieldName, this.el.value)
+		this._throttledSave()
+	}
+	_handleModelChange(ev){
+		if(this._valueEqualsModel) return
+		this.el.value = this.dataObject.get(this._fieldName)
+	}
+	_save(){
+		this.dataObject.save()
 	}
 	cleanup(){
 		super.cleanup()
-		this.dataObject.removeListener(this._boundHandleChange)
+		this.dataObject.removeListener(this._boundHandleModelChange)
 	}
 }
 
@@ -309,4 +322,45 @@ be.ui.LoginComponent = class extends k.Component {
 	handleLoginFailure(...params){
 		console.error('Error', ...params)
 	}
+}
+
+be.ui.throttle = function(func, wait, leading=true, trailing=true) {
+	// Cribbed from https://github.com/jashkenas/underscore
+	var timeout, context, args, result
+	var previous = 0
+
+	var later = function() {
+		previous = leading === false ? 0 : Date.now()
+		timeout = null
+		result = func.apply(context, args)
+		if (!timeout) context = args = null
+	}
+
+	var throttled = function() {
+		var now = Date.now()
+		if (!previous && leading === false) previous = now
+		var remaining = wait - (now - previous)
+		context = this
+		args = arguments
+		if (remaining <= 0 || remaining > wait) {
+		if (timeout) {
+			clearTimeout(timeout)
+			timeout = null
+		}
+		previous = now
+		result = func.apply(context, args)
+		if (!timeout) context = args = null
+		} else if (!timeout && trailing !== false) {
+		timeout = setTimeout(later, remaining)
+		}
+		return result
+	}
+
+	throttled.cancel = function() {
+		clearTimeout(timeout)
+		previous = 0
+		timeout = context = args = null
+	}
+
+	return throttled
 }

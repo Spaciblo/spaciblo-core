@@ -84,19 +84,19 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 		if(dataObject === null) throw 'TemplateDetailComponent requires a Template dataObject'
 
 		k.el.h3('Name').appendTo(this.el)
-		this.nameInput = new be.ui.DataTextInputComponent(dataObject, 'name')
+		this.nameInput = new be.ui.TextInputComponent(dataObject, 'name', { autosave: true })
 		this.el.appendChild(this.nameInput.el)
 
 		k.el.h3('Source').appendTo(this.el)
-		this.sourceInput = new be.ui.DataTextInputComponent(dataObject, 'source')
+		this.sourceInput = new be.ui.TextInputComponent(dataObject, 'source', { autosave: true })
 		this.el.appendChild(this.sourceInput.el)
 
 		k.el.h3('Parent').appendTo(this.el)
-		this.parentInput = new be.ui.DataTextInputComponent(dataObject, 'parent')
+		this.parentInput = new be.ui.TextInputComponent(dataObject, 'parent', { autosave: true })
 		this.el.appendChild(this.parentInput.el)
 
 		k.el.h3('Part').appendTo(this.el)
-		this.partInput = new be.ui.DataTextInputComponent(dataObject, 'part')
+		this.partInput = new be.ui.TextInputComponent(dataObject, 'part', { autosave: true })
 		this.el.appendChild(this.partInput.el)
 
 		this.dropTarget = new be.ui.FileDropTarget()

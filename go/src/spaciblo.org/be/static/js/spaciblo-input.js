@@ -121,7 +121,7 @@ It also keeps a few 3D data structures (rotation, translation) used by the rende
 */
 spaciblo.input.InputManager = k.eventMixin(class {
 	constructor(inputSchema){
-		this.throttledSendAvatarUpdate = spaciblo.input.throttle(this._sendAvatarUpdate, 100)
+		this.throttledSendAvatarUpdate = be.ui.throttle(this._sendAvatarUpdate, 100)
 		this.inputSchema = inputSchema
 		this.currentActions = new Set()
 		this.currentKeyChord = null
@@ -368,49 +368,8 @@ spaciblo.input.KeyMap.set(224, 'meta')
 // A list of modifier keys like shift, alt, control, and meta
 spaciblo.input.MODIFIER_KEYCODES = [16, 17, 18, 224]
 
-spaciblo.input.throttle = function(func, wait, leading=true, trailing=true) {
-	// Cribbed from https://github.com/jashkenas/underscore
-	var timeout, context, args, result
-	var previous = 0
-
-	var later = function() {
-		previous = leading === false ? 0 : Date.now()
-		timeout = null
-		result = func.apply(context, args)
-		if (!timeout) context = args = null
-	}
-
-	var throttled = function() {
-		var now = Date.now()
-		if (!previous && leading === false) previous = now
-		var remaining = wait - (now - previous)
-		context = this
-		args = arguments
-		if (remaining <= 0 || remaining > wait) {
-		if (timeout) {
-			clearTimeout(timeout)
-			timeout = null
-		}
-		previous = now
-		result = func.apply(context, args)
-		if (!timeout) context = args = null
-		} else if (!timeout && trailing !== false) {
-		timeout = setTimeout(later, remaining)
-		}
-		return result
-	}
-
-	throttled.cancel = function() {
-		clearTimeout(timeout)
-		previous = 0
-		timeout = context = args = null
-	}
-
-	return throttled
-}
-
 // A handy call when debugging within animation frames, logs messages at most once per second
-spaciblo.input.throttledConsoleLog = spaciblo.input.throttle(function(...params){
+spaciblo.input.throttledConsoleLog = be.ui.throttle(function(...params){
 	console.log(...params)
 }, 1000)
 

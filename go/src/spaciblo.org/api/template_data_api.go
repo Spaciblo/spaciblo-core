@@ -199,6 +199,7 @@ func (resource TemplateDataResource) Get(request *be.APIRequest) (int, interface
 }
 
 func (resource TemplateDataResource) Delete(request *be.APIRequest) (int, interface{}, http.Header) {
+	responseHeader := map[string][]string{}
 	if request.User == nil {
 		return 401, be.NotLoggedInError, responseHeader
 	}
@@ -206,7 +207,6 @@ func (resource TemplateDataResource) Delete(request *be.APIRequest) (int, interf
 		return 401, be.StaffOnlyError, responseHeader
 	}
 
-	responseHeader := map[string][]string{}
 	uuid, _ := request.PathValues["uuid"]
 	name, _ := request.PathValues["name"]
 

@@ -150,6 +150,29 @@ k.DataObject = k.eventMixin(class {
 			})
 		}.bind(this))
 	}
+	save(){
+		// Ask the server for data for this model or collection
+		return new Promise(function(resolve, reject){
+			this.trigger("saving", this)
+			let options = Object.assign({}, this.fetchOptions)
+			options.method = 'put'
+			options.body = JSON.stringify(this.data)
+			fetch(this.url, options).then(response => {
+				if(response.status != 200){
+					throw 'Save failed with status ' + response.status
+				}
+				return response.json() 
+			}).then(data => {
+				data = this.parse(data)
+				this.reset(data)
+				this.trigger("saved", this, data, null)
+				resolve(this)
+			}).catch(err => {
+				this.trigger("saved", this, null, err)
+				reject(err)
+			})
+		}.bind(this))
+	}
 	delete(){
 		return new Promise(function(resolve, reject){
 			this.trigger("deleting", this)
