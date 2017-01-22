@@ -59,13 +59,15 @@ func NewAckMessage(message string) *AckMessage {
 // JoinSpace is sent by a client when it wants to receive space replication events from a sim
 type JoinSpaceMessage struct {
 	TypedMessage
-	UUID string `json:"uuid"`
+	UUID   string `json:"uuid"`
+	Avatar bool   `json:"avatar"`
 }
 
-func NewJoinSpaceMessage(uuid string) *JoinSpaceMessage {
+func NewJoinSpaceMessage(uuid string, avatar bool) *JoinSpaceMessage {
 	return &JoinSpaceMessage{
 		TypedMessage{Type: JoinSpaceType},
 		uuid,
+		avatar,
 	}
 }
 

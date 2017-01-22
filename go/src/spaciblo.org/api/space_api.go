@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 
 	apiDB "spaciblo.org/api/db"
@@ -58,4 +59,75 @@ func (resource SpacesResource) Get(request *be.APIRequest) (int, interface{}, ht
 		Objects: records,
 	}
 	return 200, list, responseHeader
+}
+
+type SpaceResource struct {
+}
+
+func NewSpaceResource() *SpaceResource {
+	return &SpaceResource{}
+}
+
+func (SpaceResource) Name() string  { return "space" }
+func (SpaceResource) Path() string  { return "/space/{uuid:[0-9,a-z,-]+}" }
+func (SpaceResource) Title() string { return "Space" }
+func (SpaceResource) Description() string {
+	return "The information and data required to load a 3D thing into a space."
+}
+
+func (resource SpaceResource) Properties() []be.Property {
+	return SpaceProperties
+}
+
+func (resource SpaceResource) Get(request *be.APIRequest) (int, interface{}, http.Header) {
+	responseHeader := map[string][]string{}
+	uuid, _ := request.PathValues["uuid"]
+	space, err := apiDB.FindSpaceRecord(uuid, request.DBInfo)
+	if err != nil {
+		return 404, be.APIError{
+			Id:      "no_such_space",
+			Message: "No such space: " + uuid,
+			Error:   err.Error(),
+		}, responseHeader
+	}
+	return 200, space, responseHeader
+}
+
+func (resource SpaceResource) Put(request *be.APIRequest) (int, interface{}, http.Header) {
+	responseHeader := map[string][]string{}
+	if request.User == nil {
+		return 401, be.NotLoggedInError, responseHeader
+	}
+	if request.User.Staff == false {
+		return 401, be.StaffOnlyError, responseHeader
+	}
+
+	uuid, _ := request.PathValues["uuid"]
+	record, err := apiDB.FindSpaceRecord(uuid, request.DBInfo)
+	if err != nil {
+		return 404, be.APIError{
+			Id:      "no_such_space",
+			Message: "No such space: " + uuid,
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
+	var updatedRecord apiDB.SpaceRecord
+	err = json.NewDecoder(request.Raw.Body).Decode(&updatedRecord)
+	if err != nil {
+		return 400, be.BadRequestError, responseHeader
+	}
+
+	// Only some attributes can be updated
+	record.Name = updatedRecord.Name
+	err = apiDB.UpdateSpaceRecord(record, request.DBInfo)
+	if err != nil {
+		return 400, be.APIError{
+			Id:      "error_saving",
+			Message: "Error saving",
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
+	return 200, record, responseHeader
 }

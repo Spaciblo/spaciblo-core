@@ -39,6 +39,7 @@ message ClientMembership {
 	string clientUUID = 1;
 	string spaceUUID = 2;
 	bool member = 3;
+	bool avatar = 4;
 }
 
 message BodyUpdate {

@@ -22,6 +22,11 @@ spaciblo.api.Client = k.eventMixin(class {
 		this.socket = null
 		this.space = null
 	}
+	cleanup(){
+		if(this.socket){
+			this.socket.close()
+		}
+	}
 	open(){
 		return new Promise((resolve, reject) => {
 			if(this.socket !== null){
@@ -40,7 +45,7 @@ spaciblo.api.Client = k.eventMixin(class {
 			}
 		})
 	}
-	joinSpace(space){
+	joinSpace(space, avatar=true){
 		if(this.socket === null){
 			throw 'Can not join a space when the Client is not open'
 		}
@@ -50,7 +55,8 @@ spaciblo.api.Client = k.eventMixin(class {
 		this.space = space
 		this.socket.send(JSON.stringify({
 			type: 'Join-Space',
-			uuid: this.space.get('uuid')
+			uuid: this.space.get('uuid'),
+			avatar: avatar
 		}))
 	}
 	sendAvatarUpdate(position, orientation, bodyUpdates, translation, rotation){

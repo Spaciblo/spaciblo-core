@@ -38,10 +38,12 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		this.avatarsButton = k.el.button('Avatars').appendTo(this.buttonGroup)
 		this.listenTo('click', this.avatarsButton, () => { document.location.hash = '#avatars' }, this)
 
-		this.templatesEditorComponent = new spaciblo.components.TemplatesEditorComponent()
+		this.templates = new be.api.Templates()
+		this.templatesEditorComponent = new spaciblo.components.TemplatesEditorComponent(this.templates)
 		this.el.appendChild(this.templatesEditorComponent.el)
 
-		this.spacesEditorComponent = new spaciblo.components.SpacesEditorComponent()
+		this.spaces = new be.api.Spaces()
+		this.spacesEditorComponent = new spaciblo.components.SpacesEditorComponent(this.spaces)
 		this.el.appendChild(this.spacesEditorComponent.el)
 
 		this.avatarsEditorComponent = new spaciblo.components.AvatarsEditorComponent()
@@ -78,11 +80,17 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		this._clearDisplay()
 		this.templatesEditorComponent.el.style.display = 'block'
 		this.templatesButton.addClass('selected')
+		if(this.templates.isNew){
+			this.templates.fetch()
+		}
 	}
 	_showSpaces(){
 		this._clearDisplay()
 		this.spacesEditorComponent.el.style.display = 'block'
 		this.spacesButton.addClass('selected')
+		if(this.spaces.isNew){
+			this.spaces.fetch()
+		}
 	}
 	_showAvatars(){
 		this._clearDisplay()
@@ -94,23 +102,314 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 /*
 SpacesEditorComponent shows a list of spaces and editable details for a space when it is selected
 */
-spaciblo.components.SpacesEditorComponent = class extends k.Component {
+spaciblo.components.SpacesEditorComponent = class extends be.ui.ListAndDetailComponent {
 	constructor(dataObject=null, options={}){
-		super(dataObject, options)
+		super(dataObject, Object.assign({
+			itemType: be.api.Space,
+			itemComponent: spaciblo.components.SpaceItemComponent,
+			detailComponent: spaciblo.components.SpaceDetailComponent
+		}, options))
 		this.el.addClass('spaces-editor-component')
 		this.el.addClass('editor-component')
+	}
+}
 
-		this.row = k.el.div({
-			class: 'row'
-		}).appendTo(this.el)
+spaciblo.components.SpaceItemComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, Object.assign({ el: k.el.li() }, options))
+		this.el.addClass('space-item-component')
+		this.el.addClass('item-component')
+		if(dataObject === null) throw 'SpaceItemComponent requires a Space dataObject'
+
+		this.nameEl = k.el.div().appendTo(this.el)
+		this.bindText('name', this.nameEl)
+	}
+}
+
+/*
+SpaceDetailComponent allows editing of a live space from within the SpaceEditorComponent
+*/
+spaciblo.components.SpaceDetailComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('space-detail-component')
+		this.el.addClass('detail-component')
+		if(dataObject === null) throw 'SpaceDetailComponent requires a Space dataObject'
+
+		k.el.h3('Name').appendTo(this.el)
+		this.nameInput = new be.ui.TextInputComponent(dataObject, 'name', { autosave: true })
+		this.el.appendChild(this.nameInput.el)
+
+		this.sceneGraphTree = new spaciblo.components.SceneGraphTree(this.dataObject)
+		this.el.appendChild(this.sceneGraphTree.el)
+		this.sceneGraphTree.openClient()
+	}
+	cleanup(){
+		super.cleanup()
+		this.sceneGraphTree.cleanup()
+	}
+}
+
+/*
+SceneGraphTree shows the hierarchy of a space
+*/
+spaciblo.components.SceneGraphTree = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		if(dataObject === null) throw 'SceneGraphTree requires a Space dataObject'
+		this._boundHandleClientMessages = this._handleClientMessages.bind(this)
+		this.clientUUID = null
+		this.rootNode = null
+		this.objectMap = new Map() // object id -> spaciblo.components.SceneGraphNode
+		this.client = new spaciblo.api.Client() 
+		this.client.addListener(this._boundHandleClientMessages, spaciblo.events.ClientMessageReceived)
+	}
+	openClient(){
+		this.client.open().then(() => {
+			this.client.joinSpace(this.dataObject, false)
+		}).catch(err => {
+			console.error("Error connecting to the WS service", err)
+		})
+	}
+	cleanup(){
+		super.cleanup()
+		this.client.cleanup()
+		if(this.rootNode){
+			this.rootNode.cleanup()
+		}
+	}
+	_handleClientMessages(eventName, message){
+		switch(message.type){
+			case 'Ack':
+				break
+			case 'Connected':
+				this.clientUUID = message.clientUUID
+				break
+			case 'Space-Update':
+				/*
+				if(
+					(message.additions && message.additions.length > 0) || 
+					(message.deletions && message.deletions.length > 0) || 
+					(message.nodeUpdates && message.nodeUpdates.length > 0)
+				){
+					console.log("Space update", message)
+				}
+				*/
+				let additions = message.additions || []
+				for(let addition of additions){
+					this._handleAddition(addition)
+				}
+				let deletions = message.deletions || []
+				for(let deletion of deletions){
+					this._handleDeletion(deletion)
+				}
+				let nodeUpdates = message.nodeUpdates || []
+				for(let nodeUpdate of nodeUpdates){
+					this._handleNodeUpdate(nodeUpdate)
+				}
+				break
+			default:
+				console.log("Unhandled client message", message)
+		}
+	}
+	_handleNodeUpdate(update){
+		let node = this.objectMap.get(update.id)
+		if(typeof node === 'undefined'){
+			console.error('Tried to update unknown object', update)
+			return
+		}
+		if(update.position) node.positionComponent.setVector(...update.position)
+		if(update.orientation) node.orientationComponent.setVector(...update.orientation)
+		if(update.rotation) node.rotationComponent.setVector(...update.rotation)
+		if(update.translation) node.translationComponent.setVector(...update.translation)
+		if(update.scale) node.scaleComponent.setVector(...update.scale)
+	}
+	_handleAddition(addition){
+		if(this.objectMap.has(addition.id)){
+			return
+		}
+		if(addition.parent === -1){
+			var parent = null
+		} else {
+			var parent = this.objectMap.get(addition.parent)
+			if(typeof parent === 'undefined') {
+				console.error('Tried to add to an unknown parent', this.objectMap, addition)
+				return
+			}
+		}
+		try{
+			let node = new spaciblo.components.SceneGraphNode(addition)
+			this.objectMap.set(addition.id, node)
+			if(addition.parent === -1){
+				this.rootNode = node
+				this.el.appendChild(node.el)
+			} else {
+				parent.addChild(node)
+			}
+		} catch (e){
+			console.error(e)			
+		}
+	}
+	_handleDeletion(deletion){
+		let node = this.objectMap.get(deletion)
+		if(typeof node === 'undefined'){
+			return
+		}
+		this.objectMap.delete(deletion)
+		if(node.parent){
+			node.parent.removeChild(node)
+		} else {
+			this.el.removeChild(this.rootNode.el)
+			this.rootNode.cleanup()
+			this.rootNode = null
+		}
+		for(let childId of node.getChildrenIds()){
+			this.objectMap.delete(childId)
+		}
+	}
+}
+
+/*
+SceneGraphNode shows information about a node in the scene graph of a space and its children
+*/
+spaciblo.components.SceneGraphNode = class extends k.Component {
+	constructor(addition){
+		super(null, addition)
+		this.el.addClass('scene-graph-node')
+
+		this.parent = null
+		this.lastUpdate = null
+		this.settings = addition.settings || {}
+		this.id = addition.id
+
+		this.headlineEl = k.el.div({ class: 'headline' }).appendTo(this.el)
+		this.transformToggleComponent = new be.ui.ToggleComponent()
+		this.transformToggleComponent.addListener((...params) => {
+			this._handleTransformToggle(...params)
+		}, 'toggled')
+		this.headlineEl.appendChild(this.transformToggleComponent.el)
+		if(this.getSetting('name')){
+			this.headlineEl.appendChild(k.el.span(' ' + this.getSetting('name')))
+		}
+		if(this.getSetting('clientUUID')){
+			this.headlineEl.appendChild(k.el.span(' ' + this.getSetting('clientUUID')))
+		}
+
+		this.metadataEl = k.el.div({ class: 'metadata row' }).appendTo(this.el)
+		this.metadataEl.style.display = 'none'
+
 		this.leftCol = k.el.div({
-			class: 'col-2'
-		}).appendTo(this.row)
+			class: 'col-6'
+		}).appendTo(this.metadataEl)
 		this.rightCol = k.el.div({
-			class: 'col-10'
-		}).appendTo(this.row)
+			class: 'col-6'
+		}).appendTo(this.metadataEl)
 
-		k.el.div('Spaces editor will go here').appendTo(this.rightCol)
+		this.settingsEl = k.el.div({ class: 'settings' }).appendTo(this.leftCol)
+		this.settingsMap = new Map() // name -> SceneNodeSettingComponent
+		for(let key in this.settings){
+			let settingComponent = new spaciblo.components.SceneNodeSettingComponent(key, this.settings[key])
+			this.settingsMap.set(key, settingComponent)
+			this.settingsEl.appendChild(settingComponent.el)
+		}
+
+		this.transformEl = k.el.div({ class: 'transform' }).appendTo(this.rightCol)
+		k.el.h4('Position').appendTo(this.transformEl)
+		this.positionComponent = new spaciblo.components.VectorEditorComponent(addition.position)
+		this.transformEl.appendChild(this.positionComponent.el)
+		k.el.h4('Orientation').appendTo(this.transformEl)
+		this.orientationComponent = new spaciblo.components.VectorEditorComponent(addition.orientation)
+		this.transformEl.appendChild(this.orientationComponent.el)
+		k.el.h4('Rotation').appendTo(this.transformEl)
+		this.rotationComponent = new spaciblo.components.VectorEditorComponent(addition.rotation)
+		this.transformEl.appendChild(this.rotationComponent.el)
+		k.el.h4('Translation').appendTo(this.transformEl)
+		this.translationComponent = new spaciblo.components.VectorEditorComponent(addition.translation)
+		this.transformEl.appendChild(this.translationComponent.el)
+		k.el.h4('Scale').appendTo(this.transformEl)
+		this.scaleComponent = new spaciblo.components.VectorEditorComponent(addition.scale)
+		this.transformEl.appendChild(this.scaleComponent.el)
+
+		this.ul = k.el.ul({ class: 'children' }).appendTo(this.el)
+	}
+	cleanup(){
+		super.cleanup()
+		this.positionComponent.cleanup()
+		this.orientationComponent.cleanup()
+		this.rotationComponent.cleanup()
+		this.translationComponent.cleanup()
+		this.scaleComponent.cleanup()
+		this.transformToggleComponent.cleanup()
+		for(let [key, value] of this.settingsMap){
+			this.settingsMap.get(key).cleanup()
+		}
+		for(let child of this.ul.children){
+			if(child.component instanceof spaciblo.components.SceneGraphNode){
+				child.component.cleanup()
+			}
+		}
+	}
+	_handleTransformToggle(eventName, toggle, on){
+		this.metadataEl.style.display = on ? 'flex' : 'none'
+	}
+	getSetting(name){
+		return this.settings[name] || ''
+	}
+	addChild(childNode){
+		this.ul.appendChild(childNode.el)
+		childNode.parent = this
+	}
+	removeChild(childNode){
+		this.ul.removeChild(childNode.el)
+		childNode.parent = null
+	}
+	getChildrenIds(results=[]){
+		if(this.ul.children.length === 0){
+			return results
+		}
+		for(let child of this.ul.children){
+			if(child.component instanceof spaciblo.components.SceneGraphNode){
+				results.push(child.component.id)
+			}
+			if(typeof child.getChildrenIds !== 'undefined'){
+				child.getChildrenIds(results)
+			}
+		}
+		return results
+	}
+}
+
+/*
+SceneNodeSettingComponent provides a key/value table row for editing 
+*/
+spaciblo.components.SceneNodeSettingComponent = class extends k.Component {
+	constructor(key, value){
+		super(null, {})
+		this.el.addClass('scene-node-setting-component')
+		this.keyInput = k.el.input().appendTo(this.el)
+		this.keyInput.value = key
+		this.valueInput = k.el.input(value).appendTo(this.el)
+		this.valueInput.value = value
+	}
+}
+
+/*
+VectorEditorComponent renders a variable length array of numbers for editing
+*/
+spaciblo.components.VectorEditorComponent = class extends k.Component {
+	constructor(vector){
+		super(null, {})
+		this.el.addClass('vector-editor-component')
+		this.inputs = k.el.div().appendTo(this.el)
+		this.setVector(...vector)
+	}
+	setVector(...params){
+		while(this.inputs.children.length < params.length){
+			this.inputs.appendChild(k.el.input())
+		}
+		for(let i=0; i < params.length; i++){
+			this.inputs.children[i].value = params[i]
+		}
 	}
 }
 
@@ -140,82 +439,31 @@ spaciblo.components.AvatarsEditorComponent = class extends k.Component {
 /*
 TemplatesEditorComponent shows a list of templates and editable details for a template when it is selected
 */
-spaciblo.components.TemplatesEditorComponent = class extends k.Component {
+spaciblo.components.TemplatesEditorComponent = class extends be.ui.ListAndDetailComponent {
 	constructor(dataObject=null, options={}){
-		super(dataObject, options)
+		super(dataObject, Object.assign({
+			itemType: be.api.Template,
+			itemComponent: spaciblo.components.TemplateItemComponent,
+			detailComponent: spaciblo.components.TemplateDetailComponent
+		}, options))
 		this.el.addClass('templates-editor-component')
 		this.el.addClass('editor-component')
-
-		this.row = k.el.div({
-			class: 'row'
-		}).appendTo(this.el)
-		this.leftCol = k.el.div({
-			class: 'col-2'
-		}).appendTo(this.row)
-		this.rightCol = k.el.div({
-			class: 'col-10'
-		}).appendTo(this.row)
-
-		this.templates = new be.api.Templates()
-
-		this.addTemplateEl = k.el.div(
-			{ class: 'add-template' },
-			k.el.button({ class: 'small-button' }, 'Add')
-		).appendTo(this.leftCol)
-		this.listenTo('click', this.addTemplateEl.querySelector('button'), this._handleAddClick, this)
-
-		this.templatesComponent = new be.ui.CollectionComponent(this.templates, {
-			itemComponent: spaciblo.components.TemplateItemComponent,
-			onClick: (dataObject) => { this._handleItemClick(dataObject) }
-		})
-		this.templatesComponent.el.addClass('editor-templates-list-component')
-		this.leftCol.appendChild(this.templatesComponent.el)
-
-		this.templateDetailComponent = null
-
-		this.templates.fetch().then(() => {
-			let component = this.templatesComponent.at(0)
-			if(component !== null){
-				this._setSelected(component.dataObject)
-			}
-		})
 	}
-	_handleAddClick(ev){
-		let template = new be.api.Template({
-			name: 'New Template'
-		})
-		template.save().then(() => {
-			console.log('Saved')
-			this.templates.add(template)
-			this._setSelected(template)
-		}).catch((...params) => {
-			console.error('Error creating template', ...params)
-		})
-	}
-	_handleItemClick(dataObject){
-		this._setSelected(dataObject)
-	}
-	_removeDetailComponent(){
-		if(this.templateDetailComponent !== null){
-			this.rightCol.removeChild(this.templateDetailComponent.el)
-			this.templateDetailComponent.cleanup()
+}
+
+/*
+TemplateItemComponent is used as a list item in a list of Templates 
+*/
+spaciblo.components.TemplateItemComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, Object.assign({ el: k.el.li() }, options))
+		this.el.addClass('template-item-component')
+		this.el.addClass('item-component')
+		if(dataObject === null){
+			throw 'TemplateItemComponent requires a Template dataObject'
 		}
-	}
-	_setSelected(dataObject){
-		this._removeDetailComponent()
-		for(let li of this.templatesComponent.el.querySelectorAll('.template-item-component')){
-			if(li.component.dataObject === dataObject){
-				li.addClass('selected')
-			} else {
-				li.removeClass('selected')
-			}
-		}
-
-		this.templateDetailComponent = new spaciblo.components.TemplateDetailComponent(dataObject)
-		this.templateDetailComponent.addListener(() => {
-			this._removeDetailComponent()
-		}, 'deleted', true)
-		this.rightCol.appendChild(this.templateDetailComponent.el)
+		this.nameEl = k.el.div().appendTo(this.el)
+		this.bindText('name', this.nameEl)
 	}
 }
 
@@ -226,6 +474,7 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('template-detail-component')
+		this.el.addClass('detail-component')
 		if(dataObject === null) throw 'TemplateDetailComponent requires a Template dataObject'
 
 		k.el.h3('Name').appendTo(this.el)
@@ -302,6 +551,7 @@ spaciblo.components.TemplateDataItemComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('template-data-item-component')
+		this.el.addClass('item-component')
 		this.el.appendChild(k.el.span(dataObject.get('name')))
 		this.deleteLink = k.el.button({ class: 'small-button' }, 'x').appendTo(this.el)
 		this.listenTo('click', this.deleteLink, this._handleDeleteClick, this)
@@ -309,21 +559,6 @@ spaciblo.components.TemplateDataItemComponent = class extends k.Component {
 	_handleDeleteClick(){
 		this.dataObject.set('uuid', this.options.templateUUID)
 		this.dataObject.delete()
-	}
-}
-
-/*
-TemplateItemComponent is used as a list item in a list of Templates 
-*/
-spaciblo.components.TemplateItemComponent = class extends k.Component {
-	constructor(dataObject=null, options={}){
-		super(dataObject, Object.assign({ el: k.el.li() }, options))
-		this.el.addClass('template-item-component')
-		if(dataObject === null){
-			throw 'TemplateItemComponent requires a Template dataObject'
-		}
-		this.nameEl = k.el.div().appendTo(this.el)
-		this.bindText('name', this.nameEl)
 	}
 }
 

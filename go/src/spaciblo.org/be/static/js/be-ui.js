@@ -10,6 +10,35 @@ be.events.Reset = 'be-reset'
 be.events.FilesDropped = 'be-files-dropped'
 
 /*
+ToggleComponent shows a triangle up or down which when clicked changes direction and triggers the 'toggled' event
+*/
+be.ui.ToggleComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('toggle-component')
+		this.on = false
+		this.onEl = k.el.span().appendTo(this.el)
+		this.onEl.innerHTML = '&#x25BC;'
+		this.listenTo('click', this.onEl, () => { this.toggle(false) }, this)
+		this.offEl = k.el.span().appendTo(this.el)
+		this.offEl.innerHTML = '&#9654;'
+		this.listenTo('click', this.offEl, () => { this.toggle(true) }, this)
+		this.toggle(false)
+	}
+	toggle(on=!this.on){
+		if(on){
+			this.onEl.style.display = 'inline-block'
+			this.offEl.style.display = 'none'
+		} else {
+			this.onEl.style.display = 'none'
+			this.offEl.style.display = 'inline-block'
+		}
+		this.on = on
+		this.trigger('toggled', this, this.on)
+	}
+}
+
+/*
 Generate a form for use in a bootstrap style form.
 Pass an inputType of "static" if it should just be a display field.
 */
@@ -220,6 +249,97 @@ be.ui.DefaultItemComponent = class extends k.Component {
 		super(dataObject, Object.assign({ el: k.el.li() }, options))
 		if(dataObject === null) throw 'DefaultItemComponent requires a dataObject'
 		this.el.appendChild(k.el.span('Item: ' + dataObject))
+	}
+}
+
+
+/*
+ListAndDetailComponent shows a list of items and a detail component when and item is selected
+*/
+be.ui.ListAndDetailComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('list-and-detail-component')
+
+		if(dataObject === null) throw 'ListAndDetailComponent requires a dataObject'
+		if(typeof options.itemComponent === 'undefined') throw 'ListAndDetailComponent requires an itemComponent option'
+		if(typeof options.detailComponent === 'undefined') throw 'ListAndDetailComponent requires a detailComponent option'
+		if(typeof options.itemType === 'undefined') throw 'ListAndDetailComponent requires an itemType option'
+
+		this.row = k.el.div({
+			class: 'row'
+		}).appendTo(this.el)
+		this.leftCol = k.el.div({
+			class: 'col-2'
+		}).appendTo(this.row)
+		this.rightCol = k.el.div({
+			class: 'col-10'
+		}).appendTo(this.row)
+
+		this.addEl = k.el.div(
+			{ class: 'add-item' },
+			k.el.button({ class: 'small-button' }, 'Add')
+		).appendTo(this.leftCol)
+		this.listenTo('click', this.addEl.querySelector('button'), this._handleAddClick, this)
+
+		this.listComponent = new be.ui.CollectionComponent(this.dataObject, {
+			itemComponent: this.options.itemComponent,
+			onClick: (dataObject) => { this._handleItemClick(dataObject) }
+		})
+		this.listComponent.el.addClass('list-component')
+		this.leftCol.appendChild(this.listComponent.el)
+
+		this.detailComponent = null
+
+		if(this.dataObject.isNew){
+			this.dataObject.addListener(() => {
+				if(this.dataObject.length > 0){
+					this._setSelected(this.dataObject.at(0))
+				}
+			}, 'fetched', true)
+		} else {
+			if(this.dataObject.length > 0){
+				this._setSelected(this.dataObject.at(0))
+			}
+		}
+	}
+	createNewItem(){
+		// Extending classes can override this to add default data
+		return new this.options.itemType({})
+	}
+	_handleAddClick(ev){
+		let item = this.createNewItem()
+		item.save().then(() => {
+			this.dataObject.add(item)
+			this._setSelected(item)
+		}).catch((...params) => {
+			console.error('Error creating item', ...params)
+		})
+	}
+	_handleItemClick(dataObject){
+		this._setSelected(dataObject)
+	}
+	_removeDetailComponent(){
+		if(this.detailComponent !== null){
+			this.rightCol.removeChild(this.detailComponent.el)
+			this.detailComponent.cleanup()
+		}
+	}
+	_setSelected(dataObject){
+		this._removeDetailComponent()
+		for(let li of this.listComponent.el.querySelectorAll('.item-component')){
+			if(li.component.dataObject === dataObject){
+				li.addClass('selected')
+			} else {
+				li.removeClass('selected')
+			}
+		}
+
+		this.detailComponent = new this.options.detailComponent(dataObject)
+		this.detailComponent.addListener(() => {
+			this._removeDetailComponent()
+		}, 'deleted', true)
+		this.rightCol.appendChild(this.detailComponent.el)
 	}
 }
 

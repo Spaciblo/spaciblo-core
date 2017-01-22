@@ -41,53 +41,16 @@
 	font-size: 16px;
 }
 
-.editor-component {
-	margin-bottom: 20px;
-}
-
-.templates-editor-component .add-template {
-	text-align: center;
-	padding: 15px;
-}
-
-.editor-templates-list-component {
-	z-index: 0;
-}
-.editor-templates-list-component li {
-	position: relative;
-	margin-right: 15px;
-	background-color: white;
-	border: solid 1px white;
-	cursor: pointer;
-	display: block;
-	padding: 8px 40px 8px 15px;
-	margin-bottom: 5px;
-	z-index: 2;
-	font-size: 16px;
-	font-weight: 300;
-}
-.editor-templates-list-component li:hover, .editor-templates-list-component li.selected {
-	border: solid 1px #EFEFEF;
-}
-
-.template-detail-component {
-	position: relative;
-	background-color: white;
-	min-height: 20em;
-	padding: 15px;
-	border: solid 1px #EFEFEF;
-	z-index: 1;
-}
-.template-detail-component h3 {
+.inventory-page-component .detail-component h3 {
 	font-weight: 300;
 	font-size: 16px;
 }
-.template-detail-component input {
+.inventory-page-component .detail-component input {
 	margin-bottom: 20px;
 	width: 250px;
 	padding: 5px 3px;
 }
-.template-detail-component .delete-button {
+.inventory-page-component .detail-component .delete-button {
 	position: absolute;
 	top: 15px;
 	right: 15px;
@@ -111,4 +74,33 @@
 }
 .template-data-item-component:hover button {
 	visibility: visible;
+}
+
+.scene-graph-node .scene-node-setting-component input {
+	display: inline-block;
+	width: 40%;
+}
+
+.scene-graph-node .transform, .scene-graph-node .settings {
+	margin-top: 15px;
+}
+.scene-graph-node > h3 {
+	font-weight: 300;
+	font-size: 16px;
+	margin-bottom: 10px;
+}
+.scene-graph-node .children {
+	padding-left: 20px;
+	padding-top: 20px;
+}
+.scene-graph-node div.vector-editor-component input {
+	width: 5em;
+}
+
+.metadataEl {
+	margin-left: 20px;	
+}
+.transform > h4 {
+	font-weight: 300;
+	font-size: 12px;
 }

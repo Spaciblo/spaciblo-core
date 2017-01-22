@@ -31,7 +31,7 @@ type SpaceSimulator struct {
 	Name              string                // The Name of the SpaceRecord
 	UUID              string                // The UUID of the SpaceRecord
 	RootNode          *SceneNode            // The scene graph, including SceneNodes for avatars
-	Avatars           map[string]*SceneNode // <clientUUID, avatar node>
+	Clients           map[string]*SceneNode // <clientUUID, avatar node (may be nil for avatar-less clients)>
 	Additions         []*SceneAddition      // Nodes added to the scene since the last tick
 	Deletions         []int64               // Node IDs removed from the scene since the last tick
 	DefaultAvatarUUID string
@@ -68,7 +68,7 @@ func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *b
 		Name:              spaceRecord.Name,
 		UUID:              spaceUUID,
 		RootNode:          rootNode,
-		Avatars:           make(map[string]*SceneNode),
+		Clients:           make(map[string]*SceneNode),
 		Additions:         []*SceneAddition{},
 		Deletions:         []int64{},
 		DefaultAvatarUUID: avatarRecord.UUID,
@@ -109,9 +109,13 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 	for _, notice := range membershipNotices {
 		// TODO compress duplicate membership notices
 		if notice.Member == true {
-			_, err := spaceSim.createAvatar(notice.ClientUUID, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
-			if err != nil {
-				logger.Println("Error creating avatar", err)
+			if notice.Avatar == true {
+				_, err := spaceSim.createAvatar(notice.ClientUUID, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
+				if err != nil {
+					logger.Println("Error creating avatar", err)
+				}
+			} else {
+				spaceSim.Clients[notice.ClientUUID] = nil
 			}
 		} else {
 			spaceSim.removeAvatar(notice.ClientUUID)
@@ -121,9 +125,12 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 	avatarMotionNotices := spaceSim.collectAvatarMotionNotices()
 	for _, notice := range avatarMotionNotices {
 		// TODO compress duplicate motion notices
-		avatarNode, ok := spaceSim.Avatars[notice.ClientUUID]
+		avatarNode, ok := spaceSim.Clients[notice.ClientUUID]
 		if ok == false {
 			continue
+		}
+		if avatarNode == nil {
+			continue // Received an update for a client with no Avatar!
 		}
 		avatarNode.Position.Set(notice.Position)
 		avatarNode.Orientation.Set(notice.Orientation)
@@ -161,7 +168,7 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 
 func (spaceSim *SpaceSimulator) GetClientUUIDs() []string {
 	result := []string{}
-	for uuid := range spaceSim.Avatars {
+	for uuid := range spaceSim.Clients {
 		result = append(result, uuid)
 	}
 	return result
@@ -232,10 +239,11 @@ func (spaceSim *SpaceSimulator) InitialState() string {
 ChangeClientMembership is called by the SimHost when a client connects and disconnects
 It queues a notice that the simulator handles during a tick
 */
-func (spaceSim *SpaceSimulator) ChangeClientMembership(clientUUID string, member bool) {
+func (spaceSim *SpaceSimulator) ChangeClientMembership(clientUUID string, member bool, avatar bool) {
 	spaceSim.ClientMembershipChannel <- &ClientMembershipNotice{
 		ClientUUID: clientUUID,
 		Member:     member,
+		Avatar:     avatar,
 	}
 }
 
@@ -253,7 +261,7 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 
 func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, position []float64, orientation []float64) (*SceneNode, error) {
 	// Check for an existing avatar for this client
-	node, ok := spaceSim.Avatars[clientUUID]
+	node, ok := spaceSim.Clients[clientUUID]
 	if ok == true {
 		return node, nil
 	}
@@ -320,7 +328,7 @@ func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, position []float
 		partMap[partRecord.Part] = partNode
 	}
 
-	spaceSim.Avatars[clientUUID] = node
+	spaceSim.Clients[clientUUID] = node
 	spaceSim.RootNode.Add(node)
 
 	spaceSim.Additions = append(spaceSim.Additions, additions...)
@@ -328,12 +336,14 @@ func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, position []float
 }
 
 func (spaceSim *SpaceSimulator) removeAvatar(clientUUID string) {
-	node, ok := spaceSim.Avatars[clientUUID]
+	node, ok := spaceSim.Clients[clientUUID]
 	if ok == false {
-		// Unknown avatar, ignoring
-		return
+		return // Unknown avatar, ignoring
 	}
-	delete(spaceSim.Avatars, clientUUID)
+	if node == nil {
+		return // A client with no avatar
+	}
+	delete(spaceSim.Clients, clientUUID)
 	spaceSim.Deletions = append(spaceSim.Deletions, node.Id)
 	spaceSim.RootNode.Remove(node)
 }
@@ -575,6 +585,7 @@ type AvatarMotionNotice struct {
 type ClientMembershipNotice struct {
 	ClientUUID string
 	Member     bool
+	Avatar     bool
 }
 
 type NodeUpdate struct {

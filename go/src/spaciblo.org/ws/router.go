@@ -24,6 +24,7 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUI
 			ClientUUID: clientUUID,
 			SpaceUUID:  joinSpace.UUID,
 			Member:     true,
+			Avatar:     joinSpace.Avatar,
 		}
 		_, err := simHostClient.HandleClientMembership(context.Background(), rpMessage)
 		if err != nil {

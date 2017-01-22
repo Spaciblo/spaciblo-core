@@ -18,12 +18,16 @@
 		<div id="page-component"></div>
 		<script>
 			function initPage(){
-				if(be.currentUser.get('staff') !== true){
-					document.location.href = '/a/?next=/i/'
-					return
+				try {
+					if(be.currentUser.get('staff') !== true){
+						document.location.href = '/a/?next=/i/'
+						return
+					}
+					window.pageComponent = new spaciblo.components.InventoryPageComponent()
+					document.getElementById('page-component').appendChild(window.pageComponent.el)
+				} catch (e) {
+					console.error(e)
 				}
-				window.pageComponent = new spaciblo.components.InventoryPageComponent()
-				document.getElementById('page-component').appendChild(window.pageComponent.el)
 			}
 			document.addEventListener("schema-populated", () => {
 				if(be.currentUser.isNew){

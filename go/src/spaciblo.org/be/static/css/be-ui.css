@@ -112,6 +112,12 @@ button:active {
 	color: red;
 }
 
+.toggle-component {
+	display: inline-block;
+	color: #999;
+	cursor: pointer;
+}
+
 .file-drop-target {
 	border: dashed 2px #EFEFEF;
 	text-align: center;
@@ -130,6 +136,36 @@ button:active {
 	transform: translate(-50%, -50%);
 	color: #999;
 	font-size: 1.2em;
+}
+
+.list-and-detail-component .add-item {
+	text-align: center;
+	padding: 15px;
+}
+
+.list-and-detail-component .detail-component {
+	position: relative;
+	background-color: white;
+	min-height: 20em;
+	padding: 15px;
+	border: solid 1px #EFEFEF;
+}
+
+.list-and-detail-component .list-component li {
+	position: relative;
+	margin-right: 15px;
+	background-color: white;
+	border: solid 1px white;
+	cursor: pointer;
+	display: block;
+	padding: 8px 40px 8px 15px;
+	margin-bottom: 5px;
+	font-size: 16px;
+	font-weight: 300;
+}
+.list-and-detail-component .list-component .item-component:hover, 
+.list-and-detail-component .list-component .item-component.selected {
+	border: solid 1px #EFEFEF;
 }
 
 .row {
