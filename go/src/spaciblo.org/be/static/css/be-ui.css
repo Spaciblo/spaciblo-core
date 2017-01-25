@@ -54,6 +54,10 @@ button:active {
 
 .button-group button {
 	border-left: none;
+	outline: 0;
+}
+.button-group button:active {
+	outline: 0;
 }
 .button-group button.selected {
 	background-color: #EFEFEF;

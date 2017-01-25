@@ -15,6 +15,7 @@ const JoinSpaceType = "Join-Space"
 const ClientDisconnectedType = "Client-Disconnected"
 const AvatarMotionType = "Avatar-Motion"
 const SpaceUpdateType = "Space-Update"
+const UpdateRequestType = "Update-Request"
 
 // All messages passed via WebSocket between the browser and the ws service must be of type ClientMessage
 type ClientMessage interface {
@@ -84,6 +85,7 @@ func NewConnectedMessage(clientUUID string) *ConnectedMessage {
 	}
 }
 
+// Sent by the sim to notify the clients of changes
 type SpaceUpdateMessage struct {
 	TypedMessage
 	SpaceUUID   string               `json:"spaceUUID"`
@@ -104,6 +106,7 @@ func NewSpaceUpdateMessage(spaceUUID string, frame int64) *SpaceUpdateMessage {
 	}
 }
 
+// Information about a node change
 type NodeUpdateMessage struct {
 	Id          int64             `json:"id"`
 	Settings    map[string]string `json:"settings"`
@@ -112,6 +115,13 @@ type NodeUpdateMessage struct {
 	Translation []float64         `json:"translation"`
 	Rotation    []float64         `json:"rotation"`
 	Scale       []float64         `json:"scale"`
+}
+
+// Sent by a client to request changes to nodes
+type UpdateRequestMessage struct {
+	TypedMessage
+	SpaceUUID          string               `json:"spaceUUID"`
+	NodeUpdateMessages []*NodeUpdateMessage `json:"nodeUpdates"`
 }
 
 type AdditionMessage struct {
@@ -204,6 +214,8 @@ func ParseMessageJson(rawMessage string) (ClientMessage, error) {
 		parsedMessage = new(JoinSpaceMessage)
 	case AvatarMotionType:
 		parsedMessage = new(AvatarMotionMessage)
+	case UpdateRequestType:
+		parsedMessage = new(UpdateRequestMessage)
 	default:
 		return typedMessage, nil
 	}

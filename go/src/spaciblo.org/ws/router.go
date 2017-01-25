@@ -74,6 +74,33 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUI
 			return nil, err
 		}
 		return nil, nil
+	case UpdateRequestType:
+		updateRequest := clientMessage.(*UpdateRequestMessage)
+		updateRPM := &simRPC.UpdateRequest{
+			SpaceUUID:   updateRequest.SpaceUUID,
+			ClientUUID:  clientUUID,
+			NodeUpdates: []*simRPC.NodeUpdate{},
+		}
+		for _, nodeUpdate := range updateRequest.NodeUpdateMessages {
+			settings := []*simRPC.Setting{}
+			for settingName, settingValue := range nodeUpdate.Settings {
+				settings = append(settings, &simRPC.Setting{
+					Name:  settingName,
+					Value: settingValue,
+				})
+			}
+			updateRPM.NodeUpdates = append(updateRPM.NodeUpdates, &simRPC.NodeUpdate{
+				Id:          nodeUpdate.Id,
+				Settings:    settings,
+				Position:    nodeUpdate.Position,
+				Orientation: nodeUpdate.Orientation,
+				Translation: nodeUpdate.Translation,
+				Rotation:    nodeUpdate.Rotation,
+				Scale:       nodeUpdate.Scale,
+			})
+		}
+		_, err := simHostClient.HandleUpdateRequest(context.Background(), updateRPM)
+		return nil, err
 	default:
 		logger.Printf("Unknown message type: %s", clientMessage)
 		return NewUnknownMessageTypeMessage(clientMessage.MessageType()), nil

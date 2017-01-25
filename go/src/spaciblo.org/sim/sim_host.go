@@ -148,6 +148,29 @@ func (server *SimHostServer) HandleAvatarMotion(ctx context.Context, avatarMotio
 	return &simRPC.Ack{Message: "OK"}, nil
 }
 
+func (server *SimHostServer) HandleUpdateRequest(ctx context.Context, updateRequest *simRPC.UpdateRequest) (*simRPC.Ack, error) {
+	spaceSim, ok := server.SpaceSimulators[updateRequest.SpaceUUID]
+	if ok == false {
+		return nil, errors.New("Unknown space UUID: " + updateRequest.SpaceUUID)
+	}
+	for _, nodeUpdate := range updateRequest.NodeUpdates {
+		settings := make(map[string]string)
+		for _, setting := range nodeUpdate.Settings {
+			settings[setting.Name] = setting.Value
+		}
+		spaceSim.HandleNodeUpdate(
+			nodeUpdate.Id,
+			settings,
+			nodeUpdate.Position,
+			nodeUpdate.Orientation,
+			nodeUpdate.Translation,
+			nodeUpdate.Rotation,
+			nodeUpdate.Scale,
+		)
+	}
+	return &simRPC.Ack{Message: "OK"}, nil
+}
+
 func (server *SimHostServer) HandleClientMembership(ctx context.Context, clientMembership *simRPC.ClientMembership) (*simRPC.Ack, error) {
 	spaceSim, ok := server.SpaceSimulators[clientMembership.SpaceUUID]
 	if ok == false {

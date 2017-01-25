@@ -39,6 +39,15 @@ be.ui.ToggleComponent = class extends k.Component {
 }
 
 /*
+Initializes the first letter in the value
+*/
+be.ui.initialUpperCase = function(valueString){
+	if(valueString == false) return ''
+	if(valueString.length == 0) return ''
+	return valueString[0].toUpperCase() + valueString.substring(1)
+}
+
+/*
 Generate a form for use in a bootstrap style form.
 Pass an inputType of "static" if it should just be a display field.
 */
@@ -53,6 +62,7 @@ be.ui.generateInputFormGroup = function(inputType, name, id, label, placeholder)
 	if(inputType == 'static'){
 		var input = k.el.span({
 			'id':id,
+			'type': text,
 			'class':'form-control-static'
 		})
 	} else if(inputType == 'textarea'){
@@ -73,6 +83,9 @@ be.ui.generateInputFormGroup = function(inputType, name, id, label, placeholder)
 	return formGroup
 }
 
+/*
+FileDropTarget renders a widget on which files may be dragged and dropped
+*/
 be.ui.FileDropTarget = class extends k.Component {
 	constructor(options={ label: 'Drop files here' }){
 		super(null, options)
@@ -116,6 +129,7 @@ be.ui.TextInputComponent = class extends k.Component {
 	constructor(dataObject, fieldName, options={}){
 		super(dataObject, Object.assign({ el: k.el.input() }, options))
 		this._throttledSave = be.ui.throttle(this._save, 1000, false, true)
+		this.el.setAttribute('type', 'text')
 		this.el.addClass('data-text-input')
 		this.el.addClass('form-control')
 		this._fieldName = fieldName
@@ -303,6 +317,11 @@ be.ui.ListAndDetailComponent = class extends k.Component {
 			}
 		}
 	}
+	cleanup(){
+		super.cleanup()
+		this.listComponent.cleanup()
+		if(this.detailComponent) this.detailComponent.cleanup()
+	}
 	createNewItem(){
 		// Extending classes can override this to add default data
 		return new this.options.itemType({})
@@ -323,6 +342,7 @@ be.ui.ListAndDetailComponent = class extends k.Component {
 		if(this.detailComponent !== null){
 			this.rightCol.removeChild(this.detailComponent.el)
 			this.detailComponent.cleanup()
+			this.detailComponent = null
 		}
 	}
 	_setSelected(dataObject){

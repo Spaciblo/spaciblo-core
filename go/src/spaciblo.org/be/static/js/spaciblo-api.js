@@ -16,6 +16,19 @@ spaciblo.api.WEBSOCKET_PORT = 9020 // TODO stop hard coding this port
 spaciblo.events.ClientOpened = 'spaciblo-client-opened'
 spaciblo.events.ClientMessageReceived = 'spaciblo-client-message-received'
 
+// Names of settings that represent the position/orientation/motion of a scene node
+spaciblo.api.PositioningSettingsNames = ['position', 'orientation', 'rotation', 'translation', 'scale']
+
+// Settings that are not displayed in the space editor settings
+spaciblo.api.IgnoredSettings = ['id', 'clientUUID']
+
+// Names of settings that represent lighting of a scene node
+spaciblo.api.LightingSettingsNames = ['light-color', 'light-distance', 'light-intensity', 'light-target', 'light-type']
+
+// Values for the lighting-type node setting
+spaciblo.api.LightingTypes = ['ambient', 'directional', 'point', 'spot', 'hemisphere']
+
+
 spaciblo.api.Client = k.eventMixin(class {
 	constructor(serviceURL=spaciblo.api.Client.ServiceURL){
 		this.serviceURL = serviceURL
@@ -59,20 +72,40 @@ spaciblo.api.Client = k.eventMixin(class {
 			avatar: avatar
 		}))
 	}
-	sendAvatarUpdate(position, orientation, bodyUpdates, translation, rotation){
-		if(this.space === null){
-			// Not connected to a space, so nobody cares where we move
-			return
+	sendSettingRequest(nodeId, name, value){
+		if(this.space === null) return
+		let nodeUpdate = {
+			id: nodeId,
+			settings: {}
 		}
+		nodeUpdate.settings[name] = value
+		this.socket.send(JSON.stringify({
+			type: 'Update-Request',
+			spaceUUID: this.space.get('uuid'),
+			nodeUpdates: [ nodeUpdate ]
+		}))
+	}
+	sendUpdateRequest(nodeId, name, value){
+		if(this.space === null) return
+		let nodeUpdate = { id: nodeId }
+		nodeUpdate[name] = value
+		this.socket.send(JSON.stringify({
+			type: 'Update-Request',
+			spaceUUID: this.space.get('uuid'),
+			nodeUpdates: [ nodeUpdate ]
+		}))
+	}
+	sendAvatarUpdate(position, orientation, bodyUpdates, translation, rotation){
+		if(this.space === null) return
 		let update = {
 			type: 'Avatar-Motion',
 			spaceUUID: this.space.get('uuid'),
+			bodyUpdates: bodyUpdates,
 			position: position,
 			orientation: orientation,
-			bodyUpdates: bodyUpdates,
 			translation: translation,
 			rotation: rotation,
-			scale: [1, 1, 1],
+			scale: [1, 1, 1]
 		}
 		this.socket.send(JSON.stringify(update))
 	}

@@ -235,6 +235,7 @@ k.DataModel = class extends k.DataObject {
 		batch[fieldName] = value
 		return this.setBatch(batch)
 	}
+
 	/*
 		Set a group of values. The 'values' parameter should be an object that works in for(key in values) loops like a dictionary: {}
 		If a key is in options.fieldDataObjects then the value will be used to contruct a k.DataObject and that will be the saved value.

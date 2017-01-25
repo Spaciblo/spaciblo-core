@@ -1,0 +1,108 @@
+
+.inventory-page-component {
+	margin-bottom: 30px;
+}
+
+.inventory-page-component .top-row {
+	text-align: center;
+	margin-bottom: 20px;
+}
+.inventory-page-component .button-group button {
+	font-size: 16px;
+}
+
+.inventory-page-component .detail-component h3 {
+	font-weight: 300;
+	font-size: 16px;
+}
+.inventory-page-component .detail-component .delete-button {
+	position: absolute;
+	top: 15px;
+	right: 15px;
+	color: red;
+}
+.inventory-page-component .detail-component input[type=text] {
+	margin-bottom: 10px;
+	padding: 5px 3px;
+}
+
+
+.template-detail-component input[type=text] {
+	width: 250px;
+}
+
+.template-data-list-component {
+	margin-top: 20px;
+}
+
+.template-data-item-component {
+	font-size: 12px;
+	margin-bottom: 6px;
+}
+.template-data-item-component span {
+	padding-right: 10px;
+}
+.template-data-item-component button {
+	visibility: hidden;
+	color: red;
+}
+.template-data-item-component:hover button {
+	visibility: visible;
+}
+
+.scene-node-setting-component input[type=text] {
+	display: inline-block;
+	width: 40%;
+}
+
+.scene-graph-node .headline {
+	border: solid 1px white;
+	padding: 10px;
+}
+.scene-graph-node.selected > .headline, .scene-graph-node > .headline:hover {
+	border: solid 1px #EFEFEF;
+}
+.scene-graph-node .transform, .scene-graph-node .settings {
+	margin-top: 15px;
+}
+.scene-graph-node > h3 {
+	font-weight: 300;
+	font-size: 16px;
+}
+.scene-graph-node .children {
+	padding-left: 20px;
+	padding-top: 20px;
+}
+.scene-graph-node-positioning-component div.vector-editor-component input {
+	width: 5em;
+}
+
+.space-detail-component .headline-row {
+	margin-bottom: 10px;
+}
+.space-detail-component .headline-row input[type=text] {
+	font-size: 26px;
+}
+.space-detail-component .right-col {
+	padding-left: 30px;
+}
+
+.scene-graph-node-property-component {
+	border: solid 1px #EFEFEF;
+	padding: 15px;	
+	margin-bottom: 20px;
+}
+
+.scene-graph-node-property-component > h3 {
+	margin-bottom: 10px;
+}
+
+.scene-graph-node-positioning-component > h4 {
+	font-size: 16px;
+	font-weight: 300;
+}
+
+.scene-graph-node-lighting-component .type-group input {
+	margin-left: 5px;
+	margin-right: 25px;
+}

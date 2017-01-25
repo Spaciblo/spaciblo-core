@@ -40,6 +40,7 @@ type SpaceSimulator struct {
 
 	ClientMembershipChannel chan *ClientMembershipNotice
 	AvatarMotionChannel     chan *AvatarMotionNotice
+	NodeUpdateChannel       chan *NodeUpdateNotice
 }
 
 func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *be.DBInfo) (*SpaceSimulator, error) {
@@ -77,6 +78,7 @@ func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *b
 
 		ClientMembershipChannel: make(chan *ClientMembershipNotice, 1024),
 		AvatarMotionChannel:     make(chan *AvatarMotionNotice, 1024),
+		NodeUpdateChannel:       make(chan *NodeUpdateNotice, 1024),
 	}, nil
 }
 
@@ -140,6 +142,24 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 		avatarNode.handleBodyUpdates(notice.BodyUpdates)
 	}
 
+	nodeUpdateNotices := spaceSim.collectNodeUpdateNotices()
+	for _, notice := range nodeUpdateNotices {
+		// TODO Check that the client has permission to update the setting
+		node := spaceSim.RootNode.findById(notice.Id)
+		if node == nil {
+			logger.Println("Received a setting update for an unknown node", notice)
+			continue
+		}
+		for settingName, settingValue := range notice.Settings {
+			node.SetOrCreateSetting(settingName, settingValue)
+		}
+		node.Position.Set(notice.Position)
+		node.Orientation.Set(notice.Orientation)
+		node.Translation.Set(notice.Translation)
+		node.Rotation.Set(notice.Rotation)
+		node.Scale.Set(notice.Scale)
+	}
+
 	// Send new client clients full initialization updates
 	if len(membershipNotices) > 0 {
 		newClientUUIDs := []string{}
@@ -198,6 +218,18 @@ func (spaceSim *SpaceSimulator) collectAvatarMotionNotices() []*AvatarMotionNoti
 	}
 }
 
+func (spaceSim *SpaceSimulator) collectNodeUpdateNotices() []*NodeUpdateNotice {
+	results := []*NodeUpdateNotice{}
+	for {
+		select {
+		case item := <-spaceSim.NodeUpdateChannel:
+			results = append(results, item)
+		default:
+			return results
+		}
+	}
+}
+
 /*
 InitialAdditions returns SceneAdditions for every item in the space
 */
@@ -247,6 +279,9 @@ func (spaceSim *SpaceSimulator) ChangeClientMembership(clientUUID string, member
 	}
 }
 
+/*
+HandleAvatarMotion is called by the sim host when it receives a message from a client via the WS service
+*/
 func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64, bodyUpdates []*BodyUpdate) {
 	spaceSim.AvatarMotionChannel <- &AvatarMotionNotice{
 		ClientUUID:  clientUUID,
@@ -256,6 +291,21 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 		Rotation:    rotation,
 		Scale:       scale,
 		BodyUpdates: bodyUpdates,
+	}
+}
+
+/*
+HandleNodeUpdate is called by the sim host when it receives an update request message from a client via the WS service
+*/
+func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, settings map[string]string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64) {
+	spaceSim.NodeUpdateChannel <- &NodeUpdateNotice{
+		Id:          nodeId,
+		Settings:    settings,
+		Position:    position,
+		Orientation: orientation,
+		Translation: translation,
+		Rotation:    rotation,
+		Scale:       scale,
 	}
 }
 
@@ -483,6 +533,7 @@ func (node *SceneNode) getNodeUpdates() []*NodeUpdate {
 		for _, tuple := range node.Settings {
 			if tuple.Dirty {
 				update.Settings = append(update.Settings, tuple)
+				tuple.Dirty = false
 			}
 		}
 		result = append(result, update)
@@ -511,6 +562,19 @@ func (node *SceneNode) findFirstChildBySetting(name string, value string) *Scene
 	for _, childNode := range node.Nodes {
 		if childNode.SettingValue(name) == value {
 			return childNode
+		}
+	}
+	return nil
+}
+
+func (node *SceneNode) findById(id int64) *SceneNode {
+	if node.Id == id {
+		return node
+	}
+	for _, childNode := range node.Nodes {
+		matchNode := childNode.findById(id)
+		if matchNode != nil {
+			return matchNode
 		}
 	}
 	return nil
@@ -553,6 +617,17 @@ func (node *SceneNode) SettingValue(name string) string {
 	}
 }
 
+func (node *SceneNode) SetOrCreateSetting(name string, value string) {
+	setting, ok := node.Settings[name]
+	if ok == false {
+		node.Settings[name] = NewStringTuple(name, value)
+		node.Settings[name].Dirty = true
+	} else {
+		setting.Value = value
+		setting.Dirty = true
+	}
+}
+
 func (node *SceneNode) Add(childNode *SceneNode) {
 	node.Nodes = append(node.Nodes, childNode)
 }
@@ -580,6 +655,16 @@ type AvatarMotionNotice struct {
 	Rotation    []float64
 	Scale       []float64
 	BodyUpdates []*BodyUpdate
+}
+
+type NodeUpdateNotice struct {
+	Id          int64
+	Settings    map[string]string
+	Position    []float64
+	Orientation []float64
+	Translation []float64
+	Rotation    []float64
+	Scale       []float64
 }
 
 type ClientMembershipNotice struct {
