@@ -77,6 +77,8 @@
 	width: 5em;
 }
 
+.spaces-editor-component .list-column .add-item { display: none; }
+
 .space-detail-component .headline-row {
 	margin-bottom: 10px;
 }
@@ -102,6 +104,12 @@
 	font-weight: 300;
 }
 
+.scene-graph-node-lighting-component .common-settings {
+	margin-top: 20px;
+}
+.scene-graph-node-lighting-component .common-settings input {
+	margin-bottom: 15px;
+}
 .scene-graph-node-lighting-component .type-group input {
 	margin-left: 5px;
 	margin-right: 25px;

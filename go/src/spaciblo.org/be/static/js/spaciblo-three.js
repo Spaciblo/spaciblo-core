@@ -298,6 +298,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			if(update.scale){
 				group.scale.set(...update.scale)
 			}
+			group.updateSettings(update.settings)
 		}
 	}
 	_createGroupFromAddition(state){
@@ -316,69 +317,17 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		if(state.scale){
 			group.scale.set(...state.scale)
 		}
-		if(state.settings){
-			if(state.settings.name){
-				group.name = state.settings.name
-			}
-			if(state.settings.clientUUID){
-				// Only avatars have clientUUIDs, so set up this up as an avatar
-				group.isAvatar = true
-				setTimeout(() => { group.setupParts() }, 1)
-				if(this.clientUUID === state.settings.clientUUID){
-					group.isLocalAvatar = true
-					this.avatarGroup = group
-				}
-			}
-			if(typeof state.settings['light-type'] !== 'undefined'){
-				let color = spaciblo.three.parseSettingColor('light-color', state.settings, spaciblo.three.DEFAULT_LIGHT_COLOR)
-				let intensity = spaciblo.three.parseSettingFloat('light-intensity', state.settings, spaciblo.three.DEFAULT_LIGHT_INTENSITY)
-				let distance = spaciblo.three.parseSettingFloat('light-distance', state.settings, 0)
-				let decay = spaciblo.three.parseSettingFloat('light-decay', state.settings, 1)
-				let target = spaciblo.three.parseSettingFloatArray('light-target', state.settings, [0, 0, 0])
-
-				switch(state.settings['light-type']){
-					case 'ambient':
-						group.settingsLight = new THREE.AmbientLight(color, intensity)
-						break
-
-					case 'directional':
-						group.settingsLight = new THREE.DirectionalLight(color, intensity)
-						group.settingsLight.target.position.set(...target)
-						group.settingsLight.add(group.settingsLight.target)
-						//group.settingsLight.castShadow = true
-						//group.settingsLight.shadow.mapSize.width = 512
-						//group.settingsLight.shadow.mapSize.height = 512
-						//group.settingsLight.shadow.camera.zoom = 0.3
-						//group.settingsLight.shadow.bias = 0.0001
-						break
-
-					case 'point':
-						group.settingsLight = new THREE.PointLight(color, intensity, distance, decay)
-						//group.settingsLight.castShadow = true
-						//group.settingsLight.shadow.mapSize.width = 1024
-						//group.settingsLight.shadow.mapSize.height = 1024
-						//group.settingsLight.shadow.bias = 0.0001
-						break
-
-					case 'spot':
-						let angle = spaciblo.three.parseSettingFloat('light-angle', state.settings, Math.PI / 2)
-						let penumbra = spaciblo.three.parseSettingFloat('light-penumbra', state.settings, 0)
-						group.settingsLight = new THREE.SpotLight(color, intensity, distance, angle, penumbra, decay)						
-						group.settingsLight.target.position.set(...target)
-						group.settingsLight.add(group.settingsLight.target)
-						break
-
-					default:
-						console.error('unknown light-type', state.settings)
-						group.settingsLight = null
-				}
-				if(group.settingsLight !== null){
-					group.settingsLight.name = 'settings-light'
-					group.settingsLight.position.set(0,0,0) // It's the light's group that sets the position and orientation
-					group.add(group.settingsLight)
-				}
+		group.updateSettings(state.settings)
+		if(state.settings && state.settings.clientUUID){
+			// Only avatars have clientUUIDs, so set up this up as an avatar
+			group.isAvatar = true
+			setTimeout(() => { group.setupParts() }, 1)
+			if(this.clientUUID === state.settings.clientUUID){
+				group.isLocalAvatar = true
+				this.avatarGroup = group
 			}
 		}
+
 		if(typeof state.templateUUID !== 'undefined' && state.templateUUID.length > 0){
 			group.template = this.templateLoader.addTemplate(state.templateUUID)
 			var loadIt = (loadingGroup) => {
@@ -887,6 +836,69 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			}
 		}
 		return results
+	},
+	updateSettings: function(settings){
+		if(typeof settings !== 'object') return
+		this.settings = Object.assign(this.settings || {}, settings)
+		if(this.settings.name){
+			this.name = this.settings.name
+		}
+		if(typeof this.settings['light-type'] === 'string'){
+			if(this.settingsLight){
+				this.remove(this.settingsLight)
+				if(this.settingsLight.target){
+					this.remove(this.settingsLight.target)
+				}
+			}
+
+			let color = spaciblo.three.parseSettingColor('light-color', this.settings, spaciblo.three.DEFAULT_LIGHT_COLOR)
+			let intensity = spaciblo.three.parseSettingFloat('light-intensity', this.settings, spaciblo.three.DEFAULT_LIGHT_INTENSITY)
+			let distance = spaciblo.three.parseSettingFloat('light-distance', this.settings, 0)
+			let decay = spaciblo.three.parseSettingFloat('light-decay', this.settings, 1)
+			let target = spaciblo.three.parseSettingFloatArray('light-target', this.settings, [0, 0, 0])
+
+			switch(this.settings['light-type']){
+				case 'ambient':
+					this.settingsLight = new THREE.AmbientLight(color, intensity)
+					break
+
+				case 'directional':
+					this.settingsLight = new THREE.DirectionalLight(color, intensity)
+					this.settingsLight.target.position.set(...target)
+					this.settingsLight.add(this.settingsLight.target)
+					//this.settingsLight.castShadow = true
+					//this.settingsLight.shadow.mapSize.width = 512
+					//this.settingsLight.shadow.mapSize.height = 512
+					//this.settingsLight.shadow.camera.zoom = 0.3
+					//this.settingsLight.shadow.bias = 0.0001
+					break
+
+				case 'point':
+					this.settingsLight = new THREE.PointLight(color, intensity, distance, decay)
+					//this.settingsLight.castShadow = true
+					//this.settingsLight.shadow.mapSize.width = 1024
+					//this.settingsLight.shadow.mapSize.height = 1024
+					//this.settingsLight.shadow.bias = 0.0001
+					break
+
+				case 'spot':
+					let angle = spaciblo.three.parseSettingFloat('light-angle', this.settings, Math.PI / 2)
+					let penumbra = spaciblo.three.parseSettingFloat('light-penumbra', this.settings, 0)
+					this.settingsLight = new THREE.SpotLight(color, intensity, distance, angle, penumbra, decay)
+					this.settingsLight.target.position.set(...target)
+					this.settingsLight.add(this.settingsLight.target)
+					break
+
+				default:
+					console.error('unknown light-type', this.settings)
+					this.settingsLight = null
+			}
+			if(this.settingsLight !== null){
+				this.settingsLight.name = 'settings-light'
+				this.settingsLight.position.set(0,0,0) // It's the light's group that sets the position and orientation
+				this.add(this.settingsLight)
+			}
+		}
 	},
 	setGLTF: function(gltf){
 		this.add(gltf.scene)

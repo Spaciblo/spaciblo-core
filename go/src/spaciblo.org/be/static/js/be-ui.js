@@ -284,10 +284,10 @@ be.ui.ListAndDetailComponent = class extends k.Component {
 			class: 'row'
 		}).appendTo(this.el)
 		this.leftCol = k.el.div({
-			class: 'col-2'
+			class: 'col-2 list-column'
 		}).appendTo(this.row)
 		this.rightCol = k.el.div({
-			class: 'col-10'
+			class: 'col-10 detail-column'
 		}).appendTo(this.row)
 
 		this.addEl = k.el.div(

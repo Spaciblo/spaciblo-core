@@ -7,6 +7,12 @@ spaciblo.components = spaciblo.components || {}
 spaciblo.events.SettingUpdated = 'spaciblo-setting-updated'
 spaciblo.events.NodeUpdated = 'spaciblo-node-updated'
 
+/* 
+The number of miliseconds after input to ignore model updates so that
+we don't overrite local edits with updates
+*/
+spaciblo.components.InputChangeDelay = 2000
+
 /*
 InventoryPageComponent wraps all of the logic for i/index.html
 */
@@ -354,29 +360,32 @@ spaciblo.components.SceneGraphNode = class extends k.Component {
 	constructor(addition){
 		super(new spaciblo.components.SceneGraphNodeData(addition))
 		this.el.addClass('scene-graph-node')
-
 		this.parent = null
 		this.lastUpdate = null
 		this.id = addition.id
-
-		this.headlineEl = k.el.div({ class: 'headline' }).appendTo(this.el)
+		this._boundHandleModelChange = this._handleModelChange.bind(this)
+		this.headlineEl = k.el.div({ class: 'headline' }, this._displayName).appendTo(this.el)
 		this.listenTo('click', this.headlineEl, this._handleClick, this)
-		if(this.dataObject.get('name')){
-			this.headlineEl.appendChild(k.el.span(' ' + this.dataObject.get('name')))
-		}
-		if(this.dataObject.get('clientUUID')){
-			this.headlineEl.appendChild(k.el.span(' ' + this.dataObject.get('clientUUID')))
-		}
 
 		this.ul = k.el.ul({ class: 'children' }).appendTo(this.el)
+
+		this.dataObject.addListener(this._boundHandleModelChange, 'changed:name')
+		this.dataObject.addListener(this._boundHandleModelChange, 'changed:clientUUID')
 	}
 	cleanup(){
 		super.cleanup()
+		this.dataObject.removeListener(this._boundHandleModelChange)
 		for(let child of this.ul.children){
 			if(child.component instanceof spaciblo.components.SceneGraphNode){
 				child.component.cleanup()
 			}
 		}
+	}
+	get _displayName(){
+		return this.dataObject.get('name', this.dataObject.get('clientUUID', ''))
+	}
+	_handleModelChange(){
+		this.headlineEl.innerText = this._displayName
 	}
 	_handleClick(ev){
 		this.trigger('node-click', this)
@@ -482,27 +491,93 @@ spaciblo.components.SceneGraphNodeLightingComponent = class extends k.Component 
 		super(dataObject)
 		this.el.addClass('scene-graph-node-lighting-component')
 		this.el.addClass('scene-graph-node-property-component')
+		this._boundHandleModelChange = this._handleModelChange.bind(this)
 
 		this.el.appendChild(k.el.h3('Light'))
 
 		this.typeRadioGroup = k.el.div({ class: 'type-group' }).appendTo(this.el)
 		this.typeRadioGroup.appendChild(k.el.label({ for: 'lightingType_none' }, 'None'))
-		this.typeRadioGroup.appendChild(k.el.input({
+		let noneInput = k.el.input({
 			type: 'radio',
 			name: 'lightingType',
 			id: 'lightingType_none',
-			value: '',
-			checked: true
-		}, 'none'))
+			value: ''
+		}, 'none')
+		this.typeRadioGroup.appendChild(noneInput)
+		this.listenTo('change', noneInput, this._handleRadioClick, this)
+
 		for(let lightingType of spaciblo.api.LightingTypes){
 			let typeId = 'lightingType_' + lightingType
 			this.typeRadioGroup.appendChild(k.el.label({ for: typeId }, be.ui.initialUpperCase(lightingType)))
-			this.typeRadioGroup.appendChild(k.el.input({ 
+			let input = k.el.input({
 				type: 'radio',
 				name: 'lightingType',
 				id: typeId,
 				value: lightingType
-			}))
+			})
+			this.typeRadioGroup.appendChild(input)
+			this.listenTo('change', input, this._handleRadioClick, this)
+		}
+
+		this.commonSettings = k.el.div({ class: 'common-settings' }).appendTo(this.el)
+
+		this.commonSettings.appendChild(k.el.h3('Intensity'))
+		this.intensityInput = k.el.input().appendTo(this.commonSettings)
+		this.listenTo('keyup', this.intensityInput, () => {
+			this._handleSettingInputChange('light-intensity', this.intensityInput.value, '')
+		}, this)
+
+		this.commonSettings.appendChild(k.el.h3('Color'))
+		this.colorInput = k.el.input().appendTo(this.commonSettings)
+		this.listenTo('keyup', this.colorInput, () => {
+			this._handleSettingInputChange('light-color', this.colorInput.value, '')
+		}, this)
+
+		this.dataObject.addListener(this._boundHandleModelChange, 'changed:light-type')
+		this.dataObject.addListener(this._boundHandleModelChange, 'changed:light-intensity')
+		this.dataObject.addListener(this._boundHandleModelChange, 'changed:light-color')
+		this._updateFromModel()
+	}
+	cleanup(){
+		super.cleanup()
+		this.dataObject.removeListener(this._boundHandleModelChange)
+	}
+	get _radioValue(){
+		for(let child of this.typeRadioGroup.querySelectorAll('input')){
+			if(child.checked === true){
+				return child.getAttribute('value') || ''
+			}
+		}
+		return ''
+	}
+	_handleSettingInputChange(fieldName, value, defaultValue){
+		if(this.dataObject.get(fieldName, defaultValue) === value) return
+		this.trigger(spaciblo.events.SettingUpdated, this.dataObject.get('id'), fieldName, value)
+	}
+	_handleRadioClick(ev){
+		let radioValue = this._radioValue
+		if(radioValue == this.dataObject.get('light-type', '')) return
+		this.trigger(spaciblo.events.SettingUpdated, this.dataObject.get('id'), 'light-type', radioValue)
+	}
+	_handleModelChange(...params){
+		this._updateFromModel()
+	}
+	_updateFromModel(){
+		let lightType = this.dataObject.get('light-type', '')
+		for(let child of this.typeRadioGroup.children){
+			if(lightType === child.getAttribute('value')){
+				child.setAttribute('checked', true)
+			} else {
+				child.removeAttribute('checked')
+			}
+		}
+		this.intensityInput.value = this.dataObject.get('light-intensity', '')
+		this.colorInput.value = this.dataObject.get('light-color', '')
+
+		if(lightType !== ''){
+			this.commonSettings.style.display = 'block'
+		} else {
+			this.commonSettings.style.display = 'none'
 		}
 	}
 }
@@ -540,9 +615,10 @@ SceneGraphNodeSettingComponent provides a key/value table row for editing
 spaciblo.components.SceneNodeSettingComponent = class extends k.Component {
 	constructor(dataObject, options){
 		super(dataObject, options)
+		this.lastUpdateSent = Date.now()
 		this.el.addClass('scene-node-setting-component')
 		this._boundHandleModelChange = this._handleModelChange.bind(this)
-		this.keyInput = k.el.div(this.options.fieldName).appendTo(this.el)
+		this.keyInput = k.el.h3(this.options.fieldName).appendTo(this.el)
 		this.valueInput = k.el.input({ type: 'text' }).appendTo(this.el)
 		this.listenTo('keyup', this.valueInput, this._handleKeyUp, this)
 		this.valueInput.value = this.dataObject.get(this.options.fieldName)
@@ -554,10 +630,12 @@ spaciblo.components.SceneNodeSettingComponent = class extends k.Component {
 	}
 	_handleModelChange(){
 		if(this.dataObject.get(this.options.fieldName) === this.valueInput.value) return
+		if(Date.now() - this.lastUpdateSent < spaciblo.components.InputChangeDelay) return // Don't overwrite local editing
 		this.valueInput.value = this.dataObject.get(this.options.fieldName)
 	}
 	_handleKeyUp(ev){
 		if(this.valueInput.value === this.dataObject.get(this.options.fieldName)) return
+		this.lastUpdateSent = Date.now()
 		this.trigger(spaciblo.events.SettingUpdated, this.dataObject.get('id'), this.options.fieldName, this.valueInput.value)
 	}
 }
@@ -568,17 +646,19 @@ VectorEditorComponent renders a variable length array of numbers for editing
 spaciblo.components.VectorEditorComponent = class extends k.Component {
 	constructor(dataObject, fieldName){
 		super(dataObject, { fieldName: fieldName })
+		this.lastUpdateSent = Date.now()
 		this.el.addClass('vector-editor-component')
-		this._boundHandleChange = this._handleChange.bind(this)
+		this._boundHandleModelChange = this._handleModelChange.bind(this)
 		this.inputs = k.el.div().appendTo(this.el)
 		this._setVector(...this.dataObject.get(this.options.fieldName))
-		this.dataObject.addListener(this._boundHandleChange, 'changed:' + this.options.fieldName)
+		this.dataObject.addListener(this._boundHandleModelChange, 'changed:' + this.options.fieldName)
 	}
 	cleanup(){
 		super.cleanup()
-		this.dataObject.removeListener(this._boundHandleChange)
+		this.dataObject.removeListener(this._boundHandleModelChange)
 	}
-	_handleChange(...params){
+	_handleModelChange(...params){
+		if(Date.now() - this.lastUpdateSent < spaciblo.components.InputChangeDelay) return // Don't overwrite local editing
 		this._setVector(...this.dataObject.get(this.options.fieldName))
 	}
 	_setVector(...params){
@@ -594,6 +674,7 @@ spaciblo.components.VectorEditorComponent = class extends k.Component {
 	_handleKeyUp(ev){
 		let changes = this._getChanges()
 		if(changes === null) return
+		this.lastUpdateSent = Date.now()
 		this.trigger(spaciblo.events.NodeUpdated, this.dataObject.get('id'), this.options.fieldName, changes)
 	}
 	_getChanges(){
