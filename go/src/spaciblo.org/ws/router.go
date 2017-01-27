@@ -90,13 +90,14 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUI
 				})
 			}
 			updateRPM.NodeUpdates = append(updateRPM.NodeUpdates, &simRPC.NodeUpdate{
-				Id:          nodeUpdate.Id,
-				Settings:    settings,
-				Position:    nodeUpdate.Position,
-				Orientation: nodeUpdate.Orientation,
-				Translation: nodeUpdate.Translation,
-				Rotation:    nodeUpdate.Rotation,
-				Scale:       nodeUpdate.Scale,
+				Id:           nodeUpdate.Id,
+				Settings:     settings,
+				TemplateUUID: nodeUpdate.TemplateUUID,
+				Position:     nodeUpdate.Position,
+				Orientation:  nodeUpdate.Orientation,
+				Translation:  nodeUpdate.Translation,
+				Rotation:     nodeUpdate.Rotation,
+				Scale:        nodeUpdate.Scale,
 			})
 		}
 		_, err := simHostClient.HandleUpdateRequest(context.Background(), updateRPM)

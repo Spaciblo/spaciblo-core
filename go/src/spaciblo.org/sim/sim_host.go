@@ -73,7 +73,7 @@ func (server *SimHostServer) SendClientUpdate(spaceUUID string, frame int64, cli
 			Rotation:     addition.Node.Rotation.Data,
 			Scale:        addition.Node.Scale.Data,
 			Parent:       addition.ParentId,
-			TemplateUUID: addition.Node.TemplateUUID,
+			TemplateUUID: addition.Node.TemplateUUID.Value,
 		}
 		for _, setting := range addition.Node.Settings {
 			wsAddition.Settings = append(wsAddition.Settings, &wsRPC.Setting{
@@ -86,13 +86,14 @@ func (server *SimHostServer) SendClientUpdate(spaceUUID string, frame int64, cli
 
 	for _, update := range updates {
 		wsUpdate := &wsRPC.NodeUpdate{
-			Id:          update.Id,
-			Settings:    []*wsRPC.Setting{},
-			Position:    update.Position,
-			Orientation: update.Orientation,
-			Translation: update.Translation,
-			Rotation:    update.Rotation,
-			Scale:       update.Scale,
+			Id:           update.Id,
+			Settings:     []*wsRPC.Setting{},
+			TemplateUUID: update.TemplateUUID,
+			Position:     update.Position,
+			Orientation:  update.Orientation,
+			Translation:  update.Translation,
+			Rotation:     update.Rotation,
+			Scale:        update.Scale,
 		}
 		for _, setting := range update.Settings {
 			wsUpdate.Settings = append(wsUpdate.Settings, &wsRPC.Setting{
@@ -166,6 +167,7 @@ func (server *SimHostServer) HandleUpdateRequest(ctx context.Context, updateRequ
 			nodeUpdate.Translation,
 			nodeUpdate.Rotation,
 			nodeUpdate.Scale,
+			nodeUpdate.TemplateUUID,
 		)
 	}
 	return &simRPC.Ack{Message: "OK"}, nil

@@ -20,7 +20,7 @@ spaciblo.events.ClientMessageReceived = 'spaciblo-client-message-received'
 spaciblo.api.PositioningSettingsNames = ['position', 'orientation', 'rotation', 'translation', 'scale']
 
 // Settings that are not displayed in the space editor settings
-spaciblo.api.IgnoredSettings = ['id', 'clientUUID']
+spaciblo.api.IgnoredSettings = ['id', 'clientUUID', 'templateUUID']
 
 // Names of settings that represent lighting of a scene node
 spaciblo.api.LightingSettingsNames = ['light-color', 'light-distance', 'light-intensity', 'light-target', 'light-type']

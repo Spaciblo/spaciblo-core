@@ -108,13 +108,14 @@ func NewSpaceUpdateMessage(spaceUUID string, frame int64) *SpaceUpdateMessage {
 
 // Information about a node change
 type NodeUpdateMessage struct {
-	Id          int64             `json:"id"`
-	Settings    map[string]string `json:"settings"`
-	Position    []float64         `json:"position"`
-	Orientation []float64         `json:"orientation"`
-	Translation []float64         `json:"translation"`
-	Rotation    []float64         `json:"rotation"`
-	Scale       []float64         `json:"scale"`
+	Id           int64             `json:"id"`
+	Settings     map[string]string `json:"settings"`
+	TemplateUUID string            `json:"templateUUID"`
+	Position     []float64         `json:"position"`
+	Orientation  []float64         `json:"orientation"`
+	Translation  []float64         `json:"translation"`
+	Rotation     []float64         `json:"rotation"`
+	Scale        []float64         `json:"scale"`
 }
 
 // Sent by a client to request changes to nodes

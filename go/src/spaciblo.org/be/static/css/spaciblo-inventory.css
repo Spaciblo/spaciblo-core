@@ -1,6 +1,7 @@
 
 .inventory-page-component {
 	margin-bottom: 30px;
+	font-weight: 300;
 }
 
 .inventory-page-component .top-row {
@@ -113,4 +114,20 @@
 .scene-graph-node-lighting-component .type-group input {
 	margin-left: 5px;
 	margin-right: 25px;
+}
+
+.template-picker-component .be-collection-component {
+	max-height: 10em;
+	overflow: auto;
+}
+.template-picker-item-component {
+	display: inline-block;
+	cursor: pointer;
+	border: solid 1px #EFEFEF;
+	padding: 5px;
+	margin: 0 5px 5px 0;
+}
+.template-picker-item-component:hover {
+	border: solid 1px #DDDDDD;
+	background-color: #EFEFEF;
 }

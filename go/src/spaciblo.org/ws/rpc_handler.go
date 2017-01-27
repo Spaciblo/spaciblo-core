@@ -50,13 +50,14 @@ func (server *RPCHostServer) SendSpaceUpdate(ctx context.Context, spaceUpdate *w
 
 	for _, update := range spaceUpdate.NodeUpdates {
 		updateMessage := &NodeUpdateMessage{
-			Id:          update.Id,
-			Settings:    make(map[string]string),
-			Position:    update.Position,
-			Orientation: update.Orientation,
-			Translation: update.Translation,
-			Rotation:    update.Rotation,
-			Scale:       update.Scale,
+			Id:           update.Id,
+			Settings:     make(map[string]string),
+			TemplateUUID: update.TemplateUUID,
+			Position:     update.Position,
+			Orientation:  update.Orientation,
+			Translation:  update.Translation,
+			Rotation:     update.Rotation,
+			Scale:        update.Scale,
 		}
 		for _, setting := range update.Settings {
 			updateMessage.Settings[setting.Key] = setting.Value

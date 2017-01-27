@@ -158,6 +158,10 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 		node.Translation.Set(notice.Translation)
 		node.Rotation.Set(notice.Rotation)
 		node.Scale.Set(notice.Scale)
+		if notice.TemplateUUID != "" && notice.TemplateUUID != node.TemplateUUID.Value {
+			node.TemplateUUID.Value = notice.TemplateUUID
+			node.TemplateUUID.Dirty = true
+		}
 	}
 
 	// Send new client clients full initialization updates
@@ -297,15 +301,16 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 /*
 HandleNodeUpdate is called by the sim host when it receives an update request message from a client via the WS service
 */
-func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, settings map[string]string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64) {
+func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, settings map[string]string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64, templateUUID string) {
 	spaceSim.NodeUpdateChannel <- &NodeUpdateNotice{
-		Id:          nodeId,
-		Settings:    settings,
-		Position:    position,
-		Orientation: orientation,
-		Translation: translation,
-		Rotation:    rotation,
-		Scale:       scale,
+		Id:           nodeId,
+		Settings:     settings,
+		Position:     position,
+		Orientation:  orientation,
+		Translation:  translation,
+		Rotation:     rotation,
+		Scale:        scale,
+		TemplateUUID: templateUUID,
 	}
 }
 
@@ -400,13 +405,14 @@ func (spaceSim *SpaceSimulator) removeAvatar(clientUUID string) {
 
 func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode, error) {
 	rootNode := &SceneNode{
-		Id:          nextSceneId(),
-		Settings:    make(map[string]*StringTuple),
-		Position:    NewVector3([]float64{0, 0, 0}),
-		Orientation: NewQuaternion([]float64{0, 0, 0, 1}),
-		Translation: NewVector3([]float64{0, 0, 0}),
-		Rotation:    NewVector3([]float64{0, 0, 0}),
-		Scale:       NewVector3([]float64{1, 1, 1}),
+		Id:           nextSceneId(),
+		Settings:     make(map[string]*StringTuple),
+		TemplateUUID: NewStringField(""),
+		Position:     NewVector3([]float64{0, 0, 0}),
+		Orientation:  NewQuaternion([]float64{0, 0, 0, 1}),
+		Translation:  NewVector3([]float64{0, 0, 0}),
+		Rotation:     NewVector3([]float64{0, 0, 0}),
+		Scale:        NewVector3([]float64{1, 1, 1}),
 	}
 	for key, value := range initialState.Settings {
 		rootNode.Settings[key] = NewStringTuple(key, value)
@@ -442,7 +448,7 @@ type SceneNode struct {
 	Translation  *Vector3                `json:"-"`
 	Rotation     *Vector3                `json:"-"`
 	Scale        *Vector3                `json:"scale"`
-	TemplateUUID string                  `json:"templateUUID"`
+	TemplateUUID *StringField            `json:"templateUUID"`
 	Nodes        []*SceneNode            `json:"nodes,omitempty"`
 	Transient    bool                    `json:"transient"` // True if should be ignored when initializing a space (e.g. Avatar node)
 }
@@ -450,7 +456,7 @@ type SceneNode struct {
 func NewBodyPartSceneNode(name string, templateUUID string, position []float64, orientation []float64, scale []float64) *SceneNode {
 	sceneNode := &SceneNode{
 		Id:           nextSceneId(),
-		TemplateUUID: templateUUID,
+		TemplateUUID: NewStringField(templateUUID),
 		Settings:     make(map[string]*StringTuple),
 		Position:     NewVector3(position),
 		Orientation:  NewQuaternion(orientation),
@@ -481,14 +487,15 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 		}
 	}
 	sceneNode := &SceneNode{
-		Id:          nextSceneId(),
-		Settings:    make(map[string]*StringTuple),
-		Position:    NewVector3(stateNode.Position),
-		Orientation: NewQuaternion(stateNode.Orientation),
-		Translation: NewVector3([]float64{0, 0, 0}),
-		Rotation:    NewVector3([]float64{0, 0, 0}),
-		Scale:       NewVector3(stateNode.Scale),
-		Nodes:       []*SceneNode{},
+		Id:           nextSceneId(),
+		Settings:     make(map[string]*StringTuple),
+		TemplateUUID: NewStringField(""),
+		Position:     NewVector3(stateNode.Position),
+		Orientation:  NewQuaternion(stateNode.Orientation),
+		Translation:  NewVector3([]float64{0, 0, 0}),
+		Rotation:     NewVector3([]float64{0, 0, 0}),
+		Scale:        NewVector3(stateNode.Scale),
+		Nodes:        []*SceneNode{},
 	}
 	for key, value := range stateNode.Settings {
 		sceneNode.Settings[key] = NewStringTuple(key, value)
@@ -500,7 +507,8 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 	}
 
 	if templateRecord != nil {
-		sceneNode.TemplateUUID = templateRecord.UUID
+		sceneNode.TemplateUUID.Value = templateRecord.UUID
+		sceneNode.TemplateUUID.Dirty = true
 	}
 	for _, childStateNode := range stateNode.Nodes {
 		childNode, err := NewSceneNode(&childStateNode, dbInfo)
@@ -522,13 +530,14 @@ func (node *SceneNode) getNodeUpdates() []*NodeUpdate {
 	result := []*NodeUpdate{}
 	if node.isDirty() {
 		update := &NodeUpdate{
-			Id:          node.Id,
-			Settings:    []*StringTuple{},
-			Position:    node.Position.ReadAndClean(),
-			Orientation: node.Orientation.ReadAndClean(),
-			Translation: node.Translation.ReadAndClean(),
-			Rotation:    node.Rotation.ReadAndClean(),
-			Scale:       node.Scale.ReadAndClean(),
+			Id:           node.Id,
+			Settings:     []*StringTuple{},
+			Position:     node.Position.ReadAndClean(),
+			Orientation:  node.Orientation.ReadAndClean(),
+			Translation:  node.Translation.ReadAndClean(),
+			Rotation:     node.Rotation.ReadAndClean(),
+			Scale:        node.Scale.ReadAndClean(),
+			TemplateUUID: node.TemplateUUID.ReadAndClean(),
 		}
 		for _, tuple := range node.Settings {
 			if tuple.Dirty {
@@ -581,7 +590,7 @@ func (node *SceneNode) findById(id int64) *SceneNode {
 }
 
 func (node *SceneNode) isDirty() bool {
-	if node.Position.Dirty || node.Orientation.Dirty || node.Rotation.Dirty || node.Translation.Dirty || node.Scale.Dirty {
+	if node.Position.Dirty || node.Orientation.Dirty || node.Rotation.Dirty || node.Translation.Dirty || node.Scale.Dirty || node.TemplateUUID.Dirty {
 		return true
 	}
 	for _, stringTuple := range node.Settings {
@@ -658,13 +667,14 @@ type AvatarMotionNotice struct {
 }
 
 type NodeUpdateNotice struct {
-	Id          int64
-	Settings    map[string]string
-	Position    []float64
-	Orientation []float64
-	Translation []float64
-	Rotation    []float64
-	Scale       []float64
+	Id           int64
+	Settings     map[string]string
+	Position     []float64
+	Orientation  []float64
+	Translation  []float64
+	Rotation     []float64
+	Scale        []float64
+	TemplateUUID string
 }
 
 type ClientMembershipNotice struct {
@@ -674,13 +684,35 @@ type ClientMembershipNotice struct {
 }
 
 type NodeUpdate struct {
-	Id          int64
-	Settings    []*StringTuple
-	Position    []float64
-	Orientation []float64
-	Translation []float64
-	Rotation    []float64
-	Scale       []float64
+	Id           int64
+	Settings     []*StringTuple
+	Position     []float64
+	Orientation  []float64
+	Translation  []float64
+	Rotation     []float64
+	Scale        []float64
+	TemplateUUID string
+}
+
+type StringField struct {
+	Dirty bool   `json:"-"`
+	Value string `json:"value"`
+}
+
+func NewStringField(value string) *StringField {
+	return &StringField{
+		Dirty: false,
+		Value: value,
+	}
+}
+
+// If clean, return "", otherwise set clean and return the value
+func (field *StringField) ReadAndClean() string {
+	if field.Dirty == false {
+		return ""
+	}
+	field.Dirty = false
+	return field.Value
 }
 
 type StringTuple struct {

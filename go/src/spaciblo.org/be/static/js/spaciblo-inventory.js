@@ -6,6 +6,7 @@ spaciblo.components = spaciblo.components || {}
 
 spaciblo.events.SettingUpdated = 'spaciblo-setting-updated'
 spaciblo.events.NodeUpdated = 'spaciblo-node-updated'
+spaciblo.events.TemplatePicked = 'spaciblo-template-picked'
 
 /* 
 The number of miliseconds after input to ignore model updates so that
@@ -332,10 +333,14 @@ spaciblo.components.SceneGraphNodeData = class extends k.DataModel {
 	constructor(addition){
 		super(Object.assign({ id: addition.id }, addition.settings))
 		this._updatePositioning(addition)
+		this.set('templateUUID', addition.templateUUID)
 	}
 	handleUpdate(update){
 		this._updateSettings(update)
 		this._updatePositioning(update)
+		if(typeof update.templateUUID !== 'undefined'){
+			this.set('templateUUID', update.templateUUID)
+		}
 	}
 	_updateSettings(data){
 		if(data.settings){
@@ -374,7 +379,7 @@ spaciblo.components.SceneGraphNode = class extends k.Component {
 	}
 	cleanup(){
 		super.cleanup()
-		this.dataObject.removeListener(this._boundHandleModelChange)
+		this.dataObject.cleanup()
 		for(let child of this.ul.children){
 			if(child.component instanceof spaciblo.components.SceneGraphNode){
 				child.component.cleanup()
@@ -431,6 +436,10 @@ spaciblo.components.SceneGraphNodePropertiesComponent = class extends k.Componen
 		this.settingsComponent.addListener((...params) => { this._handleSettingUpdated(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.settingsComponent.el)
 
+		this.templateComponent = new spaciblo.components.SceneGraphNodeTemplateComponent(this.dataObject)
+		this.templateComponent.addListener((...params) => { this._handleNodeUpdated(...params) }, spaciblo.events.NodeUpdated)
+		this.el.appendChild(this.templateComponent.el)
+
 		this.lightingComponent = new spaciblo.components.SceneGraphNodeLightingComponent(this.dataObject)
 		this.lightingComponent.addListener((...params) => { this._handleSettingUpdated(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.lightingComponent.el)
@@ -480,6 +489,96 @@ spaciblo.components.SceneGraphNodeSettingsComponent = class extends k.Component 
 		for(let [key, value] of this.settingsMap){
 			this.settingsMap.get(key).cleanup()
 		}
+	}
+}
+
+/*
+SceneGraphNodeTemplateComponent provides an editor of a node's template
+*/
+spaciblo.components.SceneGraphNodeTemplateComponent = class extends k.Component {
+	constructor(dataObject){
+		super(dataObject)
+		this.el.addClass('scene-graph-node-template-component')
+		this.el.addClass('scene-graph-node-property-component')
+
+		this.template = new be.api.Template({ uuid: this.dataObject.get('templateUUID') })
+		this.el.appendChild(k.el.h3('Template'))
+
+		this.nameEl = k.el.h4().appendTo(this.el)
+
+		this.changeLink = k.el.a('change').appendTo(this.el)
+		this.listenTo('click', this.changeLink, this._handleChangeClick, this)
+		this.templatePickerComponent = new spaciblo.components.TemplatePickerComponent()
+		this.templatePickerComponent.addListener((...params) => { this._handleTemplatePicked(...params) }, spaciblo.events.TemplatePicked)
+		this.el.appendChild(this.templatePickerComponent.el)
+		this.templatePickerComponent.el.style.display = 'none'
+
+		if(this.template.get('uuid')){
+			this.template.fetch().then(() => {
+				this._updateTemplate()
+			}).catch((...params) => {
+				console.error('error', ...params)
+			})
+		}
+
+		this.dataObject.addListener(() => {
+			this.template.reset({ 'uuid': this.dataObject.get('templateUUID')})
+			this.template.fetch().then(() => {
+				this._updateTemplate()
+			}).catch((...params) => {
+				console.error('error', ...params)
+			})
+		}, 'changed:templateUUID')
+	}
+	cleanup(){
+		super.cleanup()
+		this.templatePickerComponent.cleanup()
+	}
+	_handleTemplatePicked(eventName, pickerComponent, templateDataObject){
+		this.changeLink.style.display = 'block'
+		this.templatePickerComponent.el.style.display = 'none'
+		if(templateDataObject.get('uuid') === this.dataObject.get('templateUUID')) return
+		this.trigger(spaciblo.events.NodeUpdated, this.dataObject.get('id'), 'templateUUID', templateDataObject.get('uuid'))
+	}
+	_handleChangeClick(ev){
+		this.changeLink.style.display = 'none'
+		this.templatePickerComponent.el.style.display = 'block'
+		if(this.templatePickerComponent.dataObject.isNew){
+			this.templatePickerComponent.dataObject.fetch()
+		}
+	}
+	_updateTemplate(){
+		this.nameEl.innerText = this.template.get('name')
+	}
+}
+
+/*
+TemplatePickerComponent is used in the editor when picking a new Template for a scene graph node
+*/
+spaciblo.components.TemplatePickerComponent = class extends k.Component {
+	constructor(){
+		super(new be.api.Templates())
+		this.el.addClass('template-picker-component')
+		this.templatesComponent = new be.ui.CollectionComponent(this.dataObject, {
+			itemComponent: spaciblo.components.TemplatePickerItemComponent,
+			onClick: (dataObject) => { this._handleItemClick(dataObject) }
+		})
+		this.el.appendChild(this.templatesComponent.el)
+	}
+	_handleItemClick(dataObject){
+		this.trigger(spaciblo.events.TemplatePicked, this, dataObject)
+	}
+	cleanup(){
+		super.cleanup()
+		this.dataObject.cleanup()
+	}
+}
+spaciblo.components.TemplatePickerItemComponent = class extends k.Component {
+	constructor(dataObject, options){
+		super(dataObject, options)
+		this.el.addClass('template-picker-item-component')
+		this.nameEl = k.el.div().appendTo(this.el)
+		this.bindText('name', this.nameEl)
 	}
 }
 

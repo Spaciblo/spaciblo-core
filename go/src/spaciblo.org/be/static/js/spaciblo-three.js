@@ -299,6 +299,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				group.scale.set(...update.scale)
 			}
 			group.updateSettings(update.settings)
+			group.updateTemplate(update.templateUUID, this.templateLoader)
 		}
 	}
 	_createGroupFromAddition(state){
@@ -327,37 +328,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				this.avatarGroup = group
 			}
 		}
-
-		if(typeof state.templateUUID !== 'undefined' && state.templateUUID.length > 0){
-			group.template = this.templateLoader.addTemplate(state.templateUUID)
-			var loadIt = (loadingGroup) => {
-				const extension = loadingGroup.template.getSourceExtension()
-				if(extension === 'gltf'){
-					spaciblo.three.GLTFLoader.load(loadingGroup.template.sourceURL()).then(gltf => {
-						loadingGroup.setGLTF(gltf)
-					}).catch(err => {
-						console.error('Could not fetch gltf', err)
-					})
-				} else if(extension === 'obj'){
-					spaciblo.three.OBJLoader.load(loadingGroup.template.getBaseURL(), loadingGroup.template.get('source')).then(obj => {
-						loadingGroup.setOBJ(obj)
-					}).catch(err => {
-						console.error('Could not fetch obj', err)
-					})
-				} else {
-					console.error('Unknown extension for template source.', extension, loadingGroup.template)
-				}
-			}
-
-			if(group.template.loading === false){
-				loadIt(group)
-			} else {
-				group.template.addListener(() => {
-					loadIt(group)
-				}, 'fetched', true)
-			}
-		}
-
+		group.updateTemplate(state.templateUUID, this.templateLoader)
 		if(typeof state.nodes !== 'undefined'){
 			for(let node of state.nodes){
 				group.add(this._createGroupFromAddition(node))
@@ -837,6 +808,41 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		}
 		return results
 	},
+	updateTemplate: function(templateUUID, templateLoader){
+		if(typeof templateUUID === 'undefined' || templateUUID.length == 0) return
+		if(this.templateNode){
+			this.remove(this.templateNode)
+			this.templateNode = null
+		}
+
+		this.template = templateLoader.addTemplate(templateUUID)
+		var loadIt = (loadingGroup) => {
+			const extension = loadingGroup.template.getSourceExtension()
+			if(extension === 'gltf'){
+				spaciblo.three.GLTFLoader.load(loadingGroup.template.sourceURL()).then(gltf => {
+					loadingGroup.setGLTF(gltf)
+				}).catch(err => {
+					console.error('Could not fetch gltf', err)
+				})
+			} else if(extension === 'obj'){
+				spaciblo.three.OBJLoader.load(loadingGroup.template.getBaseURL(), loadingGroup.template.get('source')).then(obj => {
+					loadingGroup.setOBJ(obj)
+				}).catch(err => {
+					console.error('Could not fetch obj', err)
+				})
+			} else {
+				console.error('Unknown extension for template source.', extension, loadingGroup.template)
+			}
+		}
+
+		if(this.template.loading === false){
+			loadIt(this)
+		} else {
+			this.template.addListener(() => {
+				loadIt(this)
+			}, 'fetched', true)
+		}
+	},
 	updateSettings: function(settings){
 		if(typeof settings !== 'object') return
 		this.settings = Object.assign(this.settings || {}, settings)
@@ -901,10 +907,12 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		}
 	},
 	setGLTF: function(gltf){
+		this.templateNode = gltf.scene
 		this.add(gltf.scene)
 	},
 	setOBJ: function(obj){
 		//this._enableShadows(obj)
+		this.templateNode = obj
 		this.add(obj)
 	},
 	setupParts: function(){

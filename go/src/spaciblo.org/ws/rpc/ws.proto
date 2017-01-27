@@ -39,6 +39,7 @@ message NodeUpdate {
   repeated double translation = 5;
   repeated double rotation = 6;
   repeated double scale = 7;
+  string templateUUID = 8;
 }
 
 message Addition {
