@@ -169,11 +169,7 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 		node.Rotation.Set(notice.Rotation)
 		node.Scale.Set(notice.Scale)
 		if notice.TemplateUUID != "" && notice.TemplateUUID != node.TemplateUUID.Value {
-			if notice.TemplateUUID == REMOVE_KEY_INDICATOR {
-				node.TemplateUUID.Value = ""
-			} else {
-				node.TemplateUUID.Value = notice.TemplateUUID
-			}
+			node.TemplateUUID.Value = notice.TemplateUUID // May be REMOVE_KEY_INDICATOR
 			node.TemplateUUID.Dirty = true
 		}
 	}
@@ -621,7 +617,7 @@ func (node *SceneNode) getNodeUpdates() []*NodeUpdate {
 			Translation:  node.Translation.ReadAndClean(),
 			Rotation:     node.Rotation.ReadAndClean(),
 			Scale:        node.Scale.ReadAndClean(),
-			TemplateUUID: node.TemplateUUID.ReadAndClean(),
+			TemplateUUID: node.TemplateUUID.ReadAndClean(), // May be REMOVE_KEY_INDICATOR
 		}
 		for key, tuple := range node.Settings {
 			if tuple.Dirty {
@@ -833,7 +829,11 @@ func (field *StringField) ReadAndClean() string {
 		return ""
 	}
 	field.Dirty = false
-	return field.Value
+	if field.Value != REMOVE_KEY_INDICATOR {
+		return field.Value
+	}
+	field.Value = ""
+	return REMOVE_KEY_INDICATOR
 }
 
 type StringTuple struct {
