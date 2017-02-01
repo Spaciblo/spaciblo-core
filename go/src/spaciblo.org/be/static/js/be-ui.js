@@ -224,6 +224,10 @@ be.ui.CollectionComponent = class extends k.Component {
 		}
 	}
 	_add(itemComponent){
+		if(this._dataObjectComponents.get(itemComponent.dataObject.get('id'))){
+			// Already have it, ignore the add
+			return
+		}
 		this._dataObjectComponents.set(itemComponent.dataObject.get('id'), itemComponent)
 		this._ul.appendChild(itemComponent.el)
 		if(this.options.onClick){

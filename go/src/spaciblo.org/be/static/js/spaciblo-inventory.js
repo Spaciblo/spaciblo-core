@@ -512,7 +512,7 @@ spaciblo.components.SceneGraphNodeSettingsComponent = class extends k.Component 
 		this.el.addClass('scene-graph-node-property-component')
 		this.settingsMap = new Map() // name -> SceneNodeSettingComponent
 
-		this.removeButton = k.el.button({ class: 'delete-node-button small-button' }, 'x').appendTo(this.el)
+		this.removeButton = k.el.button({ class: 'delete-node-button small-button' }, 'delete').appendTo(this.el)
 		this.listenTo('click', this.removeButton, () => {
 			this.trigger(spaciblo.events.NodeRemoved, this.dataObject.get('id'))
 		})
@@ -574,8 +574,9 @@ spaciblo.components.SceneGraphNodeTemplateComponent = class extends k.Component 
 		}
 
 		this.dataObject.addListener(() => {
-			let uuid = this.dataObject.get('templateUUID');
-			if(uuid === spaciblo.api.RemoveKeyIndicator || !uuid){
+			let uuid = this.dataObject.get('templateUUID')
+			if(!uuid) return
+			if(uuid === spaciblo.api.RemoveKeyIndicator){
 				this.template.reset({})
 				this._updateTemplate()
 			} else {
