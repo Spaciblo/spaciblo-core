@@ -814,6 +814,10 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			this.remove(this.templateNode)
 			this.templateNode = null
 		}
+		if(templateUUID == spaciblo.api.RemoveKeyIndicator){
+			// We already removed the Template and this value indicates that there is no more template.
+			return
+		}
 
 		this.template = templateLoader.addTemplate(templateUUID)
 		var loadIt = (loadingGroup) => {
@@ -846,6 +850,11 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 	updateSettings: function(settings){
 		if(typeof settings !== 'object') return
 		this.settings = Object.assign(this.settings || {}, settings)
+		for(let setting in this.settings){
+			if(this.settings[setting] == spaciblo.api.RemoveKeyIndicator){
+				delete this.settings[setting]
+			}
+		}
 		if(this.settings.name){
 			this.name = this.settings.name
 		}

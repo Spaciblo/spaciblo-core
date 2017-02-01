@@ -16,6 +16,8 @@ const ClientDisconnectedType = "Client-Disconnected"
 const AvatarMotionType = "Avatar-Motion"
 const SpaceUpdateType = "Space-Update"
 const UpdateRequestType = "Update-Request"
+const AddNodeRequestType = "Add-Node-Request"
+const RemoveNodeRequestType = "Remove-Node-Request"
 
 // All messages passed via WebSocket between the browser and the ws service must be of type ClientMessage
 type ClientMessage interface {
@@ -125,6 +127,26 @@ type UpdateRequestMessage struct {
 	NodeUpdateMessages []*NodeUpdateMessage `json:"nodeUpdates"`
 }
 
+// Sent by a client to request an additional scene graph node
+type AddNodeRequestMessage struct {
+	TypedMessage
+	SpaceUUID    string    `json:"spaceUUID"`
+	ClientUUID   string    `json:"clientUUID"`
+	Parent       int64     `json:"parent"`
+	TemplateUUID string    `json:"templateUUID"`
+	Position     []float64 `json:"position"`
+	Orientation  []float64 `json:"orientation"`
+}
+
+// Sent by a client to request that a scene graph node be removed
+type RemoveNodeRequestMessage struct {
+	TypedMessage
+	SpaceUUID  string `json:"spaceUUID"`
+	ClientUUID string `json:"clientUUID"`
+	Id         int64  `json:"id"`
+}
+
+// Sent by the sim to tell clients that there is an additional scene graph node
 type AdditionMessage struct {
 	Id           int64             `json:"id"`
 	Settings     map[string]string `json:"settings"`
@@ -215,6 +237,10 @@ func ParseMessageJson(rawMessage string) (ClientMessage, error) {
 		parsedMessage = new(JoinSpaceMessage)
 	case AvatarMotionType:
 		parsedMessage = new(AvatarMotionMessage)
+	case AddNodeRequestType:
+		parsedMessage = new(AddNodeRequestMessage)
+	case RemoveNodeRequestType:
+		parsedMessage = new(RemoveNodeRequestMessage)
 	case UpdateRequestType:
 		parsedMessage = new(UpdateRequestMessage)
 	default:

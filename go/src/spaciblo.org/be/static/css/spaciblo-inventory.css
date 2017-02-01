@@ -56,9 +56,21 @@
 	width: 40%;
 }
 
+.scene-graph-node {
+	position: relative;
+}
 .scene-graph-node .headline {
 	border: solid 1px white;
-	padding: 10px;
+	padding: 10px 30px 10px 10px;
+}
+.scene-graph-node > .headline .small-button {
+	display: none;
+}
+.scene-graph-node > .headline:hover .small-button {
+	position: absolute;
+	top: 10px;
+	right: 5px;
+	display: inline-block;
 }
 .scene-graph-node.selected > .headline, .scene-graph-node > .headline:hover {
 	border: solid 1px #EFEFEF;
@@ -74,8 +86,25 @@
 	padding-left: 20px;
 	padding-top: 20px;
 }
+
+.scene-graph-node-properties-component.root-node .delete-node-button {
+	display: none;
+}
+
 .scene-graph-node-positioning-component div.vector-editor-component input {
 	width: 5em;
+}
+
+.scene-graph-node-template-component a {
+	cursor: pointer;
+	color: #6B6BB9;
+}
+.scene-graph-node-template-component h4 {
+	margin-bottom: 10px;
+}
+.scene-graph-node-template-component button {
+	color: #B96B6B;
+	margin-left: 15px;
 }
 
 .spaces-editor-component .list-column .add-item { display: none; }
@@ -94,6 +123,11 @@
 	border: solid 1px #EFEFEF;
 	padding: 15px;	
 	margin-bottom: 20px;
+}
+
+.scene-graph-node-settings-component > .small-button {
+	float: right;
+	color: red;
 }
 
 .scene-graph-node-property-component > h3 {

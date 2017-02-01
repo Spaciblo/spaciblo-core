@@ -14,6 +14,8 @@ import (
 
 const TICK_DURATION = time.Millisecond * 100 // 10 ticks per second
 
+const REMOVE_KEY_INDICATOR = "_r_e_m_o_v_e_"
+
 var currentSceneId int64 = -1
 
 func nextSceneId() int64 {
@@ -40,6 +42,8 @@ type SpaceSimulator struct {
 
 	ClientMembershipChannel chan *ClientMembershipNotice
 	AvatarMotionChannel     chan *AvatarMotionNotice
+	AddNodeChannel          chan *AddNodeNotice
+	RemoveNodeChannel       chan *RemoveNodeNotice
 	NodeUpdateChannel       chan *NodeUpdateNotice
 }
 
@@ -78,6 +82,8 @@ func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *b
 
 		ClientMembershipChannel: make(chan *ClientMembershipNotice, 1024),
 		AvatarMotionChannel:     make(chan *AvatarMotionNotice, 1024),
+		AddNodeChannel:          make(chan *AddNodeNotice, 1024),
+		RemoveNodeChannel:       make(chan *RemoveNodeNotice, 1024),
 		NodeUpdateChannel:       make(chan *NodeUpdateNotice, 1024),
 	}, nil
 }
@@ -151,7 +157,11 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 			continue
 		}
 		for settingName, settingValue := range notice.Settings {
-			node.SetOrCreateSetting(settingName, settingValue)
+			if settingValue == REMOVE_KEY_INDICATOR {
+				node.RemoveSetting(settingName)
+			} else {
+				node.SetOrCreateSetting(settingName, settingValue)
+			}
 		}
 		node.Position.Set(notice.Position)
 		node.Orientation.Set(notice.Orientation)
@@ -159,9 +169,44 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 		node.Rotation.Set(notice.Rotation)
 		node.Scale.Set(notice.Scale)
 		if notice.TemplateUUID != "" && notice.TemplateUUID != node.TemplateUUID.Value {
-			node.TemplateUUID.Value = notice.TemplateUUID
+			if notice.TemplateUUID == REMOVE_KEY_INDICATOR {
+				node.TemplateUUID.Value = ""
+			} else {
+				node.TemplateUUID.Value = notice.TemplateUUID
+			}
 			node.TemplateUUID.Dirty = true
 		}
+	}
+
+	addNodeNotices := spaceSim.collectAddNodeNotices()
+	for _, notice := range addNodeNotices {
+		// TODO Check that the client has permission to add a node
+		parentNode := spaceSim.RootNode.findById(notice.Parent)
+		if parentNode == nil {
+			logger.Println("Received an add node request for an unknown parent node", notice)
+			continue
+		}
+		state := apiDB.NewSpaceStateNode(notice.Position, notice.Orientation, notice.TemplateUUID)
+		childNode, err := NewSceneNode(state, spaceSim.DBInfo)
+		if err != nil {
+			logger.Println("Could not create a new node", err)
+			continue
+		}
+		childNode.SetOrCreateSetting("name", "")
+		parentNode.Add(childNode)
+		spaceSim.Additions = append(spaceSim.Additions, &SceneAddition{childNode, parentNode.Id})
+	}
+
+	removeNodeNotices := spaceSim.collectRemoveNodeNotices()
+	for _, notice := range removeNodeNotices {
+		// TODO Check that the client has permission to remove the node
+		node, parent := spaceSim.RootNode.findNodeAndParentById(notice.Id)
+		if node == nil {
+			logger.Println("Received a remove node request for an unknown node", notice)
+			continue
+		}
+		spaceSim.Deletions = append(spaceSim.Deletions, node.Id)
+		parent.Remove(node)
 	}
 
 	// Send new client clients full initialization updates
@@ -215,6 +260,30 @@ func (spaceSim *SpaceSimulator) collectAvatarMotionNotices() []*AvatarMotionNoti
 	for {
 		select {
 		case item := <-spaceSim.AvatarMotionChannel:
+			results = append(results, item)
+		default:
+			return results
+		}
+	}
+}
+
+func (spaceSim *SpaceSimulator) collectAddNodeNotices() []*AddNodeNotice {
+	results := []*AddNodeNotice{}
+	for {
+		select {
+		case item := <-spaceSim.AddNodeChannel:
+			results = append(results, item)
+		default:
+			return results
+		}
+	}
+}
+
+func (spaceSim *SpaceSimulator) collectRemoveNodeNotices() []*RemoveNodeNotice {
+	results := []*RemoveNodeNotice{}
+	for {
+		select {
+		case item := <-spaceSim.RemoveNodeChannel:
 			results = append(results, item)
 		default:
 			return results
@@ -295,6 +364,21 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 		Rotation:    rotation,
 		Scale:       scale,
 		BodyUpdates: bodyUpdates,
+	}
+}
+
+func (spaceSim *SpaceSimulator) HandleAddNode(parentId int64, templateUUID string, position []float64, orientation []float64) {
+	spaceSim.AddNodeChannel <- &AddNodeNotice{
+		Parent:       parentId,
+		TemplateUUID: templateUUID,
+		Position:     position,
+		Orientation:  orientation,
+	}
+}
+
+func (spaceSim *SpaceSimulator) HandleRemoveNode(id int64) {
+	spaceSim.RemoveNodeChannel <- &RemoveNodeNotice{
+		Id: id,
 	}
 }
 
@@ -524,7 +608,7 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 
 /*
 getNodeUpdates lists each NodeUpdate in the hierarchy starting at this SceneNode iff they are dirty
-This has the side effect of setting them clean
+This has the side effects of setting them clean and removing each Settings tuple with a Value of REMOVE_KEY_INDICATOR
 */
 func (node *SceneNode) getNodeUpdates() []*NodeUpdate {
 	result := []*NodeUpdate{}
@@ -539,10 +623,14 @@ func (node *SceneNode) getNodeUpdates() []*NodeUpdate {
 			Scale:        node.Scale.ReadAndClean(),
 			TemplateUUID: node.TemplateUUID.ReadAndClean(),
 		}
-		for _, tuple := range node.Settings {
+		for key, tuple := range node.Settings {
 			if tuple.Dirty {
 				update.Settings = append(update.Settings, tuple)
-				tuple.Dirty = false
+				if tuple.Value == REMOVE_KEY_INDICATOR {
+					delete(node.Settings, key)
+				} else {
+					tuple.Dirty = false
+				}
 			}
 		}
 		result = append(result, update)
@@ -574,6 +662,19 @@ func (node *SceneNode) findFirstChildBySetting(name string, value string) *Scene
 		}
 	}
 	return nil
+}
+
+func (node *SceneNode) findNodeAndParentById(nodeId int64) (*SceneNode, *SceneNode) {
+	for _, childNode := range node.Nodes {
+		if childNode.Id == nodeId {
+			return childNode, node
+		}
+		matchNode, matchParent := childNode.findNodeAndParentById(nodeId)
+		if matchNode != nil {
+			return matchNode, matchParent
+		}
+	}
+	return nil, nil
 }
 
 func (node *SceneNode) findById(id int64) *SceneNode {
@@ -626,6 +727,15 @@ func (node *SceneNode) SettingValue(name string) string {
 	}
 }
 
+func (node *SceneNode) RemoveSetting(name string) {
+	_, ok := node.Settings[name]
+	if ok == false {
+		return
+	}
+	node.Settings[name].Value = REMOVE_KEY_INDICATOR
+	node.Settings[name].Dirty = true
+}
+
 func (node *SceneNode) SetOrCreateSetting(name string, value string) {
 	setting, ok := node.Settings[name]
 	if ok == false {
@@ -654,6 +764,17 @@ func (node *SceneNode) Remove(childNode *SceneNode) {
 type SceneAddition struct {
 	Node     *SceneNode `json:"node"`
 	ParentId int64      `json:"parent"`
+}
+
+type AddNodeNotice struct {
+	Parent       int64
+	TemplateUUID string
+	Position     []float64
+	Orientation  []float64
+}
+
+type RemoveNodeNotice struct {
+	Id int64
 }
 
 type AvatarMotionNotice struct {

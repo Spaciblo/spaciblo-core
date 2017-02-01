@@ -7,6 +7,7 @@ spaciblo.components = spaciblo.components || {}
 spaciblo.events.SettingUpdated = 'spaciblo-setting-updated'
 spaciblo.events.NodeUpdated = 'spaciblo-node-updated'
 spaciblo.events.TemplatePicked = 'spaciblo-template-picked'
+spaciblo.events.NodeRemoved = 'spaciblo-node-removed'
 
 /* 
 The number of miliseconds after input to ignore model updates so that
@@ -175,6 +176,9 @@ spaciblo.components.SpaceDetailComponent = class extends k.Component {
 		this.propertiesComponent = new spaciblo.components.SceneGraphNodePropertiesComponent(sceneGraphNode.dataObject, {
 			client: this.sceneGraphTree.client
 		})
+		if(sceneGraphNode.parent === null){
+			this.propertiesComponent.el.addClass('root-node')
+		}
 		this.rightCol.appendChild(this.propertiesComponent.el)
 	}
 	cleanup(){
@@ -283,6 +287,9 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 				this.rootNode.addListener((...params) => {
 					this._handleNodeClick(...params)
 				}, 'node-click')
+				this.rootNode.addListener((...params) => {
+					this._handleAddNodeClick(...params)
+				}, 'add-node-click')
 				this.el.appendChild(node.el)
 			} else {
 				parent.addChild(node)
@@ -306,14 +313,19 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 		for(let childId of node.getChildrenIds()){
 			this.objectMap.delete(childId)
 		}
+
+		if(this.selectedNode === node){
+			this.selectedNode = null
+			this.trigger('node-selected', null, false)
+		}
+
 		node.cleanup()
+	}
+	_handleAddNodeClick(eventName, node){
+		this.client.sendAddNode(node.dataObject.get('id'), '', [0,0,0], [0,0,0,1])
 	}
 	_handleNodeClick(eventName, node){
 		if(this.selectedNode === node){
-			// Unselect it
-			node.el.removeClass('selected')
-			this.selectedNode = null
-			this.trigger('node-selected', node, false)
 			return
 		}
 
@@ -345,7 +357,11 @@ spaciblo.components.SceneGraphNodeData = class extends k.DataModel {
 	_updateSettings(data){
 		if(data.settings){
 			for(let key in data.settings){
-				this.set(key, data.settings[key])
+				if(data.settings[key] == spaciblo.api.RemoveKeyIndicator){
+					this.set(key, null)
+				} else {
+					this.set(key, data.settings[key])
+				}
 			}
 		}
 	}
@@ -369,8 +385,21 @@ spaciblo.components.SceneGraphNode = class extends k.Component {
 		this.lastUpdate = null
 		this.id = addition.id
 		this._boundHandleModelChange = this._handleModelChange.bind(this)
-		this.headlineEl = k.el.div({ class: 'headline' }, this._displayName).appendTo(this.el)
-		this.listenTo('click', this.headlineEl, this._handleClick, this)
+
+		this.addButton = k.el.button(
+			{ class: 'small-button' },
+			'+'
+		)
+		this.listenTo('click', this.addButton, this._handleAddClick, this)
+
+		this.displayNameEl = k.el.span(this._displayName)
+		this.listenTo('click', this.displayNameEl, this._handleClick, this)
+
+		this.headlineEl = k.el.div(
+			{ class: 'headline' }, 
+			this.displayNameEl, 
+			this.addButton
+		).appendTo(this.el)
 
 		this.ul = k.el.ul({ class: 'children' }).appendTo(this.el)
 
@@ -387,10 +416,14 @@ spaciblo.components.SceneGraphNode = class extends k.Component {
 		}
 	}
 	get _displayName(){
-		return this.dataObject.get('name', this.dataObject.get('clientUUID', ''))
+		return this.dataObject.get('name', this.dataObject.get('clientUUID', '')) || 'Unnamed'
+	}
+	_handleAddClick(ev){
+		if(ev) ev.preventDefault()
+		this.trigger('add-node-click', this)
 	}
 	_handleModelChange(){
-		this.headlineEl.innerText = this._displayName
+		this.displayNameEl.innerText = this._displayName
 	}
 	_handleClick(ev){
 		this.trigger('node-click', this)
@@ -400,6 +433,9 @@ spaciblo.components.SceneGraphNode = class extends k.Component {
 		childNode.addListener((...params) => {
 			this.trigger(...params) // Relay up the chain
 		}, 'node-click')
+		childNode.addListener((...params) => {
+			this.trigger(...params) // Relay up the chain
+		}, 'add-node-click')
 		childNode.parent = this
 	}
 	removeChild(childNode){
@@ -434,6 +470,7 @@ spaciblo.components.SceneGraphNodePropertiesComponent = class extends k.Componen
 
 		this.settingsComponent = new spaciblo.components.SceneGraphNodeSettingsComponent(this.dataObject)
 		this.settingsComponent.addListener((...params) => { this._handleSettingUpdated(...params) }, spaciblo.events.SettingUpdated)
+		this.settingsComponent.addListener((...params) => { this._handleRemoveNode(...params) }, spaciblo.events.NodeRemoved)
 		this.el.appendChild(this.settingsComponent.el)
 
 		this.templateComponent = new spaciblo.components.SceneGraphNodeTemplateComponent(this.dataObject)
@@ -457,6 +494,9 @@ spaciblo.components.SceneGraphNodePropertiesComponent = class extends k.Componen
 	_handleNodeUpdated(eventName, objectId, name, value){
 		this.options.client.sendUpdateRequest(objectId, name, value)
 	}
+	_handleRemoveNode(eventName, objectId){
+		this.options.client.sendRemoveNode(objectId)
+	}
 	_handleSettingUpdated(eventName, objectId, name, value){
 		this.options.client.sendSettingRequest(objectId, name, value)
 	}
@@ -471,6 +511,11 @@ spaciblo.components.SceneGraphNodeSettingsComponent = class extends k.Component 
 		this.el.addClass('scene-graph-node-settings-component')
 		this.el.addClass('scene-graph-node-property-component')
 		this.settingsMap = new Map() // name -> SceneNodeSettingComponent
+
+		this.removeButton = k.el.button({ class: 'delete-node-button small-button' }, 'x').appendTo(this.el)
+		this.listenTo('click', this.removeButton, () => {
+			this.trigger(spaciblo.events.NodeRemoved, this.dataObject.get('id'))
+		})
 
 		this.el.appendChild(k.el.h3('Settings'))
 
@@ -505,13 +550,20 @@ spaciblo.components.SceneGraphNodeTemplateComponent = class extends k.Component 
 		this.el.appendChild(k.el.h3('Template'))
 
 		this.nameEl = k.el.h4().appendTo(this.el)
+		this.removeLink = k.el.button({ class: 'small-button' }, 'x')
+		this.listenTo('click', this.removeLink, this._handleRemoveClick, this)
 
 		this.changeLink = k.el.a('change').appendTo(this.el)
 		this.listenTo('click', this.changeLink, this._handleChangeClick, this)
+
 		this.templatePickerComponent = new spaciblo.components.TemplatePickerComponent()
 		this.templatePickerComponent.addListener((...params) => { this._handleTemplatePicked(...params) }, spaciblo.events.TemplatePicked)
 		this.el.appendChild(this.templatePickerComponent.el)
 		this.templatePickerComponent.el.style.display = 'none'
+
+		this.cancelLink = k.el.a('cancel').appendTo(this.el)
+		this.cancelLink.style.display = 'none'
+		this.listenTo('click', this.cancelLink, this._handleCancelClick, this)
 
 		if(this.template.get('uuid')){
 			this.template.fetch().then(() => {
@@ -522,33 +574,57 @@ spaciblo.components.SceneGraphNodeTemplateComponent = class extends k.Component 
 		}
 
 		this.dataObject.addListener(() => {
-			this.template.reset({ 'uuid': this.dataObject.get('templateUUID')})
-			this.template.fetch().then(() => {
+			let uuid = this.dataObject.get('templateUUID');
+			if(uuid === spaciblo.api.RemoveKeyIndicator || !uuid){
+				this.template.reset({})
 				this._updateTemplate()
-			}).catch((...params) => {
-				console.error('error', ...params)
-			})
+			} else {
+				this.template.reset({ 'uuid': uuid})
+				this.template.fetch().then(() => {
+					this._updateTemplate()
+				}).catch((...params) => {
+					console.error('error', ...params)
+				})
+			}
 		}, 'changed:templateUUID')
 	}
 	cleanup(){
 		super.cleanup()
 		this.templatePickerComponent.cleanup()
 	}
-	_handleTemplatePicked(eventName, pickerComponent, templateDataObject){
+	_showPicker(){
+		this.changeLink.style.display = 'none'
+		this.templatePickerComponent.el.style.display = 'block'
+		this.cancelLink.style.display = 'block'
+	}
+	_hidePicker(){
 		this.changeLink.style.display = 'block'
 		this.templatePickerComponent.el.style.display = 'none'
+		this.cancelLink.style.display = 'none'
+	}
+	_handleTemplatePicked(eventName, pickerComponent, templateDataObject){
+		this._hidePicker()
 		if(templateDataObject.get('uuid') === this.dataObject.get('templateUUID')) return
 		this.trigger(spaciblo.events.NodeUpdated, this.dataObject.get('id'), 'templateUUID', templateDataObject.get('uuid'))
 	}
+	_handleRemoveClick(ev){
+		this.trigger(spaciblo.events.NodeUpdated, this.dataObject.get('id'), 'templateUUID', spaciblo.api.RemoveKeyIndicator)
+	}
+	_handleCancelClick(ev){
+		this._hidePicker()
+	}
 	_handleChangeClick(ev){
-		this.changeLink.style.display = 'none'
-		this.templatePickerComponent.el.style.display = 'block'
+		this._showPicker()
 		if(this.templatePickerComponent.dataObject.isNew){
 			this.templatePickerComponent.dataObject.fetch()
 		}
 	}
 	_updateTemplate(){
-		this.nameEl.innerText = this.template.get('name')
+		this.nameEl.innerText = ''			
+		if(this.template.get('name')){
+			this.nameEl.appendChild(k.el.span(this.template.get('name')))
+			this.nameEl.appendChild(this.removeLink)
+		}
 	}
 }
 

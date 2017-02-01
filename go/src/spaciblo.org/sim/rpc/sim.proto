@@ -17,6 +17,12 @@ service SimHost {
 
   // Tell a sim when a client requests a setting update
   rpc HandleUpdateRequest (UpdateRequest) returns (Ack) {}
+
+  // Tell a sim when a client requests a new node
+  rpc HandleAddNodeRequest (AddNodeRequest) returns (Ack) {}
+
+  // Tell a sim when a client requests node be removed
+  rpc HandleRemoveNodeRequest (RemoveNodeRequest) returns (Ack) {}
 }
 
 message Ping {
@@ -84,4 +90,19 @@ message UpdateRequest {
 	string spaceUUID = 1;
 	string clientUUID = 2;
 	repeated NodeUpdate nodeUpdates = 3;
+}
+
+message AddNodeRequest {
+	string spaceUUID = 1;
+	string clientUUID = 2;
+	string templateUUID = 3;
+	int64 parent = 4;
+	repeated double position = 5;
+	repeated double orientation = 6;
+}
+
+message RemoveNodeRequest {
+	string spaceUUID = 1;
+	string clientUUID = 2;
+	int64 id = 3;
 }

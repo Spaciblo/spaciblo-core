@@ -16,6 +16,9 @@ spaciblo.api.WEBSOCKET_PORT = 9020 // TODO stop hard coding this port
 spaciblo.events.ClientOpened = 'spaciblo-client-opened'
 spaciblo.events.ClientMessageReceived = 'spaciblo-client-message-received'
 
+// Send by the client to indicate that a key should be removed.
+spaciblo.api.RemoveKeyIndicator = '_r_e_m_o_v_e_'
+
 // Names of settings that represent the position/orientation/motion of a scene node
 spaciblo.api.PositioningSettingsNames = ['position', 'orientation', 'rotation', 'translation', 'scale']
 
@@ -83,6 +86,25 @@ spaciblo.api.Client = k.eventMixin(class {
 			type: 'Update-Request',
 			spaceUUID: this.space.get('uuid'),
 			nodeUpdates: [ nodeUpdate ]
+		}))
+	}
+	sendRemoveNode(nodeId){
+		if(this.space === null) return
+		this.socket.send(JSON.stringify({
+			type: 'Remove-Node-Request',
+			spaceUUID: this.space.get('uuid'),
+			id: nodeId
+		}))
+	}
+	sendAddNode(parentId, templateUUID, position, orientation){
+		if(this.space === null) return
+		this.socket.send(JSON.stringify({
+			type: 'Add-Node-Request',
+			parent: parentId,
+			spaceUUID: this.space.get('uuid'),
+			templateUUID: templateUUID,
+			position: position,
+			orientation: orientation
 		}))
 	}
 	sendUpdateRequest(nodeId, name, value){

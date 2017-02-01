@@ -149,6 +149,31 @@ func (server *SimHostServer) HandleAvatarMotion(ctx context.Context, avatarMotio
 	return &simRPC.Ack{Message: "OK"}, nil
 }
 
+func (server *SimHostServer) HandleAddNodeRequest(ctx context.Context, addNodeRequest *simRPC.AddNodeRequest) (*simRPC.Ack, error) {
+	spaceSim, ok := server.SpaceSimulators[addNodeRequest.SpaceUUID]
+	if ok == false {
+		return nil, errors.New("Unknown space UUID: " + addNodeRequest.SpaceUUID)
+	}
+	spaceSim.HandleAddNode(
+		addNodeRequest.Parent,
+		addNodeRequest.TemplateUUID,
+		addNodeRequest.Position,
+		addNodeRequest.Orientation,
+	)
+	return &simRPC.Ack{Message: "OK"}, nil
+}
+
+func (server *SimHostServer) HandleRemoveNodeRequest(ctx context.Context, removeNodeRequest *simRPC.RemoveNodeRequest) (*simRPC.Ack, error) {
+	spaceSim, ok := server.SpaceSimulators[removeNodeRequest.SpaceUUID]
+	if ok == false {
+		return nil, errors.New("Unknown space UUID: " + removeNodeRequest.SpaceUUID)
+	}
+	spaceSim.HandleRemoveNode(
+		removeNodeRequest.Id,
+	)
+	return &simRPC.Ack{Message: "OK"}, nil
+}
+
 func (server *SimHostServer) HandleUpdateRequest(ctx context.Context, updateRequest *simRPC.UpdateRequest) (*simRPC.Ack, error) {
 	spaceSim, ok := server.SpaceSimulators[updateRequest.SpaceUUID]
 	if ok == false {

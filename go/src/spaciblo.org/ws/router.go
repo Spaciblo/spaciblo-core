@@ -74,6 +74,27 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUI
 			return nil, err
 		}
 		return nil, nil
+	case AddNodeRequestType:
+		addNodeRequest := clientMessage.(*AddNodeRequestMessage)
+		requestRPM := &simRPC.AddNodeRequest{
+			ClientUUID:   clientUUID,
+			SpaceUUID:    addNodeRequest.SpaceUUID,
+			Parent:       addNodeRequest.Parent,
+			TemplateUUID: addNodeRequest.TemplateUUID,
+			Position:     addNodeRequest.Position,
+			Orientation:  addNodeRequest.Orientation,
+		}
+		_, err := simHostClient.HandleAddNodeRequest(context.Background(), requestRPM)
+		return nil, err
+	case RemoveNodeRequestType:
+		removeNodeRequest := clientMessage.(*RemoveNodeRequestMessage)
+		requestRPM := &simRPC.RemoveNodeRequest{
+			ClientUUID: clientUUID,
+			SpaceUUID:  removeNodeRequest.SpaceUUID,
+			Id:         removeNodeRequest.Id,
+		}
+		_, err := simHostClient.HandleRemoveNodeRequest(context.Background(), requestRPM)
+		return nil, err
 	case UpdateRequestType:
 		updateRequest := clientMessage.(*UpdateRequestMessage)
 		updateRPM := &simRPC.UpdateRequest{
