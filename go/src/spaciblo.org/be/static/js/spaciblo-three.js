@@ -21,6 +21,8 @@ spaciblo.three.WORKING_MATRIX4 = new THREE.Matrix4()
 
 spaciblo.three.DEFAULT_LIGHT_COLOR = '#FFFFFF'
 spaciblo.three.DEFAULT_LIGHT_INTENSITY = 0.7
+spaciblo.three.DEFAULT_LIGHT_SKY_COLOR  = '#0077FF'
+spaciblo.three.DEFAULT_LIGHT_GROUND_COLOR  = '#FFFFFF'
 
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
 
@@ -904,6 +906,12 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 					this.settingsLight.add(this.settingsLight.target)
 					break
 
+				case 'hemisphere':
+					let skyColor = spaciblo.three.parseSettingColor('light-sky-color', this.settings, spaciblo.events.DEFAULT_LIGHT_SKY_COLOR)
+					let groundColor = spaciblo.three.parseSettingColor('light-ground-color', this.settings, spaciblo.events.DEFAULT_LIGHT_GROUND_COLOR)
+					this.settingsLight = new THREE.HemisphereLight(skyColor, groundColor, intensity)
+					break
+					
 				default:
 					console.error('unknown light-type', this.settings)
 					this.settingsLight = null

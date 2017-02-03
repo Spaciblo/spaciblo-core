@@ -53,7 +53,7 @@
 
 .scene-node-setting-component input[type=text] {
 	display: inline-block;
-	width: 40%;
+	width: 10em;
 }
 
 .scene-graph-node {
@@ -91,8 +91,9 @@
 	display: none;
 }
 
-.scene-graph-node-positioning-component div.vector-editor-component input {
+div.vector-editor-component input[type=text] {
 	width: 5em;
+	margin-right: 5px;
 }
 
 .scene-graph-node-template-component a {
@@ -139,15 +140,15 @@
 	font-weight: 300;
 }
 
-.scene-graph-node-lighting-component .common-settings {
-	margin-top: 20px;
-}
-.scene-graph-node-lighting-component .common-settings input {
-	margin-bottom: 15px;
+.scene-graph-node-lighting-component .type-group {
+	margin-bottom: 20px;
 }
 .scene-graph-node-lighting-component .type-group input {
 	margin-left: 5px;
 	margin-right: 25px;
+}
+.scene-graph-node-lighting-component .scene-node-setting-component h3 {
+	display: none;
 }
 
 .template-picker-component .be-collection-component {

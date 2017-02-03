@@ -13,6 +13,7 @@ import (
 )
 
 const TICK_DURATION = time.Millisecond * 100 // 10 ticks per second
+const TICKS_BETWEEN_SAVES = 20               // Save space state to the DB after this many ticks
 
 const REMOVE_KEY_INDICATOR = "_r_e_m_o_v_e_"
 
@@ -39,6 +40,7 @@ type SpaceSimulator struct {
 	DefaultAvatarUUID string
 	SimHostServer     *SimHostServer
 	DBInfo            *be.DBInfo
+	TicksSinceSaved   int64 // The number of ticks since the state was last saved to the SpaceRecord
 
 	ClientMembershipChannel chan *ClientMembershipNotice
 	AvatarMotionChannel     chan *AvatarMotionNotice
@@ -229,6 +231,21 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 	spaceSim.Additions = []*SceneAddition{}
 	spaceSim.Deletions = []int64{}
 	spaceSim.Frame = (spaceSim.Frame + 1) % math.MaxInt64
+
+	/*
+		spaceSim.TicksSinceSaved += 1
+		if spaceSim.TicksSinceSaved > TICKS_BETWEEN_SAVES {
+			spaceSim.TicksSinceSaved = 0
+			err = spaceSim.SaveState()
+			if err != nil {
+				logger.Println("Could not save state", err)
+			}
+		}
+	*/
+}
+
+func (spaceSim *SpaceSimulator) SaveState() error {
+	return apiDB.UpdateSpaceState(spaceSim.UUID, spaceSim.InitialState(), spaceSim.DBInfo)
 }
 
 func (spaceSim *SpaceSimulator) GetClientUUIDs() []string {

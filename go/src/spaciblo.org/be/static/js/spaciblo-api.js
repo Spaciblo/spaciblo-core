@@ -26,7 +26,7 @@ spaciblo.api.PositioningSettingsNames = ['position', 'orientation', 'rotation', 
 spaciblo.api.IgnoredSettings = ['id', 'clientUUID', 'templateUUID']
 
 // Names of settings that represent lighting of a scene node
-spaciblo.api.LightingSettingsNames = ['light-color', 'light-distance', 'light-intensity', 'light-target', 'light-type']
+spaciblo.api.LightingSettingsNames = ['light-color', 'light-distance', 'light-intensity', 'light-target', 'light-type', 'light-decay', 'light-penumbra', 'light-angle', 'light-sky-color', 'light-ground-color']
 
 // Values for the lighting-type node setting
 spaciblo.api.LightingTypes = ['ambient', 'directional', 'point', 'spot', 'hemisphere']

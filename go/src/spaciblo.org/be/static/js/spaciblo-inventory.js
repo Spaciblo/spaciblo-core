@@ -1,4 +1,4 @@
-'use strict'
+"use strict";
 
 var spaciblo = spaciblo || {}
 spaciblo.events = spaciblo.events || {}
@@ -695,28 +695,68 @@ spaciblo.components.SceneGraphNodeLightingComponent = class extends k.Component 
 			this.listenTo('change', input, this._handleRadioClick, this)
 		}
 
-		this.commonSettings = k.el.div({ class: 'common-settings' }).appendTo(this.el)
+		this.commonSettings = new spaciblo.components.CommonLightSettingsComponent(this.dataObject)
+		this.commonSettings.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.commonSettings.el)
 
-		this.commonSettings.appendChild(k.el.h3('Intensity'))
-		this.intensityInput = k.el.input().appendTo(this.commonSettings)
-		this.listenTo('keyup', this.intensityInput, () => {
-			this._handleSettingInputChange('light-intensity', this.intensityInput.value, '')
-		}, this)
+		this.directionalSettings = new spaciblo.components.DirectionalLightSettingsComponent(this.dataObject);
+		this.directionalSettings.addListener((...params) => { this.trigger(...params) }, spaciblo.events.NodeUpdated)
+		this.directionalSettings.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.directionalSettings.el)
 
-		this.commonSettings.appendChild(k.el.h3('Color'))
-		this.colorInput = k.el.input().appendTo(this.commonSettings)
-		this.listenTo('keyup', this.colorInput, () => {
-			this._handleSettingInputChange('light-color', this.colorInput.value, '')
-		}, this)
+		this.pointSettings = new spaciblo.components.PointLightSettingsComponent(this.dataObject);
+		this.pointSettings.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.pointSettings.el)
+
+		this.spotSettings = new spaciblo.components.SpotLightSettingsComponent(this.dataObject);
+		this.spotSettings.addListener((...params) => { this.trigger(...params) }, spaciblo.events.NodeUpdated)
+		this.spotSettings.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.spotSettings.el)
+
+		this.hemisphereSettings = new spaciblo.components.HemisphereLightSettingsComponent(this.dataObject);
+		this.hemisphereSettings.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.hemisphereSettings.el)
 
 		this.dataObject.addListener(this._boundHandleModelChange, 'changed:light-type')
-		this.dataObject.addListener(this._boundHandleModelChange, 'changed:light-intensity')
-		this.dataObject.addListener(this._boundHandleModelChange, 'changed:light-color')
 		this._updateFromModel()
 	}
 	cleanup(){
 		super.cleanup()
 		this.dataObject.removeListener(this._boundHandleModelChange)
+		this.commonSettings.cleanup()
+		this.directionalSettings.cleanup()
+		this.pointSettings.cleanup()
+		this.spotSettings.cleanup()
+		this.hemisphereSettings.cleanup()
+	}
+	_showLightSettings(){
+		this.commonSettings.el.style.display = 'none'
+		this.directionalSettings.el.style.display = 'none'
+		this.pointSettings.el.style.display = 'none'
+		this.spotSettings.el.style.display = 'none'
+		this.hemisphereSettings.el.style.display = 'none'
+
+		switch(this.dataObject.get('light-type')) {
+			case 'ambient':
+				this.commonSettings.el.style.display = 'block'
+				break
+			case 'directional':
+				this.commonSettings.el.style.display = 'block'
+				this.directionalSettings.el.style.display = 'block'
+				break
+			case 'point':
+				this.commonSettings.el.style.display = 'block'
+				this.pointSettings.el.style.display = 'block'
+				break;
+			case 'spot':
+				this.commonSettings.el.style.display = 'block'
+				this.spotSettings.el.style.display = 'block'
+				break;
+			case 'hemisphere':
+				this.commonSettings.el.style.display = 'block'
+				this.hemisphereSettings.el.style.display = 'block'
+				break
+		}
 	}
 	get _radioValue(){
 		for(let child of this.typeRadioGroup.querySelectorAll('input')){
@@ -725,10 +765,6 @@ spaciblo.components.SceneGraphNodeLightingComponent = class extends k.Component 
 			}
 		}
 		return ''
-	}
-	_handleSettingInputChange(fieldName, value, defaultValue){
-		if(this.dataObject.get(fieldName, defaultValue) === value) return
-		this.trigger(spaciblo.events.SettingUpdated, this.dataObject.get('id'), fieldName, value)
 	}
 	_handleRadioClick(ev){
 		let radioValue = this._radioValue
@@ -747,14 +783,147 @@ spaciblo.components.SceneGraphNodeLightingComponent = class extends k.Component 
 				child.removeAttribute('checked')
 			}
 		}
-		this.intensityInput.value = this.dataObject.get('light-intensity', '')
-		this.colorInput.value = this.dataObject.get('light-color', '')
+		this._showLightSettings()
+	}
+}
 
-		if(lightType !== ''){
-			this.commonSettings.style.display = 'block'
-		} else {
-			this.commonSettings.style.display = 'none'
-		}
+/*
+Settings that are common to all lights
+*/
+spaciblo.components.CommonLightSettingsComponent = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('common-light-settings')
+
+		this.el.appendChild(k.el.h3('Color'))
+		this.colorComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-color' })
+		this.colorComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.colorComponent.el)
+
+		this.el.appendChild(k.el.h3('Intensity'))
+		this.intensityComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-intensity' })
+		this.intensityComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.intensityComponent.el)
+	}
+	cleanup(){
+		super.cleanup()
+		this.colorComponent.cleanup()
+		this.intensityComponent.cleanup()
+	}
+}
+
+/*
+Settings that only the DirectionalLight uses.
+*/
+spaciblo.components.DirectionalLightSettingsComponent = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('directional-light-settings')
+
+		this.el.appendChild(k.el.h3('Target'))
+		this.targetComponent = new spaciblo.components.VectorEditorComponent(this.dataObject, 'light-target', [0,0,0])
+		this.targetComponent.addListener((eventName, objectId, name, value) => { this.trigger(
+			spaciblo.events.SettingUpdated, objectId, name, value.join(',')
+		) }, spaciblo.events.NodeUpdated)
+
+		this.el.appendChild(this.targetComponent.el)
+	}
+	cleanup(){
+		super.cleanup()
+		this.targetComponent.cleanup()
+	}
+}
+
+/*
+Settings that only the PointLight uses.
+*/
+spaciblo.components.PointLightSettingsComponent = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('point-light-settings')
+
+		this.el.appendChild(k.el.h3('Distance'))
+		this.distanceComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-distance' })
+		this.distanceComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.distanceComponent.el)
+
+		this.el.appendChild(k.el.h3('Decay'))
+		this.decayComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-decay' })
+		this.decayComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.decayComponent.el)
+	}
+	cleanup(){
+		super.cleanup()
+		this.distanceComponent.cleanup()
+		this.decayComponent.cleanup()
+	}
+}
+
+/*
+Settings that only the SpotLight uses.
+*/
+spaciblo.components.SpotLightSettingsComponent = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('spot-light-settings')
+
+		this.el.appendChild(k.el.h3('Distance'))
+		this.distanceComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-distance' })
+		this.distanceComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.distanceComponent.el)
+
+		this.el.appendChild(k.el.h3('Decay'))
+		this.decayComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-decay' })
+		this.decayComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.decayComponent.el)
+
+		this.el.appendChild(k.el.h3('Angle'))
+		this.angleComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-angle' })
+		this.angleComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.angleComponent.el)
+
+		this.el.appendChild(k.el.h3('Penumbra'))
+		this.penumbraComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-penumbra' })
+		this.penumbraComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.penumbraComponent.el)
+
+		this.el.appendChild(k.el.h3('Target'))
+		this.targetComponent = new spaciblo.components.VectorEditorComponent(this.dataObject, 'light-target', [0,0,0])
+		this.targetComponent.addListener((eventName, objectId, name, value) => { this.trigger(
+			spaciblo.events.SettingUpdated, objectId, name, value.join(',')
+		) }, spaciblo.events.NodeUpdated)
+		this.el.appendChild(this.targetComponent.el)
+	}
+	cleanup(){
+		super.cleanup()
+		this.distanceComponent.cleanup()
+		this.decayComponent.cleanup()
+		this.angleComponent.cleanup()
+		this.penumbraComponent.cleanup()
+		this.targetComponent.cleanup()
+	}
+}
+
+/*
+Settings that only the HemisphereLight uses.
+*/
+spaciblo.components.HemisphereLightSettingsComponent = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('hemisphere-light-settings')
+
+		this.el.appendChild(k.el.h3('Sky color'))
+		this.skyColorComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-sky-color' })
+		this.skyColorComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.skyColorComponent.el)
+
+		this.el.appendChild(k.el.h3('Ground color'))
+		this.groundColorComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-ground-color' })
+		this.groundColorComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.groundColorComponent.el)
+	}
+	cleanup(){
+		super.cleanup()
 	}
 }
 
@@ -762,8 +931,8 @@ spaciblo.components.SceneGraphNodeLightingComponent = class extends k.Component 
 SceneGraphNodePositioningComponent provides an editor for a scene node's location and orientation
 */
 spaciblo.components.SceneGraphNodePositioningComponent = class extends k.Component {
-	constructor(dataObject){
-		super(dataObject)
+	constructor(dataObject, options={}){
+		super(dataObject, options)
 		this.el.addClass('scene-graph-node-positioning-component')
 		this.el.addClass('scene-graph-node-property-component')
 
@@ -820,14 +989,29 @@ spaciblo.components.SceneNodeSettingComponent = class extends k.Component {
 VectorEditorComponent renders a variable length array of numbers for editing
 */
 spaciblo.components.VectorEditorComponent = class extends k.Component {
-	constructor(dataObject, fieldName){
-		super(dataObject, { fieldName: fieldName })
-		this.lastUpdateSent = Date.now()
+	constructor(dataObject, fieldName, defaultValue=[]){
+		super(dataObject, { fieldName: fieldName, defaultValue: defaultValue })
 		this.el.addClass('vector-editor-component')
+		this.lastUpdateSent = Date.now()
 		this._boundHandleModelChange = this._handleModelChange.bind(this)
 		this.inputs = k.el.div().appendTo(this.el)
-		this._setVector(...this.dataObject.get(this.options.fieldName))
+		this._setVector(...this.modelValue)
 		this.dataObject.addListener(this._boundHandleModelChange, 'changed:' + this.options.fieldName)
+	}
+	get modelValue(){
+		let val = this.dataObject.get(this.options.fieldName, this.options.defaultValue)
+		if(!val) return []
+		if(Array.isArray(val)) return val
+		if(typeof val === 'string'){
+			let results = []
+			for(let token of val.split(',')){
+				let f = parseFloat(token)
+				results.push(Number.isNaN(f) ? 0 : f)
+			}
+			return results
+		}
+		console.log('unknown vector val', val)
+		return []
 	}
 	cleanup(){
 		super.cleanup()
@@ -835,7 +1019,7 @@ spaciblo.components.VectorEditorComponent = class extends k.Component {
 	}
 	_handleModelChange(...params){
 		if(Date.now() - this.lastUpdateSent < spaciblo.components.InputChangeDelay) return // Don't overwrite local editing
-		this._setVector(...this.dataObject.get(this.options.fieldName))
+		this._setVector(...this.modelValue)
 	}
 	_setVector(...params){
 		while(this.inputs.children.length < params.length){
@@ -863,7 +1047,7 @@ spaciblo.components.VectorEditorComponent = class extends k.Component {
 			}
 			vector.push(f)
 		}
-		let data = this.dataObject.get(this.options.fieldName)
+		let data = this.modelValue
 		if(vector.length != data.length) return false
 		if(vector.every((val, index) => { return val === data[index] })){
 			return null

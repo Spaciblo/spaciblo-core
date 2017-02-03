@@ -35,6 +35,16 @@ func CreateSpaceRecord(name string, state string, avatarUUID string, dbInfo *be.
 	return record, nil
 }
 
+func UpdateSpaceState(uuid string, state string, dbInfo *be.DBInfo) error {
+	// TODO update just the state column
+	record, err := FindSpaceRecord(uuid, dbInfo)
+	if err != nil {
+		return err
+	}
+	record.State = state
+	return UpdateSpaceRecord(record, dbInfo)
+}
+
 func UpdateSpaceRecord(record *SpaceRecord, dbInfo *be.DBInfo) error {
 	_, err := dbInfo.Map.Update(record)
 	return err
