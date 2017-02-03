@@ -90,28 +90,35 @@ func findSpaceByField(fieldName string, value string, dbInfo *be.DBInfo) (*Space
 }
 
 /*
-SpaceStateNode is used to serialize and parse a JSON file that holds a space's initialization state
-Its serialized form is IDENTICAL to a serialized hierarchy of simulator SceneNode instances.
+SpaceStateNode is used to serialize and parse JSON that holds a space's initialization state.
 Use SpaceStateNode when reading space.json files into the DB or passing around initialization state.
-Use SceneNode when in the simulator.
 */
 type SpaceStateNode struct {
 	Settings     map[string]string `json:"settings,omitempty"`      // Contains node specific settings like <background-color, #44DDFF>
 	Position     []float64         `json:"position,omitempty"`      // x,y,z
 	Orientation  []float64         `json:"orientation,omitempty"`   // x, y, z, w
+	Translation  []float64         `json:"translation,omitempty"`   // x,y,z motion speed
+	Rotation     []float64         `json:"rotation,omitempty"`      // x,y,z rotational speed
 	Scale        []float64         `json:"scale,omitempty"`         // x,y,z
 	TemplateName string            `json:"template-name,omitempty"` // Templates can be referenced by names (which are not unique) or by UUID (which are)
 	TemplateUUID string            `json:"template-uuid,omitempty"`
 	Nodes        []SpaceStateNode  `json:"nodes,omitempty"`
 }
 
-func NewSpaceStateNode(position []float64, orientation []float64, templateUUID string) *SpaceStateNode {
+func NewEmptySpaceStateNode() *SpaceStateNode {
+	return NewSpaceStateNode([]float64{0, 0, 0}, []float64{0, 0, 0, 1}, []float64{0, 0, 0}, []float64{0, 0, 0}, []float64{0, 0, 0}, "")
+}
+
+func NewSpaceStateNode(position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64, templateUUID string) *SpaceStateNode {
 	return &SpaceStateNode{
 		Settings:     make(map[string]string),
 		Position:     position,
 		Orientation:  orientation,
-		Scale:        []float64{1, 1, 1},
+		Translation:  translation,
+		Rotation:     rotation,
+		Scale:        scale,
 		TemplateUUID: templateUUID,
+		Nodes:        []SpaceStateNode{},
 	}
 }
 

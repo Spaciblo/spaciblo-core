@@ -13,7 +13,7 @@ import (
 )
 
 const TICK_DURATION = time.Millisecond * 100 // 10 ticks per second
-const TICKS_BETWEEN_SAVES = 20               // Save space state to the DB after this many ticks
+const TICKS_BETWEEN_SAVES = 30 * 10          // Save space state to the DB after this many ticks
 
 const REMOVE_KEY_INDICATOR = "_r_e_m_o_v_e_"
 
@@ -184,7 +184,7 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 			logger.Println("Received an add node request for an unknown parent node", notice)
 			continue
 		}
-		state := apiDB.NewSpaceStateNode(notice.Position, notice.Orientation, notice.TemplateUUID)
+		state := apiDB.NewSpaceStateNode(notice.Position, notice.Orientation, []float64{0, 0, 0}, []float64{0, 0, 0}, []float64{0, 0, 0}, notice.TemplateUUID)
 		childNode, err := NewSceneNode(state, spaceSim.DBInfo)
 		if err != nil {
 			logger.Println("Could not create a new node", err)
@@ -232,20 +232,18 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 	spaceSim.Deletions = []int64{}
 	spaceSim.Frame = (spaceSim.Frame + 1) % math.MaxInt64
 
-	/*
-		spaceSim.TicksSinceSaved += 1
-		if spaceSim.TicksSinceSaved > TICKS_BETWEEN_SAVES {
-			spaceSim.TicksSinceSaved = 0
-			err = spaceSim.SaveState()
-			if err != nil {
-				logger.Println("Could not save state", err)
-			}
+	spaceSim.TicksSinceSaved += 1
+	if spaceSim.TicksSinceSaved > TICKS_BETWEEN_SAVES {
+		spaceSim.TicksSinceSaved = 0
+		err = spaceSim.SaveState()
+		if err != nil {
+			logger.Println("Could not save state", err)
 		}
-	*/
+	}
 }
 
 func (spaceSim *SpaceSimulator) SaveState() error {
-	return apiDB.UpdateSpaceState(spaceSim.UUID, spaceSim.InitialState(), spaceSim.DBInfo)
+	return apiDB.UpdateSpaceState(spaceSim.UUID, spaceSim.RootNode.toSpaceStateNode().ToString(), spaceSim.DBInfo)
 }
 
 func (spaceSim *SpaceSimulator) GetClientUUIDs() []string {
@@ -430,7 +428,7 @@ func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, position []float
 	}
 
 	// Create the base avatar node
-	state := apiDB.NewSpaceStateNode(position, orientation, "")
+	state := apiDB.NewSpaceStateNode(position, orientation, []float64{0, 0, 0}, []float64{0, 0, 0}, []float64{0, 0, 0}, "")
 	node, err = NewSceneNode(state, spaceSim.DBInfo)
 	if err != nil {
 		return nil, err
@@ -538,16 +536,16 @@ type BodyUpdate struct {
 SceneNode is an element in a space's scene graph
 */
 type SceneNode struct {
-	Id           int64                   `json:"id"`
-	Settings     map[string]*StringTuple `json:"settings"`
-	Position     *Vector3                `json:"position"`
-	Orientation  *Quaternion             `json:"orientation"`
-	Translation  *Vector3                `json:"-"`
-	Rotation     *Vector3                `json:"-"`
-	Scale        *Vector3                `json:"scale"`
-	TemplateUUID *StringField            `json:"templateUUID"`
-	Nodes        []*SceneNode            `json:"nodes,omitempty"`
-	Transient    bool                    `json:"transient"` // True if should be ignored when initializing a space (e.g. Avatar node)
+	Id           int64
+	Settings     map[string]*StringTuple
+	Position     *Vector3
+	Orientation  *Quaternion
+	Translation  *Vector3
+	Rotation     *Vector3
+	Scale        *Vector3
+	TemplateUUID *StringField
+	Nodes        []*SceneNode
+	Transient    bool // True if ignored when serializing to a SpaceStateNode (e.g. this is an Avatar node)
 }
 
 func NewBodyPartSceneNode(name string, templateUUID string, position []float64, orientation []float64, scale []float64) *SceneNode {
@@ -617,6 +615,20 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 		}
 	}
 	return sceneNode, nil
+}
+
+func (node *SceneNode) toSpaceStateNode() *apiDB.SpaceStateNode {
+	stateNode := apiDB.NewSpaceStateNode(node.Position.Data, node.Orientation.Data, node.Translation.Data, node.Rotation.Data, node.Scale.Data, node.TemplateUUID.Value)
+	for _, setting := range node.Settings {
+		stateNode.Settings[setting.Key] = setting.Value
+	}
+	for _, child := range node.Nodes {
+		if child.Transient {
+			continue
+		}
+		stateNode.Nodes = append(stateNode.Nodes, *child.toSpaceStateNode())
+	}
+	return stateNode
 }
 
 /*
