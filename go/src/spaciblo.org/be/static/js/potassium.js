@@ -371,6 +371,14 @@ k.DataCollection = class extends k.DataObject {
 		}
 		return -1
 	}
+	firstByField(fieldName, value){
+		for(let model of this){
+			if(model.get(fieldName) === value){
+				return model
+			}
+		}
+		return null
+	}
 	remove(dataObject){
 		let index = this.indexOf(dataObject)
 		if(index === -1){

@@ -38,7 +38,7 @@ spaciblo.three.LEFT_HAND_NODE_NAME = 'left_hand'
 spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
 
 /*
-SpacesRenderer holds a Three.js scene and is used by SpacesComponent to render spaces
+Renderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
 spaciblo.three.Renderer = k.eventMixin(class {
 	constructor(inputManager, background=new THREE.Color(0x99DDff)){

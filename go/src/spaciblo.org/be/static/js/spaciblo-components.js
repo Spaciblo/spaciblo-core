@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 var spaciblo = spaciblo || {}
 spaciblo.events = spaciblo.events || {}
@@ -88,8 +88,25 @@ spaciblo.components.SplashPageComponent = class extends k.Component {
 		this.topNav = new be.ui.TopNavComponent()
 		this.el.appendChild(this.topNav.el)
 
+		this.router = new k.Router()
+		this.router.addRoute(/^$/, 'spaces-menu')
+		this.router.addRoute(/^([0-9a-z\-]+)$/, 'space')
+
 		this.spacesComponent = new spaciblo.components.SpacesComponent(dataObject)
 		this.el.appendChild(this.spacesComponent.el)
+
+		this.router.addListener(this._handleRoutes.bind(this))
+		this.router.start()
+	}
+	_handleRoutes(routeName, ...params){
+		switch(routeName){
+			case 'space':
+				this.spacesComponent.handleSpaceRoute(params[0])
+				break
+			default:
+				// Do nothing. The SpacesComponent shows a menu.
+				break
+		}
 	}
 	handleAddedToDOM(){
 		this.spacesComponent.handleAddedToDOM()
@@ -192,7 +209,25 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		// Avatar translation is relative to the avatar orientation, so translation of 0,0,-1 is always forward even if the head/camera is pointed elsewhere
 		this.client.sendAvatarUpdate(this.renderer.avatarPosition, this.renderer.avatarOrientation, this.renderer.avatarBodyUpdates, translation, rotation)
 	}
+	handleSpaceRoute(spaceUUID){
+		let doIt = () => {
+			let space = this.dataObject.firstByField('uuid', spaceUUID)
+			if(space === null){
+				console.error('No space for UUID', spaceUUID)
+				return
+			}
+			this.showSpace(space)
+		}
+		if(this.dataObject.isNew){
+			this.dataObject.addListener(doIt, 'reset', true)
+		} else {
+			doIt()
+		}
+	}
 	handleSpaceSelected(eventName, space){
+		document.location.hash = '#' + space.get('uuid')
+	}
+	showSpace(space){
 		if(this.client != null){
 			console.error("Oops, can't open a second space, yet")
 			return
