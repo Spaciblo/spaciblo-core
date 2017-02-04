@@ -61,6 +61,43 @@ func (resource SpacesResource) Get(request *be.APIRequest) (int, interface{}, ht
 	return 200, list, responseHeader
 }
 
+func (resource SpacesResource) Post(request *be.APIRequest) (int, interface{}, http.Header) {
+	responseHeader := map[string][]string{}
+	if request.User == nil {
+		return 401, be.NotLoggedInError, responseHeader
+	}
+	if request.User.Staff == false {
+		return 401, be.StaffOnlyError, responseHeader
+	}
+
+	var data apiDB.SpaceRecord
+	err := json.NewDecoder(request.Raw.Body).Decode(&data)
+	if err != nil {
+		return 400, be.BadRequestError, responseHeader
+	}
+
+	avatarRecord, err := apiDB.FindDefaultAvatarRecord(request.DBInfo)
+	if err != nil {
+		logger.Println("Error finding the default avatar", err)
+		return 500, be.APIError{
+			Id:      "avatar_record_error",
+			Message: "Error finding the default avatar",
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
+	record, err := apiDB.CreateSpaceRecord(data.Name, "{}", avatarRecord.UUID, request.DBInfo)
+	if err != nil {
+		logger.Println("Error creating a space record", err)
+		return 500, be.APIError{
+			Id:      "db_error",
+			Message: "Database error",
+			Error:   err.Error(),
+		}, responseHeader
+	}
+	return 200, record, responseHeader
+}
+
 type SpaceResource struct {
 }
 

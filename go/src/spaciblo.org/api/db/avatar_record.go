@@ -11,6 +11,7 @@ import (
 
 const AvatarTable = "avatars"
 const AvatarPartTable = "avatar_parts"
+const DefaultAvatarName = "Default Avatar"
 
 /*
 AvatarPartRecord associates an AvatarRecord with a TemplateRecord that represents a head, hand, torso, etc
@@ -164,6 +165,14 @@ func DeleteAllAvatarRecords(dbInfo *be.DBInfo) error {
 		}
 	}
 	return nil
+}
+
+func FindDefaultAvatarRecord(dbInfo *be.DBInfo) (*AvatarRecord, error) {
+	record, err := FindAvatarRecordByField("name", DefaultAvatarName, dbInfo)
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
 }
 
 func FindAvatarRecord(uuid string, dbInfo *be.DBInfo) (*AvatarRecord, error) {

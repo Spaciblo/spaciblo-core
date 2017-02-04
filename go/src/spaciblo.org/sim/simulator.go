@@ -64,6 +64,9 @@ func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *b
 		return nil, err
 	}
 	rootNode, err := NewRootNode(state, dbInfo)
+	if rootNode.SettingValue("name") == "" {
+		rootNode.SetOrCreateSetting("name", "Root Node")
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -38,21 +38,11 @@ func TestHostStartup(t *testing.T) {
 		dbInfo.Connection.Close()
 	}()
 
-	avatarRecord, err := apiDB.CreateAvatarRecord("Avatar", dbInfo)
-	AssertNil(t, err)
-	templateRecord0, err := apiDB.CreateTemplateRecord("Template 0", "bogus0.obj", "", "", dbInfo)
-	AssertNil(t, err)
-	templateRecord1, err := apiDB.CreateTemplateRecord("Template 1", "bogus1.obj", "", "", dbInfo)
+	avatarRecord, err := apiDB.CreateAvatarRecord("Default Avatar", dbInfo)
 	AssertNil(t, err)
 
 	// Create a space for our test
-	position := []float64{0, 0, 0}
-	orientation := []float64{0, 0, 0, 1}
-	rootNode := apiDB.NewSpaceStateNode(position, orientation, templateRecord0.UUID)
-	groupNode := apiDB.NewSpaceStateNode(position, orientation, "")
-	rootNode.Nodes = append(rootNode.Nodes, *groupNode)
-	groupNode.Nodes = append(groupNode.Nodes, *apiDB.NewSpaceStateNode(position, orientation, templateRecord1.UUID))
-	_, err = apiDB.CreateSpaceRecord("Space 0", rootNode.ToString(), avatarRecord.UUID, dbInfo)
+	_, err = createSpace(avatarRecord.UUID, dbInfo)
 	AssertNil(t, err)
 
 	wsService, simService, err := createTestCluster(dbInfo)
@@ -74,7 +64,28 @@ func TestHostStartup(t *testing.T) {
 
 	_, err = simClient.Ping()
 	AssertNil(t, err)
-	// TODO Actually bang on the test cluster space
+
+	spaceRecord0, err := createSpace(avatarRecord.UUID, dbInfo)
+	AssertNil(t, err)
+
+	_, err = simClient.StartSimulator(spaceRecord0.UUID)
+	AssertNil(t, err)
+}
+
+func createSpace(avatarUUID string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, error) {
+	templateRecord0, _ := apiDB.CreateTemplateRecord("Template 0", "bogus0.obj", "", "", dbInfo)
+	templateRecord1, _ := apiDB.CreateTemplateRecord("Template 1", "bogus1.obj", "", "", dbInfo)
+
+	position := []float64{0, 0, 0}
+	orientation := []float64{0, 0, 0, 1}
+	translation := []float64{0, 0, 0}
+	rotation := []float64{0, 0, 0}
+	scale := []float64{0, 0, 0}
+	rootNode := apiDB.NewSpaceStateNode(position, orientation, translation, rotation, scale, templateRecord0.UUID)
+	groupNode := apiDB.NewSpaceStateNode(position, orientation, translation, rotation, scale, "")
+	rootNode.Nodes = append(rootNode.Nodes, *groupNode)
+	groupNode.Nodes = append(groupNode.Nodes, *apiDB.NewSpaceStateNode(position, orientation, translation, rotation, scale, templateRecord1.UUID))
+	return apiDB.CreateSpaceRecord("Space 0", rootNode.ToString(), avatarUUID, dbInfo)
 }
 
 func createTestCluster(dbInfo *be.DBInfo) (*ws.WSService, *SimHostService, error) {

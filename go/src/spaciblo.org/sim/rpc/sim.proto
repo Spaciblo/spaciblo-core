@@ -23,6 +23,9 @@ service SimHost {
 
   // Tell a sim when a client requests node be removed
   rpc HandleRemoveNodeRequest (RemoveNodeRequest) returns (Ack) {}
+
+  // Request that a space's simulator be started, if it hasn't already
+  rpc HandleStartSimulatorRequest (StartSimulatorRequest) returns (Ack) {}
 }
 
 message Ping {
@@ -105,4 +108,8 @@ message RemoveNodeRequest {
 	string spaceUUID = 1;
 	string clientUUID = 2;
 	int64 id = 3;
+}
+
+message StartSimulatorRequest {
+	string spaceUUID = 1;
 }

@@ -81,6 +81,7 @@ type TestAPI struct {
 	API      *API
 	Server   *negroni.Negroni
 	Listener *StoppableListener
+	DBInfo   *DBInfo
 }
 
 func (api TestAPI) URL() string {
@@ -142,6 +143,7 @@ func NewTestAPI() (*TestAPI, error) {
 		API:      api,
 		Server:   negServer,
 		Listener: sl,
+		DBInfo:   dbInfo,
 	}, nil
 }
 

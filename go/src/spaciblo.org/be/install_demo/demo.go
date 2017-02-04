@@ -99,7 +99,7 @@ func main() {
 		}
 	}
 
-	avatarRecord, err := apiDB.FindAvatarRecordByField("name", "Default Avatar", dbInfo)
+	avatarRecord, err := apiDB.FindDefaultAvatarRecord(dbInfo)
 	if err != nil {
 		logger.Fatal("Could not find default avatar: %s", err)
 		return

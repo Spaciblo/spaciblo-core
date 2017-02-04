@@ -40,6 +40,13 @@ func (client *SimRPCClient) Close() {
 }
 
 func (client *SimRPCClient) Ping() (*simRPC.Ack, error) {
-	var ping = new(simRPC.Ping)
+	ping := new(simRPC.Ping)
 	return client.HostClient.HandlePing(context.Background(), ping)
+}
+
+func (client *SimRPCClient) StartSimulator(spaceUUID string) (*simRPC.Ack, error) {
+	request := &simRPC.StartSimulatorRequest{
+		SpaceUUID: spaceUUID,
+	}
+	return client.HostClient.HandleStartSimulatorRequest(context.Background(), request)
 }

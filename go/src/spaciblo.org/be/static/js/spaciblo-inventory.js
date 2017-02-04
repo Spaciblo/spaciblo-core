@@ -126,7 +126,10 @@ spaciblo.components.SpaceItemComponent = class extends k.Component {
 		if(dataObject === null) throw 'SpaceItemComponent requires a Space dataObject'
 
 		this.nameEl = k.el.div().appendTo(this.el)
-		this.bindText('name', this.nameEl)
+		this.bindText('name', this.nameEl, (value) => {
+			if(!value) return 'Unnamed'
+			return value
+		})
 	}
 }
 

@@ -26,6 +26,7 @@ func TestSpaceAPI(t *testing.T) {
 	AssertNil(t, err)
 	defer testApi.Stop()
 	addApiResources(testApi.API)
+	apiDB.MigrateDB(testApi.DBInfo)
 
 	client, err := be.NewClient(testApi.URL())
 	AssertNil(t, err)
@@ -34,7 +35,18 @@ func TestSpaceAPI(t *testing.T) {
 	arr := list.Objects.([]interface{})
 	AssertEqual(t, 0, len(arr))
 
-	spaceRecord0, err := apiDB.CreateSpaceRecord("Space 0", "{}", "bogus-avatar-uuid", dbInfo)
+	user, err := be.CreateUser("alice@example.com", "Alice", "Example", true, dbInfo)
+	AssertNil(t, err)
+	_, err = be.CreatePassword("1234", user.Id, dbInfo)
+	AssertNil(t, err)
+	err = client.Authenticate("alice@example.com", "1234")
+	AssertNil(t, err)
+	_, err = apiDB.CreateAvatarRecord("Default Avatar", dbInfo)
+	AssertNil(t, err)
+
+	data0 := &apiDB.SpaceRecord{Name: "Space 0"}
+	spaceRecord0 := &apiDB.SpaceRecord{}
+	err = client.PostAndReceiveJSON("/space/", data0, spaceRecord0)
 	AssertNil(t, err)
 
 	list, err = client.GetList("/space/")
@@ -59,6 +71,7 @@ func TestTemplateAPI(t *testing.T) {
 	AssertNil(t, err)
 	defer testApi.Stop()
 	addApiResources(testApi.API)
+	apiDB.MigrateDB(testApi.DBInfo)
 
 	tempDir, err := ioutil.TempDir(os.TempDir(), "be-temp")
 	AssertNil(t, err, "Could not create tempDir: "+tempDir)
@@ -106,5 +119,4 @@ func TestTemplateAPI(t *testing.T) {
 	reader, err := client.GetFile("/template/" + record0.UUID + "/data/" + record0.Source)
 	AssertNil(t, err)
 	AssertNotNil(t, reader)
-
 }

@@ -26,24 +26,27 @@ func NewSimHostServer(wsHost string, dbInfo *be.DBInfo) (*SimHostServer, error) 
 		WSHostClient:    nil,
 		DBInfo:          dbInfo,
 	}
-
-	// Right now an instance of sim host runs every space with a space record
-	// TODO Start and stop spaces across multiple sim hosts
-	records, err := apiDB.FindAllSpaceRecords(dbInfo)
-	if err != nil {
-		return nil, err
-	}
-	for _, spaceRecord := range records {
-		spaceSim, err := NewSpaceSimulator(spaceRecord.UUID, server, dbInfo)
-		if err != nil {
-			logger.Println("Error creating space simulator: ", spaceRecord.Name+": ", err)
-			return nil, err
-		}
-		server.SpaceSimulators[spaceRecord.UUID] = spaceSim
-		spaceSim.StartTime()
-	}
-
 	return server, nil
+}
+
+func (server *SimHostServer) StartSimulator(spaceUUID string) error {
+	_, ok := server.SpaceSimulators[spaceUUID]
+	if ok == true {
+		logger.Println("Tried to start a duplicate space simulator", spaceUUID)
+		return nil
+	}
+	spaceRecord, err := apiDB.FindSpaceRecord(spaceUUID, server.DBInfo)
+	if err != nil {
+		return err
+	}
+	spaceSim, err := NewSpaceSimulator(spaceRecord.UUID, server, server.DBInfo)
+	if err != nil {
+		return err
+	}
+	server.SpaceSimulators[spaceRecord.UUID] = spaceSim
+	spaceSim.StartTime()
+	logger.Println("Started simulator", spaceRecord.UUID, spaceRecord.Name)
+	return nil
 }
 
 func (server *SimHostServer) SendClientUpdate(spaceUUID string, frame int64, clientUUIDs []string, additions []*SceneAddition, deletions []int64, updates []*NodeUpdate) error {
@@ -149,6 +152,11 @@ func (server *SimHostServer) HandleAvatarMotion(ctx context.Context, avatarMotio
 	return &simRPC.Ack{Message: "OK"}, nil
 }
 
+func (server *SimHostServer) HandleStartSimulatorRequest(ctx context.Context, startSimulatorRequest *simRPC.StartSimulatorRequest) (*simRPC.Ack, error) {
+
+	return &simRPC.Ack{Message: "OK"}, nil
+}
+
 func (server *SimHostServer) HandleAddNodeRequest(ctx context.Context, addNodeRequest *simRPC.AddNodeRequest) (*simRPC.Ack, error) {
 	spaceSim, ok := server.SpaceSimulators[addNodeRequest.SpaceUUID]
 	if ok == false {
@@ -201,7 +209,15 @@ func (server *SimHostServer) HandleUpdateRequest(ctx context.Context, updateRequ
 func (server *SimHostServer) HandleClientMembership(ctx context.Context, clientMembership *simRPC.ClientMembership) (*simRPC.Ack, error) {
 	spaceSim, ok := server.SpaceSimulators[clientMembership.SpaceUUID]
 	if ok == false {
-		return nil, errors.New("Unknown space UUID: " + clientMembership.SpaceUUID)
+		// If the space exists, start the simulator
+		err := server.StartSimulator(clientMembership.SpaceUUID)
+		if err != nil {
+			return nil, err
+		}
+		spaceSim, ok = server.SpaceSimulators[clientMembership.SpaceUUID]
+		if ok == false {
+			return nil, errors.New("Unknown space UUID: " + clientMembership.SpaceUUID)
+		}
 	}
 	spaceSim.ChangeClientMembership(clientMembership.ClientUUID, clientMembership.Member, clientMembership.Avatar)
 	return &simRPC.Ack{Message: "OK"}, nil
