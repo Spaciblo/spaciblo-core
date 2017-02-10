@@ -123,7 +123,7 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 		// TODO compress duplicate membership notices
 		if notice.Member == true {
 			if notice.Avatar == true {
-				_, err := spaceSim.createAvatar(notice.ClientUUID, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
+				_, err := spaceSim.createAvatar(notice.ClientUUID, notice.UserUUID, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
 				if err != nil {
 					logger.Println("Error creating avatar", err)
 				}
@@ -358,9 +358,10 @@ func (spaceSim *SpaceSimulator) InitialState() string {
 ChangeClientMembership is called by the SimHost when a client connects and disconnects
 It queues a notice that the simulator handles during a tick
 */
-func (spaceSim *SpaceSimulator) ChangeClientMembership(clientUUID string, member bool, avatar bool) {
+func (spaceSim *SpaceSimulator) ChangeClientMembership(clientUUID string, userUUID string, member bool, avatar bool) {
 	spaceSim.ClientMembershipChannel <- &ClientMembershipNotice{
 		ClientUUID: clientUUID,
+		UserUUID:   userUUID,
 		Member:     member,
 		Avatar:     avatar,
 	}
@@ -412,15 +413,26 @@ func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, settings map[stri
 	}
 }
 
-func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, position []float64, orientation []float64) (*SceneNode, error) {
+func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, userUUID string, position []float64, orientation []float64) (*SceneNode, error) {
 	// Check for an existing avatar for this client
 	node, ok := spaceSim.Clients[clientUUID]
 	if ok == true {
 		return node, nil
 	}
 
+	avatarUUID := spaceSim.DefaultAvatarUUID
+	if userUUID != "" {
+		userRecord, err := be.FindUser(userUUID, spaceSim.DBInfo)
+		if err == nil && userRecord.Avatar != -1 {
+			userAvatarRecord, err := apiDB.FindAvatarRecordById(userRecord.Avatar, spaceSim.DBInfo)
+			if err == nil {
+				avatarUUID = userAvatarRecord.UUID
+			}
+		}
+	}
+
 	// Find the avatar and parts records
-	avatarRecord, err := apiDB.FindAvatarRecord(spaceSim.DefaultAvatarUUID, spaceSim.DBInfo)
+	avatarRecord, err := apiDB.FindAvatarRecord(avatarUUID, spaceSim.DBInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -828,6 +840,7 @@ type NodeUpdateNotice struct {
 
 type ClientMembershipNotice struct {
 	ClientUUID string
+	UserUUID   string
 	Member     bool
 	Avatar     bool
 }

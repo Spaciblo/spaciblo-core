@@ -49,9 +49,10 @@ message SimInfoList {
 
 message ClientMembership {
 	string clientUUID = 1;
-	string spaceUUID = 2;
-	bool member = 3;
-	bool avatar = 4;
+	string userUUID = 2;
+	string spaceUUID = 3;
+	bool member = 4;
+	bool avatar = 5;
 }
 
 message BodyUpdate {

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/goincremental/negroni-sessions"
 	"github.com/gorilla/websocket"
 	"google.golang.org/grpc"
+	"spaciblo.org/be"
 	simRPC "spaciblo.org/sim/rpc"
 )
 
@@ -14,6 +16,7 @@ WebSocketConnection holds state for an incoming connection from a browser client
 */
 type WebSocketConnection struct {
 	ClientUUID string             // Assigned when the connection comes in
+	UserUUID   string             // Assigned if the new incoming connection has a valid session
 	SpaceUUID  string             // Empty until the first space update message comes in
 	Conn       *websocket.Conn    // The connection back to the client
 	Outgoing   chan ClientMessage // A buffer for outgoing ClientMessages
@@ -47,13 +50,15 @@ type WebSocketHandler struct {
 	SimHostClient simRPC.SimHostClient
 	Connections   map[string]*WebSocketConnection
 	Upgrader      websocket.Upgrader
+	DBInfo        *be.DBInfo
 }
 
-func NewWebSocketHandler(simHost string) *WebSocketHandler {
+func NewWebSocketHandler(simHost string, dbInfo *be.DBInfo) *WebSocketHandler {
 	wsHandler := &WebSocketHandler{
 		SimHost:       simHost,
 		SimHostClient: nil,
 		Connections:   make(map[string]*WebSocketConnection),
+		DBInfo:        dbInfo,
 	}
 	wsHandler.Upgrader = websocket.Upgrader{
 		ReadBufferSize:  2048,
@@ -122,8 +127,21 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		logger.Println("Error upgrading WebSocket connection", err)
 		return
 	}
+
+	session := sessions.GetSession(r)
+	userUUID := ""
+	if session != nil {
+		sUUID := session.Get(be.UserUUIDKey)
+		uuid, _ := sUUID.(string)
+		_, err := be.FindUser(uuid, handler.DBInfo)
+		if err == nil {
+			userUUID = uuid
+		}
+	}
+
 	wsConnection := &WebSocketConnection{
 		ClientUUID: UUID(),
+		UserUUID:   userUUID,
 		SpaceUUID:  "",
 		Conn:       conn,
 		Outgoing:   make(chan ClientMessage, 2048),
@@ -136,7 +154,7 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		handler.RemoveWebSocketConnection(wsConnection)
 		conn.Close()
 		wsConnection.Stop <- true // Stops HandleOutgoing go routine
-		RouteClientMessage(NewClientDisconnectedMessage(), wsConnection.ClientUUID, wsConnection.SpaceUUID, simHostClient)
+		RouteClientMessage(NewClientDisconnectedMessage(), wsConnection.ClientUUID, wsConnection.UserUUID, wsConnection.SpaceUUID, simHostClient)
 	}()
 
 	// Send the initial Connect message
@@ -155,7 +173,7 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 			continue
 		}
 		// Route
-		responseMessage, err := RouteClientMessage(typedMessage, wsConnection.ClientUUID, wsConnection.SpaceUUID, simHostClient)
+		responseMessage, err := RouteClientMessage(typedMessage, wsConnection.ClientUUID, wsConnection.UserUUID, wsConnection.SpaceUUID, simHostClient)
 		if err != nil {
 			logger.Printf("Error routing client message: %s", err)
 		}

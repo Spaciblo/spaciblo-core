@@ -1,0 +1,23 @@
+{
+	"name": "Paper Bag",
+	"parts": [
+		{
+			"name": "Head",
+			"part": "head",
+			"templateName": "Paper Bag",
+			"position": [0, 0.6, 0]
+		},
+		{
+			"name": "Left Hand",
+			"part": "left_hand",
+			"templateName": "Left Oven Mitt",
+			"position": [-0.5, -0.5, 0]
+		},
+		{
+			"name": "Right Hand",
+			"part": "right_hand",
+			"templateName": "Right Oven Mitt",
+			"position": [0.5, -0.5, 0]
+		}
+	]
+}

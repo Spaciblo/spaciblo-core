@@ -72,9 +72,6 @@ func main() {
 		return
 	}
 
-	createUser("alice@example.com", "Alice", "Smith", true, "1234", dbInfo)
-	createUser("bob@example.com", "Bob", "Garvey", false, "1234", dbInfo)
-
 	templatesDir := path.Join(DEMO_DATA_DIR, DEMO_TEMPLATES_DIR)
 	templatesFileInfos, err := ioutil.ReadDir(templatesDir)
 	if err != nil {
@@ -94,16 +91,29 @@ func main() {
 	for _, info := range avatarsFileInfos {
 		_, err = createAvatar(path.Join(avatarsDir, info.Name()), dbInfo)
 		if err != nil {
-			logger.Fatal("Could not create an avatar %s: %s", info.Name, err)
+			logger.Fatal("Could not create an avatar: ", info.Name(), " ", err)
 			return
 		}
 	}
 
-	avatarRecord, err := apiDB.FindDefaultAvatarRecord(dbInfo)
+	defaultAvatarRecord, err := apiDB.FindDefaultAvatarRecord(dbInfo)
 	if err != nil {
 		logger.Fatal("Could not find default avatar: %s", err)
 		return
 	}
+
+	robot, err := apiDB.FindAvatarRecordByField("name", "Robot", dbInfo)
+	if err != nil {
+		logger.Fatal("Could not find the robot", err)
+	}
+
+	paperBag, err := apiDB.FindAvatarRecordByField("name", "Paper Bag", dbInfo)
+	if err != nil {
+		logger.Fatal("Could not find the paper bag avatar", err)
+	}
+
+	createUser("alice@example.com", "Alice", "Smith", true, "1234", robot.Id, dbInfo)
+	createUser("bob@example.com", "Bob", "Garvey", false, "1234", paperBag.Id, dbInfo)
 
 	spacesDir := path.Join(DEMO_DATA_DIR, DEMO_SPACES_DIR)
 	spacesFileInfos, err := ioutil.ReadDir(spacesDir)
@@ -112,7 +122,7 @@ func main() {
 		return
 	}
 	for _, info := range spacesFileInfos {
-		createSpace(path.Join(spacesDir, info.Name()), info.Name(), avatarRecord.UUID, dbInfo)
+		createSpace(path.Join(spacesDir, info.Name()), info.Name(), defaultAvatarRecord.UUID, dbInfo)
 	}
 }
 
@@ -132,6 +142,7 @@ func createAvatar(descriptorPath string, dbInfo *be.DBInfo) (*apiDB.AvatarRecord
 	for _, partDescriptor := range descriptor.Parts {
 		template, err := apiDB.FindTemplateRecordByField("name", partDescriptor.TemplateName, dbInfo)
 		if err != nil {
+			logger.Println("Error finding", partDescriptor.TemplateName)
 			return nil, err
 		}
 		template.Part = partDescriptor.Part
@@ -249,8 +260,8 @@ func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.Loc
 	return template, nil
 }
 
-func createUser(email string, firstName string, lastName string, staff bool, password string, dbInfo *be.DBInfo) (*be.User, error) {
-	user, err := be.CreateUser(email, firstName, lastName, staff, dbInfo)
+func createUser(email string, firstName string, lastName string, staff bool, password string, avatar int64, dbInfo *be.DBInfo) (*be.User, error) {
+	user, err := be.CreateUser(email, firstName, lastName, staff, avatar, dbInfo)
 	if err != nil {
 		logger.Fatal("Could not create user", err)
 		return nil, err

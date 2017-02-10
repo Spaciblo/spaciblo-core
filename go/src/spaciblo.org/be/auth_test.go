@@ -16,7 +16,7 @@ func TestPassword(t *testing.T) {
 		dbInfo.Connection.Close()
 	}()
 
-	user, err := CreateUser("adrian123@monk.example.com", "Adrian", "Monk", false, dbInfo)
+	user, err := CreateUser("adrian123@monk.example.com", "Adrian", "Monk", false, -1, dbInfo)
 	AssertNil(t, err)
 
 	plaintext1 := "ho ho ho"

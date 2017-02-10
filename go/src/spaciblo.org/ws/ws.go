@@ -12,9 +12,13 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/goincremental/negroni-sessions"
+	"github.com/goincremental/negroni-sessions/cookiestore"
 	"github.com/nu7hatch/gouuid"
+	"github.com/urfave/negroni"
 
 	"spaciblo.org/be"
+	"spaciblo.org/db"
 )
 
 var logger = log.New(os.Stdout, "[ws] ", 0)
@@ -29,25 +33,34 @@ gRPC calls come in from the sim host
 The HTTP service itself holds a gRPC client to the sim host
 */
 type WSService struct {
-	WSPort     int64
-	SimHost    string
-	CertPath   string // file path to a TLS cert
-	KeyPath    string // file path to a TLs key
-	WSHandler  *WebSocketHandler
-	WSListener *be.StoppableListener
-
-	RPCPort   int64
-	RPCServer *RPCHostServer
+	WSPort        int64
+	SimHost       string
+	CertPath      string // file path to a TLS cert
+	KeyPath       string // file path to a TLs key
+	WSHandler     *WebSocketHandler
+	WSListener    *be.StoppableListener
+	DBInfo        *be.DBInfo
+	RPCPort       int64
+	RPCServer     *RPCHostServer
+	SessionSecret string
 }
 
-func NewWSService(wsPort int64, simHost string, rpcPort int64, certPath string, keyPath string) (*WSService, error) {
+func NewWSService(wsPort int64, simHost string, rpcPort int64, certPath string, keyPath string, sessionSecret string) (*WSService, error) {
+
+	dbInfo, err := db.InitDB()
+	if err != nil {
+		return nil, err
+	}
+
 	service := &WSService{
-		WSPort:    wsPort,
-		SimHost:   simHost,
-		CertPath:  certPath,
-		KeyPath:   keyPath,
-		WSHandler: NewWebSocketHandler(simHost),
-		RPCPort:   rpcPort,
+		WSPort:        wsPort,
+		SimHost:       simHost,
+		CertPath:      certPath,
+		KeyPath:       keyPath,
+		WSHandler:     NewWebSocketHandler(simHost, dbInfo),
+		DBInfo:        dbInfo,
+		RPCPort:       rpcPort,
+		SessionSecret: sessionSecret,
 	}
 
 	rpcHostServer, err := NewRPCHostServer(service.WSHandler)
@@ -79,6 +92,10 @@ func (wsService *WSService) Start() {
 		}
 		wsService.WSListener = stoppableListener
 
+		server := negroni.New()
+		store := cookiestore.New([]byte(wsService.SessionSecret))
+		server.Use(sessions.Sessions(be.AuthCookieName, store))
+
 		mux := http.NewServeMux()
 		// Handle WebSocket connections at /ws
 		mux.Handle(WS_HTTP_PATH, wsService.WSHandler)
@@ -90,10 +107,11 @@ func (wsService *WSService) Start() {
 			}
 			io.WriteString(responseWriter, "<html>This is the WebSocket service</html>")
 		})
-		server := http.Server{
-			Handler: mux,
+		server.UseHandler(mux)
+		httpServer := http.Server{
+			Handler: server,
 		}
-		err = server.Serve(stoppableListener)
+		err = httpServer.Serve(stoppableListener)
 		if err != nil {
 			logger.Println("Exited WS HTTP service", err)
 		}
@@ -136,13 +154,18 @@ func StartWSFromEnvVariables() error {
 		return errors.New("No TLS_KEY env variable")
 	}
 
+	sessionSecret := os.Getenv("SESSION_SECRET")
+	if sessionSecret == "" {
+		return errors.New("No SESSION_SECRET env variable")
+	}
+
 	logger.Print("WS_PORT:\t\t", wsPort)
 	logger.Print("WS_RPC_PORT:\t", rpcPort)
 	logger.Print("SIM_HOST:\t\t", simHost)
 	logger.Print("TLS_CERT:\t\t", certPath)
 	logger.Print("TLS_KEY:\t\t", keyPath)
 
-	wsService, err := NewWSService(wsPort, simHost, rpcPort, certPath, keyPath)
+	wsService, err := NewWSService(wsPort, simHost, rpcPort, certPath, keyPath, sessionSecret)
 	if err != nil {
 		logger.Println("Could not start WS services", err)
 		return err

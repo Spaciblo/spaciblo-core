@@ -1,0 +1,49 @@
+{
+	"settings": {
+		"name": "Landscape",
+		"background-color": "#44DDFF",
+		"light-type": "ambient",
+		"light-color": "#FFFFFF",
+		"light-intensity": "1"
+	},
+	"nodes": [
+		{
+			"settings": {
+				"name": "light group",
+				"light-type": "directional",
+				"light-color": "#FFFFFF",
+				"light-intensity": "0.5",
+				"light-distance": "0",
+				"light-target": "100,-21,-100"
+			},
+			"position": [100, -20, -100]
+		},
+		{
+			"settings": {
+				"name": "light group",
+				"light-type": "directional",
+				"light-color": "#FFFFFF",
+				"light-intensity": "0.5",
+				"light-distance": "0",
+				"light-target": "-100,-21,100"
+			},
+			"position": [-100, -20, 100]
+		},
+		{
+			"settings": {
+				"name": "Tree"
+			},
+			"template-name": "Tree",
+			"position": [-10, -1.6, -20],
+			"scale": [1,1,1]
+		},
+		{
+			"settings": {
+				"name": "Landscape"
+			},
+			"template-name": "Landscape",
+			"position": [0, -1.4, 0],
+			"scale": [1,1,1]
+		}
+	]
+}

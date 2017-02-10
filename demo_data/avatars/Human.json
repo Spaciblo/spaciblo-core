@@ -1,0 +1,29 @@
+{
+	"name": "Human",
+	"parts": [
+		{
+			"name": "Head",
+			"part": "head",
+			"templateName": "Human Head",
+			"position": [0, 0.6, 0]
+		},
+		{
+			"name": "Torso",
+			"part": "torso",
+			"templateName": "Human Torso",
+			"position": [0, 0, 0]
+		},
+		{
+			"name": "Left Hand",
+			"part": "left_hand",
+			"templateName": "Human Left Hand",
+			"position": [-0.5, -0.5, 0]
+		},
+		{
+			"name": "Right Hand",
+			"part": "right_hand",
+			"templateName": "Human Right Hand",
+			"position": [0.5, -0.5, 0]
+		}
+	]
+}

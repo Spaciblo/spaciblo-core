@@ -25,11 +25,11 @@ func TestUserAPI(t *testing.T) {
 	AssertNil(t, err)
 	AssertEqual(t, 0, len(users), "Need to have 0 users when starting")
 
-	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, dbInfo)
+	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, -1, dbInfo)
 	AssertNil(t, err)
 	_, err = CreatePassword("1234", user.Id, dbInfo)
 	AssertNil(t, err)
-	staff, err := CreateUser("sherona@monk.example.com", "Sherona", "Smith", true, dbInfo)
+	staff, err := CreateUser("sherona@monk.example.com", "Sherona", "Smith", true, -1, dbInfo)
 	AssertNil(t, err)
 	_, err = CreatePassword("1234", staff.Id, dbInfo)
 	AssertNil(t, err)
@@ -136,7 +136,7 @@ func TestUser(t *testing.T) {
 		dbInfo.Connection.Close()
 	}()
 
-	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, dbInfo)
+	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, -1, dbInfo)
 	AssertNil(t, err)
 	AssertNotEqual(t, user.UUID, "")
 

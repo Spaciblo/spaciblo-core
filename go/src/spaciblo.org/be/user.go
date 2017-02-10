@@ -14,17 +14,19 @@ type User struct {
 	LastName  string    `json:"last-name" db:"last_name"`
 	Staff     bool      `json:"staff" db:"staff"`
 	Image     string    `json:"image" db:"image"`
+	Avatar    int64     `json:"avatar" db:"avatar"`
 	Created   time.Time `json:"created" db:"created"`
 	Updated   time.Time `json:"updated" db:"updated"`
 }
 
-func CreateUser(email string, firstName string, lastName string, staff bool, dbInfo *DBInfo) (*User, error) {
+func CreateUser(email string, firstName string, lastName string, staff bool, avatar int64, dbInfo *DBInfo) (*User, error) {
 	user := new(User)
 	user.UUID = UUID()
 	user.Email = email
 	user.FirstName = firstName
 	user.LastName = lastName
 	user.Staff = staff
+	user.Avatar = avatar
 	err := dbInfo.Map.Insert(user)
 	if err != nil {
 		return nil, err

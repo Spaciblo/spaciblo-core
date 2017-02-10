@@ -30,8 +30,8 @@ spaciblo.three.DEFAULT_HEAD_POSITION = [0, 0.6, 0]
 spaciblo.three.DEFAULT_TORSO_POSITION = [0, 0, 0]
 spaciblo.three.DEFAULT_FOOT_POSITION = [0, -1.4, 0]
 spaciblo.three.DEFAULT_AVATAR_HEIGHT = spaciblo.three.DEFAULT_HEAD_POSITION[1] - spaciblo.three.DEFAULT_FOOT_POSITION[1]
-spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, -0.5, -0.5]
-spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, -0.5, -0.5]
+spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, -0.5, 0]
+spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, -0.5, 0]
 spaciblo.three.HEAD_NODE_NAME = 'head'
 spaciblo.three.TORSO_NODE_NAME = 'torso'
 spaciblo.three.LEFT_HAND_NODE_NAME = 'left_hand'
@@ -464,11 +464,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		/*
 		Returns a height in worldspace if there is something below the avatar to stand on, otherwise null
 		*/
-		if(this.avatarGroup === null || this.avatarGroup.torso === null){
-			return null
+		if(this.avatarGroup === null) return null
+		let sourceGroup = this.avatarGroup.torso
+		if(sourceGroup === null){
+			sourceGroup = this.avatarGroup.head
 		}
 		this.scene.updateMatrixWorld(true)
-		this.raycaster.ray.origin.setFromMatrixPosition(this.avatarGroup.torso.matrixWorld)
+		this.raycaster.ray.origin.setFromMatrixPosition(sourceGroup.matrixWorld)
 		this.avatarGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
 		this.raycaster.ray.direction.set(0, -1, 0).applyQuaternion(spaciblo.three.WORKING_QUAT)
 		this.raycaster.ray.direction.normalize()
@@ -940,8 +942,10 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			return
 		}
 		this.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
-		this.torso = spaciblo.three.findChildNodeByName(spaciblo.three.TORSO_NODE_NAME, this, true)[0]
-		this.torso.position.set(...spaciblo.three.DEFAULT_TORSO_POSITION)
+		this.torso = spaciblo.three.findChildNodeByName(spaciblo.three.TORSO_NODE_NAME, this, true)[0] || null
+		if(this.torso !== null){
+			this.torso.position.set(...spaciblo.three.DEFAULT_TORSO_POSITION)
+		}
 		this.leftHand = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, this, true)[0]
 		this.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
 		this.rightHand = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, this, true)[0]
@@ -949,7 +953,9 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 
 		if(this.isLocalAvatar){
 			this.head.visible = false
-			this.torso.visible = false
+			if(this.torso){
+				this.torso.visible = false
+			}
 		}
 
 		this.leftLine = this._makeHandLine()

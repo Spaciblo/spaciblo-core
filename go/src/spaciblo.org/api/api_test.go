@@ -35,7 +35,7 @@ func TestSpaceAPI(t *testing.T) {
 	arr := list.Objects.([]interface{})
 	AssertEqual(t, 0, len(arr))
 
-	user, err := be.CreateUser("alice@example.com", "Alice", "Example", true, dbInfo)
+	user, err := be.CreateUser("alice@example.com", "Alice", "Example", true, -1, dbInfo)
 	AssertNil(t, err)
 	_, err = be.CreatePassword("1234", user.Id, dbInfo)
 	AssertNil(t, err)

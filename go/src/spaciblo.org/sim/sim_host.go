@@ -219,7 +219,7 @@ func (server *SimHostServer) HandleClientMembership(ctx context.Context, clientM
 			return nil, errors.New("Unknown space UUID: " + clientMembership.SpaceUUID)
 		}
 	}
-	spaceSim.ChangeClientMembership(clientMembership.ClientUUID, clientMembership.Member, clientMembership.Avatar)
+	spaceSim.ChangeClientMembership(clientMembership.ClientUUID, clientMembership.UserUUID, clientMembership.Member, clientMembership.Avatar)
 	return &simRPC.Ack{Message: "OK"}, nil
 }
 

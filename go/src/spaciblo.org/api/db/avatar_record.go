@@ -179,6 +179,15 @@ func FindAvatarRecord(uuid string, dbInfo *be.DBInfo) (*AvatarRecord, error) {
 	return FindAvatarRecordByField("u_u_i_d", uuid, dbInfo)
 }
 
+func FindAvatarRecordById(id int64, dbInfo *be.DBInfo) (*AvatarRecord, error) {
+	record := new(AvatarRecord)
+	err := dbInfo.Map.SelectOne(record, "select * from "+AvatarTable+" where id=$1", id)
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
+}
+
 func FindAllAvatarRecords(dbInfo *be.DBInfo) ([]*AvatarRecord, error) {
 	var records []*AvatarRecord
 	_, err := dbInfo.Map.Select(&records, "select * from "+AvatarTable+" order by id desc")

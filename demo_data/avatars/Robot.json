@@ -1,0 +1,29 @@
+{
+	"name": "Robot",
+	"parts": [
+		{
+			"name": "Head",
+			"part": "head",
+			"templateName": "Robot Head",
+			"position": [0, 0.6, 0]
+		},
+		{
+			"name": "Torso",
+			"part": "torso",
+			"templateName": "Robot Torso",
+			"position": [0, 0, 0]
+		},
+		{
+			"name": "Left Hand",
+			"part": "left_hand",
+			"templateName": "Robot Left Hand",
+			"position": [-0.8, -0.5, -0.1]
+		},
+		{
+			"name": "Right Hand",
+			"part": "right_hand",
+			"templateName": "Robot Right Hand",
+			"position": [0.8, -0.5, -0.1]
+		}
+	]
+}

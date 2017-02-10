@@ -7,7 +7,7 @@ import (
 	simRPC "spaciblo.org/sim/rpc"
 )
 
-func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUID string, simHostClient simRPC.SimHostClient) (ClientMessage, error) {
+func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID string, spaceUUID string, simHostClient simRPC.SimHostClient) (ClientMessage, error) {
 	switch clientMessage.MessageType() {
 	case PingType:
 		ping := clientMessage.(*PingMessage)
@@ -22,6 +22,7 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUI
 		joinSpace := clientMessage.(*JoinSpaceMessage)
 		rpMessage := &simRPC.ClientMembership{
 			ClientUUID: clientUUID,
+			UserUUID:   userUUID,
 			SpaceUUID:  joinSpace.UUID,
 			Member:     true,
 			Avatar:     joinSpace.Avatar,
@@ -39,6 +40,7 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, spaceUUI
 		}
 		rpMessage := &simRPC.ClientMembership{
 			ClientUUID: clientUUID,
+			UserUUID:   userUUID,
 			SpaceUUID:  spaceUUID,
 			Member:     false,
 		}

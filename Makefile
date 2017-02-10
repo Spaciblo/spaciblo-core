@@ -54,6 +54,7 @@ SIM_RUNTIME_ENVS := 	SIM_PORT=$(SIM_PORT) \
 
 WS_RUNTIME_ENVS := 		WS_PORT=$(WS_PORT) \
 						WS_RPC_PORT=$(WS_RPC_PORT) \
+						SESSION_SECRET=$(SESSION_SECRET) \
 						SIM_HOST="127.0.0.1:$(SIM_PORT)"
 
 SIM_GRPC_DIR := go/src/spaciblo.org/sim/rpc/
