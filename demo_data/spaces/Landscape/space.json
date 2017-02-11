@@ -1,10 +1,10 @@
 {
 	"settings": {
-		"name": "Landscape",
+		"name": "Root Node",
 		"background-color": "#44DDFF",
 		"light-type": "ambient",
 		"light-color": "#FFFFFF",
-		"light-intensity": "1"
+		"light-intensity": "0.8"
 	},
 	"nodes": [
 		{
@@ -12,22 +12,11 @@
 				"name": "light group",
 				"light-type": "directional",
 				"light-color": "#FFFFFF",
-				"light-intensity": "0.5",
+				"light-intensity": "3",
 				"light-distance": "0",
-				"light-target": "100,-21,-100"
+				"light-target": "-1.5,-1,0"
 			},
-			"position": [100, -20, -100]
-		},
-		{
-			"settings": {
-				"name": "light group",
-				"light-type": "directional",
-				"light-color": "#FFFFFF",
-				"light-intensity": "0.5",
-				"light-distance": "0",
-				"light-target": "-100,-21,100"
-			},
-			"position": [-100, -20, 100]
+			"position": [0, 0, 0]
 		},
 		{
 			"settings": {
