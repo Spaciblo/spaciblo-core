@@ -125,7 +125,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		this.inputSchema = inputSchema
 		this.currentActions = new Set()
 		this.currentKeyChord = null
-
+		this.gamepadIsTriggering = false // Temporary hack to track whether the main gampad button is down
 		this.keyboardTranslationDelta = 1.9 // Meters per second
 		this.keyboardRotationDelta = 1.2 // Radians per second
 
@@ -182,16 +182,20 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		Called by the renderer in every frame to update actions based on gamepad(s) state
 		TODO Add controller type detection and button schemas
 		*/
+		let isTriggering = false
 		for(let gamepad of navigator.getGamepads()){
 			if(gamepad === null) continue
 			let handName = gamepad.hand === 'left' ? 'left' : 'right'
 			if(Array.isArray(gamepad.buttons) && gamepad.buttons.length > 0){
 				let pointAction = handName === 'left' ? this.inputSchema.getAction('left-point') : this.inputSchema.getAction('right-point')
 				let isPointing = gamepad.buttons[0].pressed === true || gamepad.buttons[0].touched === true
-				let isTriggering = gamepad.buttons[0].pressed
 				this._toggleAction(pointAction, isPointing)
-				this._toggleAction(this.inputSchema.getAction('teleport'), isTriggering)
+				if(gamepad.buttons[0].pressed === true) isTriggering = true
 			}
+		}
+		if(isTriggering !== this.gamepadIsTriggering){
+			this.gamepadIsTriggering = isTriggering
+			this._toggleAction(this.inputSchema.getAction('teleport'), isTriggering)
 		}
 	}
 

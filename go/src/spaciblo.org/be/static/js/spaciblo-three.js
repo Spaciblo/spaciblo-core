@@ -28,6 +28,7 @@ spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded'
 
 spaciblo.three.DEFAULT_HEAD_POSITION = [0, 0.6, 0]
 spaciblo.three.DEFAULT_TORSO_POSITION = [0, 0, 0]
+spaciblo.three.HEAD_TORSO_Y_DISTANCE = spaciblo.three.DEFAULT_HEAD_POSITION[1] - spaciblo.three.DEFAULT_TORSO_POSITION[1]
 spaciblo.three.DEFAULT_FOOT_POSITION = [0, -1.4, 0]
 spaciblo.three.DEFAULT_AVATAR_HEIGHT = spaciblo.three.DEFAULT_HEAD_POSITION[1] - spaciblo.three.DEFAULT_FOOT_POSITION[1]
 spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, -0.5, 0]
@@ -131,6 +132,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		let results = []
 		this._addBodyUpdate(this.avatarGroup.head, spaciblo.three.HEAD_NODE_NAME, results)
+		if(this.avatarGroup.torso){
+			this._addBodyUpdate(this.avatarGroup.torso, spaciblo.three.TORSO_NODE_NAME, results)
+		}
 		this._addBodyUpdate(this.avatarGroup.leftHand, spaciblo.three.LEFT_HAND_NODE_NAME, results)
 		this._addBodyUpdate(this.avatarGroup.rightHand, spaciblo.three.RIGHT_HAND_NODE_NAME, results)
 		return results
@@ -498,12 +502,20 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				if(this.avatarGroup !== null){
 					this.avatarGroup.head.quaternion.set(0,0,0,1)
 					this.avatarGroup.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+					if(this.avatarGroup.torso !== null){
+						this.avatarGroup.torso.quaternion.set(0,0,0,1)
+						this.avatarGroup.torso.position.set(...spaciblo.three.DEFAULT_TORSO_POSITION)
+					}
 					this.avatarGroup.leftHand.quaternion.set(0,0,0,1)
 					this.avatarGroup.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
 					this.avatarGroup.leftLine.visible = false
+					this.avatarGroup.leftHand.hasGamepadPosition = false
+					this.avatarGroup.leftHand.hasGamepadOrientation = false
 					this.avatarGroup.rightHand.quaternion.set(0,0,0,1)
 					this.avatarGroup.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
 					this.avatarGroup.rightLine.visible = false
+					this.avatarGroup.rightHand.hasGamepadPosition = false
+					this.avatarGroup.rightHand.hasGamepadOrientation = false
 				}
 				requestAnimationFrame(this._boundAnimate)
 				this.inputManager.throttledSendAvatarUpdate()
@@ -519,6 +531,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		this.inputManager.updateGamepadActions()
 
+		// If there's an avatar group, handle any input rotation or translation from the inputManager
 		if(this.avatarGroup !== null){
 			/*
 			Many of the these calculations are reversed because for moving around in the world we move 
@@ -591,7 +604,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.renderer.autoClear = false
 			this.scene.matrixAutoUpdate = false
 
-			// The view is assumed to be full-window in VR
+			// The view is assumed to be full-window in VR because the canvas element fills the entire HMD screen[s]
 			this.renderer.clear()
 			this.renderer.setViewport(0, 0, this.width * 0.5, this.height)
 
@@ -630,8 +643,22 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					}
 				}
 
+				// Update the torso by positioning and orienting it underneath the head
+				if(this.avatarGroup.torso !== null){
+					this.avatarGroup.torso.position.set(
+						this.avatarGroup.head.position.x,
+						this.avatarGroup.head.position.y - spaciblo.three.HEAD_TORSO_Y_DISTANCE,
+						this.avatarGroup.head.position.z
+					)
+					spaciblo.three.WORKING_EULER.setFromQuaternion(this.avatarGroup.head.quaternion)
+					spaciblo.three.WORKING_EULER.x = 0
+					spaciblo.three.WORKING_EULER.z = 0
+					this.avatarGroup.torso.quaternion.setFromEuler(spaciblo.three.WORKING_EULER)
+				}
+
 				// Update the hands
 				if(typeof navigator.getGamepads === 'function'){
+					let handHasPosition = false
 					for(let gamepad of navigator.getGamepads()){
 						if(gamepad === null || typeof gamepad.pose === 'undefined') continue
 						// Find the hand to change
@@ -669,15 +696,49 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						// Set the hand orientation and show or hide the pointing line based on button state
 						if(gamepad.pose.hasOrientation === true && gamepad.pose.orientation !== null){
 							// TODO figure out why Vive controller orientation is not iterable like ...gamepad.pose.orientation
+							handNode.hasGamepadOrientation = true
 							handNode.quaternion.set(gamepad.pose.orientation[0], gamepad.pose.orientation[1], gamepad.pose.orientation[2], gamepad.pose.orientation[3])
 							lineNode.visible = this.inputManager.isActionActive(pointingActionName)
 						} else {
+							handNode.hasGamepadOrientation = false
 							lineNode.visible = false
 						}
 
 						// Set the hand position
 						if(gamepad.pose.hasPosition === true && gamepad.pose.position !== null){
+							handHasPosition = true
+							handNode.hasGamepadPosition = true
 							handNode.position.set(...gamepad.pose.position)
+						} else {
+							handNode.hasGamepadPosition = false
+						}
+					}
+
+					// If there are no hands with position data, orient the hands group based on head position
+					if(handHasPosition === false){
+						spaciblo.three.WORKING_EULER.setFromQuaternion(this.avatarGroup.head.quaternion, 'YXZ')
+						spaciblo.three.WORKING_EULER.x = 0
+						spaciblo.three.WORKING_EULER.z = 0
+						if(this.avatarGroup.leftHand !== null){
+							if(this.avatarGroup.leftHand.hasGamepadPosition === false){
+								spaciblo.three.WORKING_VECTOR3.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
+								spaciblo.three.WORKING_VECTOR3.applyEuler(spaciblo.three.WORKING_EULER)
+								this.avatarGroup.leftHand.position.copy(spaciblo.three.WORKING_VECTOR3)
+							}
+							if(this.avatarGroup.leftHand.hasGamepadOrientation === false){
+								this.avatarGroup.leftHand.quaternion.setFromEuler(spaciblo.three.WORKING_EULER)
+							}
+						}
+
+						if(this.avatarGroup.rightHand){
+							if(this.avatarGroup.rightHand.hasGamepadPosition === false){
+								spaciblo.three.WORKING_VECTOR3.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
+								spaciblo.three.WORKING_VECTOR3.applyEuler(spaciblo.three.WORKING_EULER)
+								this.avatarGroup.rightHand.position.copy(spaciblo.three.WORKING_VECTOR3)
+							}
+							if(this.avatarGroup.rightHand.hasGamepadOrientation === false){
+								this.avatarGroup.rightHand.quaternion.setFromEuler(spaciblo.three.WORKING_EULER)
+							}
 						}
 					}
 				}
@@ -948,8 +1009,12 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		}
 		this.leftHand = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, this, true)[0]
 		this.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
+		this.leftHand.hasGamepadPosition = false
+		this.leftHand.hasGamepadOrientation = false
 		this.rightHand = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, this, true)[0]
 		this.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
+		this.rightHand.hasGamepadPosition = false
+		this.rightHand.hasGamepadOrientation = false
 
 		if(this.isLocalAvatar){
 			this.head.visible = false
