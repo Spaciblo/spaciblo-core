@@ -7,26 +7,26 @@ import (
 const UserTable = "users"
 
 type User struct {
-	Id        int64     `json:"id" db:"id, primarykey, autoincrement"`
-	UUID      string    `json:"uuid" db:"u_u_i_d"`
-	Email     string    `json:"email" db:"email"`
-	FirstName string    `json:"first-name" db:"first_name"`
-	LastName  string    `json:"last-name" db:"last_name"`
-	Staff     bool      `json:"staff" db:"staff"`
-	Image     string    `json:"image" db:"image"`
-	Avatar    int64     `json:"avatar" db:"avatar"`
-	Created   time.Time `json:"created" db:"created"`
-	Updated   time.Time `json:"updated" db:"updated"`
+	Id         int64     `json:"id" db:"id, primarykey, autoincrement"`
+	UUID       string    `json:"uuid" db:"u_u_i_d"`
+	Email      string    `json:"email" db:"email"`
+	FirstName  string    `json:"first-name" db:"first_name"`
+	LastName   string    `json:"last-name" db:"last_name"`
+	Staff      bool      `json:"staff" db:"staff"`
+	Image      string    `json:"image" db:"image"`
+	AvatarUUID string    `json:"avatarUUID" db:"avatar"`
+	Created    time.Time `json:"created" db:"created"`
+	Updated    time.Time `json:"updated" db:"updated"`
 }
 
-func CreateUser(email string, firstName string, lastName string, staff bool, avatar int64, dbInfo *DBInfo) (*User, error) {
+func CreateUser(email string, firstName string, lastName string, staff bool, avatarUUID string, dbInfo *DBInfo) (*User, error) {
 	user := new(User)
 	user.UUID = UUID()
 	user.Email = email
 	user.FirstName = firstName
 	user.LastName = lastName
 	user.Staff = staff
-	user.Avatar = avatar
+	user.AvatarUUID = avatarUUID
 	err := dbInfo.Map.Insert(user)
 	if err != nil {
 		return nil, err

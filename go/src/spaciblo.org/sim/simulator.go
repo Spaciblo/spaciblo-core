@@ -423,10 +423,12 @@ func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, userUUID string,
 	avatarUUID := spaceSim.DefaultAvatarUUID
 	if userUUID != "" {
 		userRecord, err := be.FindUser(userUUID, spaceSim.DBInfo)
-		if err == nil && userRecord.Avatar != -1 {
-			userAvatarRecord, err := apiDB.FindAvatarRecordById(userRecord.Avatar, spaceSim.DBInfo)
+		if err == nil && userRecord.AvatarUUID != "" {
+			userAvatarRecord, err := apiDB.FindAvatarRecord(userRecord.AvatarUUID, spaceSim.DBInfo)
 			if err == nil {
 				avatarUUID = userAvatarRecord.UUID
+			} else {
+				logger.Println("Could not find avatar for user", avatarUUID)
 			}
 		}
 	}
@@ -457,10 +459,14 @@ func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, userUUID string,
 
 	// Create the body part scene nodes, adding them to additions
 	for _, partRecord := range partRecords {
-		templateRecord, err := apiDB.FindTemplateRecordById(partRecord.Template, spaceSim.DBInfo)
-		if err != nil {
-			logger.Println("Could not find a template for a body part, ignoring:", partRecord.Template, partRecord)
-			continue
+		templateUUID := ""
+		if partRecord.TemplateUUID != "" {
+			templateRecord, err := apiDB.FindTemplateRecord(partRecord.TemplateUUID, spaceSim.DBInfo)
+			if err == nil {
+				templateUUID = templateRecord.UUID
+			} else {
+				logger.Println("Could not find a template for a body part, ignoring:", partRecord.TemplateUUID, partRecord)
+			}
 		}
 		position, err := partRecord.ParsePosition()
 		if err != nil {
@@ -477,7 +483,7 @@ func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, userUUID string,
 			logger.Println("Could not parse part record scale, ignoring:", partRecord.Scale)
 			scale = []float64{1, 1, 1}
 		}
-		partNode := NewBodyPartSceneNode(partRecord.Part, templateRecord.UUID, position, orientation, scale)
+		partNode := NewBodyPartSceneNode(partRecord.Part, templateUUID, position, orientation, scale)
 		if partRecord.Parent != "" {
 			parentNode, ok := partMap[partRecord.Parent]
 			if ok == false {

@@ -32,14 +32,6 @@ spaciblo.components.AccountPageComponent = class extends k.Component {
 			class: 'col-12'
 		}).appendTo(this.row)
 
-		if(be.currentUser.isNew){
-			be.currentUser.addListener(() => {
-				this.handleCurrentUser()
-			}, 'reset', true)
-		} else {
-			this.handleCurrentUser()
-		}
-
 		this.loginComponent = new be.ui.LoginComponent()
 		this.loginComponent.addListener(() => {
 			let url = new URL(document.location.toString())
@@ -53,9 +45,20 @@ spaciblo.components.AccountPageComponent = class extends k.Component {
 		this.loginComponent.el.style.display = 'none'
 		this.col.appendChild(this.loginComponent.el)
 
-		this.logoutButton = k.el.button('Logout').appendTo(this.col)
+		this.logoutButton = k.el.button({ class: 'logout-button' }, 'Logout').appendTo(this.col)
 		this.logoutButton.addEventListener('click', this.handleLogoutClick.bind(this))
 		this.logoutButton.style.display = 'none'
+
+		this.avatarSelectionComponent = new spaciblo.components.UserAvatarSelectionComponent(be.currentUser)
+		this.col.appendChild(this.avatarSelectionComponent.el)
+
+		if(be.currentUser.isNew){
+			be.currentUser.addListener(() => {
+				this.handleCurrentUser()
+			}, 'reset', true)
+		} else {
+			this.handleCurrentUser()
+		}
 	}
 	handleLogoutClick(ev){
 		ev.preventDefault()
@@ -69,10 +72,82 @@ spaciblo.components.AccountPageComponent = class extends k.Component {
 		if(be.currentUser.get('uuid')){
 			this.loginComponent.el.style.display = 'none'
 			this.logoutButton.style.display = 'block'
+			this.avatarSelectionComponent.el.style.display = 'block'
 		} else {
 			this.loginComponent.el.style.display = 'block'
 			this.logoutButton.style.display = 'none'
+			this.avatarSelectionComponent.el.style.display = 'none'
 		}
+	}
+}
+
+/*
+UserAvatarSelectionComponent allows users to pick their avatar
+*/
+spaciblo.components.UserAvatarSelectionComponent = class extends k.Component {
+	constructor(userDataObject, options={}){
+		super(userDataObject, options)
+		this.el.addClass('user-avatar-selection-component')
+
+		this.el.appendChild(k.el.h3('Avatar'))
+
+		this.avatar = new be.api.Avatar({ uuid: userDataObject.get('avatarUUID') })
+		this.avatarNameEl = k.el.div({ class: 'avatar-name' }).appendTo(this.el)
+		this.bindText('name', this.avatarNameEl, null, this.avatar)
+
+		this.changeLink = k.el.a('change').appendTo(this.el)
+		this.listenTo('click', this.changeLink, this._showAvatarList)
+
+		this.avatarsList = new be.api.Avatars()
+		this.avatarListComponent = new be.ui.CollectionComponent(this.avatarsList, {
+			itemComponent: spaciblo.components.AvatarNameItemComponent,
+			onClick: (dataObject) => { this._handleItemClick(dataObject) }
+		})
+		this.el.appendChild(this.avatarListComponent.el)
+
+		this.cancelLink = k.el.a('cancel').appendTo(this.el)
+		this.listenTo('click', this.cancelLink, this._hideAvatarList)
+
+		if(userDataObject.get('avatarUUID') !== null){
+			this.avatar.fetch()
+		}
+		this.avatarsList.fetch()
+
+		this._hideAvatarList()
+	}
+	_handleItemClick(dataObject){
+		this.dataObject.set('avatarUUID', dataObject.get('uuid'))
+		this.dataObject.save().then((...params) => {
+			this.avatar.reset({ uuid: this.dataObject.get('avatarUUID') })
+			if(this.dataObject.get('avatarUUID')){
+				this.avatar.fetch()
+			}
+			this._hideAvatarList()
+		}).catch((...params) => {
+			console.error('Error saving user avatar', ...params)
+		})
+	}
+	_showAvatarList(){
+		this.changeLink.style.display = 'none'
+		this.avatarListComponent.el.style.display = 'block'
+		this.cancelLink.style.display = 'block'
+	}
+	_hideAvatarList(){
+		this.changeLink.style.display = 'block'
+		this.avatarListComponent.el.style.display = 'none'
+		this.cancelLink.style.display = 'none'
+	}
+}
+
+spaciblo.components.AvatarNameItemComponent = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('avatar-name-item-component')
+		this.avatarNameEl = k.el.div({ class: 'avatar-name' }).appendTo(this.el)
+		this.bindText('name', this.avatarNameEl, (name) => {
+			if(!name) return 'Unnamed Avatar'
+			return name
+		})
 	}
 }
 

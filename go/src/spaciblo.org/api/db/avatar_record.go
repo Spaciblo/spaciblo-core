@@ -17,16 +17,16 @@ const DefaultAvatarName = "Default Avatar"
 AvatarPartRecord associates an AvatarRecord with a TemplateRecord that represents a head, hand, torso, etc
 */
 type AvatarPartRecord struct {
-	Id          int64  `json:"id" db:"id, primarykey, autoincrement"`
-	UUID        string `json:"uuid" db:"u_u_i_d"`
-	Avatar      int64  `json:"avatar" db:"avatar"`           // TODO make this a foreign key
-	Template    int64  `json:"template" db:"template"`       // TODO make this a foreign key
-	Name        string `json:"name" db:"name"`               // A human readable name, like "Left Lobster Claw"
-	Part        string `json:"part" db:"part"`               // System short name like "head", "torso", "left_hand", or "right_hand"
-	Parent      string `json:"parent" db:"parent"`           // The AvatarPartRecord.Part name of the scene graph parent of this part, empty if the parent is the root of the avatar
-	Position    string `json:"position" db:"position"`       // "x,y,z" vector3 relative to avatar origin TODO figure out how to use PostgreSQL array types
-	Orientation string `json:"orientation" db:"orientation"` // "x,y,z,w" quaternion relative to avatar origin
-	Scale       string `json:"scale" db:"scale"`             // "x,y,z" scale of the part
+	Id           int64  `json:"id" db:"id, primarykey, autoincrement"`
+	UUID         string `json:"uuid" db:"u_u_i_d"`
+	Avatar       int64  `json:"-" db:"avatar"`                  // TODO make this a foreign key
+	TemplateUUID string `json:"templateUUID" db:"templateUUID"` // TODO make this a foreign key
+	Name         string `json:"name" db:"name"`                 // A human readable name, like "Left Lobster Claw"
+	Part         string `json:"part" db:"part"`                 // System short name like "head", "torso", "left_hand", or "right_hand"
+	Parent       string `json:"parent" db:"parent"`             // The AvatarPartRecord.Part name of the scene graph parent of this part, empty if the parent is the root of the avatar
+	Position     string `json:"position" db:"position"`         // "x,y,z" vector3 relative to avatar origin TODO figure out how to use PostgreSQL array types
+	Orientation  string `json:"orientation" db:"orientation"`   // "x,y,z,w" quaternion relative to avatar origin
+	Scale        string `json:"scale" db:"scale"`               // "x,y,z" scale of the part
 	// TODO offer avatar part customization of textures, colors, morphs, positioning, etc
 }
 
@@ -54,17 +54,17 @@ func (record *AvatarPartRecord) SetScale(x float64, y float64, z float64) {
 	record.Scale = encodeFloatArrayString([]float64{x, y, z})
 }
 
-func CreateAvatarPartRecord(avatar int64, template int64, name string, part string, parent string, position string, orientation string, scale string, dbInfo *be.DBInfo) (*AvatarPartRecord, error) {
+func CreateAvatarPartRecord(avatar int64, templateUUID string, name string, part string, parent string, position string, orientation string, scale string, dbInfo *be.DBInfo) (*AvatarPartRecord, error) {
 	record := &AvatarPartRecord{
-		UUID:        be.UUID(),
-		Avatar:      avatar,
-		Name:        name,
-		Template:    template,
-		Part:        part,
-		Parent:      parent,
-		Position:    position,
-		Orientation: orientation,
-		Scale:       scale,
+		UUID:         be.UUID(),
+		Avatar:       avatar,
+		Name:         name,
+		TemplateUUID: templateUUID,
+		Part:         part,
+		Parent:       parent,
+		Position:     position,
+		Orientation:  orientation,
+		Scale:        scale,
 	}
 	if record.Position == "" {
 		record.Position = "0,0,0"
@@ -80,6 +80,19 @@ func CreateAvatarPartRecord(avatar int64, template int64, name string, part stri
 		return nil, err
 	}
 	return record, nil
+}
+
+func UpdateAvatarPartRecord(record *AvatarPartRecord, dbInfo *be.DBInfo) error {
+	_, err := dbInfo.Map.Update(record)
+	return err
+}
+
+func DeleteAvatarPartRecord(record *AvatarPartRecord, dbInfo *be.DBInfo) error {
+	_, err := dbInfo.Map.Delete(record)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func DeleteAllAvatarPartRecords(dbInfo *be.DBInfo) error {
@@ -99,6 +112,12 @@ func DeleteAllAvatarPartRecords(dbInfo *be.DBInfo) error {
 func FindAllAvatarPartRecords(dbInfo *be.DBInfo) ([]*AvatarPartRecord, error) {
 	var records []*AvatarPartRecord
 	_, err := dbInfo.Map.Select(&records, "select * from "+AvatarPartTable+" order by id desc")
+	return records, err
+}
+
+func FindAvatarPartRecords(avatar int64, offset int, limit int, dbInfo *be.DBInfo) ([]AvatarPartRecord, error) {
+	var records []AvatarPartRecord
+	_, err := dbInfo.Map.Select(&records, "select * from "+AvatarPartTable+" where avatar=$1 order by id desc limit $2 offset $3", avatar, limit, offset)
 	return records, err
 }
 
@@ -153,6 +172,30 @@ func CreateAvatarRecord(name string, dbInfo *be.DBInfo) (*AvatarRecord, error) {
 	return record, nil
 }
 
+func UpdateAvatarRecord(record *AvatarRecord, dbInfo *be.DBInfo) error {
+	_, err := dbInfo.Map.Update(record)
+	return err
+}
+
+func DeleteAvatarRecord(record *AvatarRecord, dbInfo *be.DBInfo) error {
+	partRecords, err := FindAvatarPartRecordsForAvatar(record.UUID, dbInfo)
+	if err != nil {
+		return err
+	}
+	for _, partRecord := range partRecords {
+		_, err = dbInfo.Map.Delete(partRecord)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = dbInfo.Map.Delete(record)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func DeleteAllAvatarRecords(dbInfo *be.DBInfo) error {
 	records, err := FindAllAvatarRecords(dbInfo)
 	if err != nil {
@@ -191,6 +234,12 @@ func FindAvatarRecordById(id int64, dbInfo *be.DBInfo) (*AvatarRecord, error) {
 func FindAllAvatarRecords(dbInfo *be.DBInfo) ([]*AvatarRecord, error) {
 	var records []*AvatarRecord
 	_, err := dbInfo.Map.Select(&records, "select * from "+AvatarTable+" order by id desc")
+	return records, err
+}
+
+func FindAvatarRecords(offset int, limit int, dbInfo *be.DBInfo) ([]AvatarRecord, error) {
+	var records []AvatarRecord
+	_, err := dbInfo.Map.Select(&records, "select * from "+AvatarTable+" order by id desc limit $1 offset $2", limit, offset)
 	return records, err
 }
 

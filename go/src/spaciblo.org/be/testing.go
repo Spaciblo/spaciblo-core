@@ -208,7 +208,7 @@ func TempFile(dir string, kilobytes int) (*os.File, error) {
 }
 
 func CreateTestUserAndStaffWithClients(testApi *TestAPI, dbInfo *DBInfo) (userClient *Client, staffClient *Client, err error) {
-	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, -1, dbInfo)
+	user, err := CreateUser("adrian@monk.example.com", "Adrian", "Monk", false, "", dbInfo)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -217,7 +217,7 @@ func CreateTestUserAndStaffWithClients(testApi *TestAPI, dbInfo *DBInfo) (userCl
 		return nil, nil, err
 	}
 
-	staff, err := CreateUser("sherona@monk.example.com", "Sherona", "Smith", true, -1, dbInfo)
+	staff, err := CreateUser("sherona@monk.example.com", "Sherona", "Smith", true, "", dbInfo)
 	if err != nil {
 		return nil, nil, err
 	}

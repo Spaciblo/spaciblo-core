@@ -112,8 +112,8 @@ func main() {
 		logger.Fatal("Could not find the paper bag avatar", err)
 	}
 
-	createUser("alice@example.com", "Alice", "Smith", true, "1234", robot.Id, dbInfo)
-	createUser("bob@example.com", "Bob", "Garvey", false, "1234", paperBag.Id, dbInfo)
+	createUser("alice@example.com", "Alice", "Smith", true, "1234", robot.UUID, dbInfo)
+	createUser("bob@example.com", "Bob", "Garvey", false, "1234", paperBag.UUID, dbInfo)
 
 	spacesDir := path.Join(DEMO_DATA_DIR, DEMO_SPACES_DIR)
 	spacesFileInfos, err := ioutil.ReadDir(spacesDir)
@@ -151,7 +151,7 @@ func createAvatar(descriptorPath string, dbInfo *be.DBInfo) (*apiDB.AvatarRecord
 		if err != nil {
 			return nil, err
 		}
-		partRecord, err := apiDB.CreateAvatarPartRecord(avatarRecord.Id, template.Id, partDescriptor.Name, partDescriptor.Part, partDescriptor.Parent, "", "", "", dbInfo)
+		partRecord, err := apiDB.CreateAvatarPartRecord(avatarRecord.Id, template.UUID, partDescriptor.Name, partDescriptor.Part, partDescriptor.Parent, "", "", "", dbInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -260,8 +260,8 @@ func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.Loc
 	return template, nil
 }
 
-func createUser(email string, firstName string, lastName string, staff bool, password string, avatar int64, dbInfo *be.DBInfo) (*be.User, error) {
-	user, err := be.CreateUser(email, firstName, lastName, staff, avatar, dbInfo)
+func createUser(email string, firstName string, lastName string, staff bool, password string, avatarUUID string, dbInfo *be.DBInfo) (*be.User, error) {
+	user, err := be.CreateUser(email, firstName, lastName, staff, avatarUUID, dbInfo)
 	if err != nil {
 		logger.Fatal("Could not create user", err)
 		return nil, err

@@ -231,7 +231,7 @@ be.schema.BaseEndpointModel = class extends k.DataModel {
 		}
 	}
 	get url(){
-		return be.schema._generateURL(this.schema.get('path'), this.data);
+		return be.schema._generateURL(this.schema.get('path'), this.data, this.options);
 	}
 }
 
@@ -250,7 +250,7 @@ be.schema._initialCap = function(val){
 }
 
 
-be.schema._generateURL = function(path, attributes){
+be.schema._generateURL = function(path, attributes, fallbackAttributes={}){
 	var tokens = path.match(be.schema.pathVariablesRegex);
 	if(tokens == null || tokens.length == 0) {
 		return path;
@@ -262,8 +262,10 @@ be.schema._generateURL = function(path, attributes){
 		result += path.substring(index, tokenIndex);
 		index = tokenIndex + tokens[i].length;
 		var name = tokens[i].substring(1, tokens[i].length - 1).split(':')[0];
-		if(typeof attributes[name] != 'undefined'){
+		if(typeof attributes[name] !== 'undefined'){
 			result += encodeURIComponent(attributes[name])
+		} else if(typeof fallbackAttributes[name] !== 'undefined'){
+			result += encodeURIComponent(fallbackAttributes[name])
 		}
 	}
 	if(index < path.length){

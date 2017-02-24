@@ -33,3 +33,30 @@
 	height: 100px;
 }
 
+.account-page-component {
+	position: relative;
+}
+.account-page-component .logout-button {
+	float: right;
+}
+
+.user-avatar-selection-component h3 {
+	margin-bottom: 5px;
+}
+.user-avatar-selection-component .avatar-name {
+	margin-bottom: 5px;
+}
+.user-avatar-selection-component a {
+	cursor: pointer;
+	color: #6B6BB9;
+}
+.user-avatar-selection-component .avatar-name-item-component {
+	margin-bottom: 10px;
+	margin-right: 10px;
+	display: inline-block;
+	cursor: pointer;
+}
+.avatar-name-item-component {
+	padding: 5px 5px 2px 5px;
+	border: solid 1px #EFEFEF;
+}

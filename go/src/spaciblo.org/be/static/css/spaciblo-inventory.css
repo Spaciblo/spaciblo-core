@@ -96,14 +96,14 @@ div.vector-editor-component input[type=text] {
 	margin-right: 5px;
 }
 
-.scene-graph-node-template-component a {
+.template-editor-component a {
 	cursor: pointer;
 	color: #6B6BB9;
 }
-.scene-graph-node-template-component h4 {
+.template-editor-component h4 {
 	margin-bottom: 10px;
 }
-.scene-graph-node-template-component button {
+.template-editor-component button {
 	color: #B96B6B;
 	margin-left: 15px;
 }
@@ -163,4 +163,14 @@ div.vector-editor-component input[type=text] {
 .template-picker-item-component:hover {
 	border: solid 1px #DDDDDD;
 	background-color: #EFEFEF;
+}
+
+.avatar-part-list-component {
+	margin-top: 10px;
+}
+.avatar-part-detail-component {
+	position: relative;
+	border: solid 1px #EFEFEF;
+	padding: 15px;
+	margin: 0 0 20px 0;
 }

@@ -48,7 +48,7 @@ func TestAvatarRecords(t *testing.T) {
 
 	headTemplate, err := apiDB.CreateTemplateRecord("Janeway head", "head.obj", "head", "", dbInfo)
 	AssertNil(t, err)
-	headPart, err := apiDB.CreateAvatarPartRecord(avatar1.Id, headTemplate.Id, headTemplate.Name, headTemplate.Part, headTemplate.Parent, "0,1,0", "0,0,0,1", "1,1,1", dbInfo)
+	headPart, err := apiDB.CreateAvatarPartRecord(avatar1.Id, headTemplate.UUID, headTemplate.Name, headTemplate.Part, headTemplate.Parent, "0,1,0", "0,0,0,1", "1,1,1", dbInfo)
 	AssertNil(t, err)
 	AssertEqual(t, headTemplate.Name, headPart.Name)
 	AssertEqual(t, headPart.Position, "0,1,0")
@@ -67,7 +67,7 @@ func TestAvatarRecords(t *testing.T) {
 
 	hairTemplate, err := apiDB.CreateTemplateRecord("Janeway hair", "hair.obj", "hair", "head", dbInfo)
 	AssertNil(t, err)
-	hairPart, err := apiDB.CreateAvatarPartRecord(avatar1.Id, hairTemplate.Id, hairTemplate.Name, hairTemplate.Part, hairTemplate.Parent, "0,0.1,0", "0,0,0,1", "1,1,1", dbInfo)
+	hairPart, err := apiDB.CreateAvatarPartRecord(avatar1.Id, hairTemplate.UUID, hairTemplate.Name, hairTemplate.Part, hairTemplate.Parent, "0,0.1,0", "0,0,0,1", "1,1,1", dbInfo)
 	AssertNil(t, err)
 	AssertEqual(t, hairTemplate.Name, hairPart.Name)
 	AssertEqual(t, hairTemplate.Parent, hairPart.Parent)

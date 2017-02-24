@@ -186,36 +186,22 @@ button:active {
 	padding-left: var(--row-padding);
 	padding-right: var(--row-padding);
 }
-.col-2 {
-	flex: 1 16.66%;
+.col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10, .col-11, .col-12 {
 	padding-left: var(--col-padding);
 	padding-right: var(--col-padding);
-}
-.col-4 {
-	flex: 1 30%;
-	padding-left: var(--col-padding);
-	padding-right: var(--col-padding);
-}
-.col-6 {
-	flex: 1 50%;
-	padding-left: var(--col-padding);
-	padding-right: var(--col-padding);
-}
-.col-8 {
-	flex: 1 66.66%;
-	padding-left: var(--col-padding);
-	padding-right: var(--col-padding);
-}
-.col-10 {
-	flex: 1 83.33%;
-	padding-left: var(--col-padding);
-	padding-right: var(--col-padding);
-}
-.col-12 {
-	flex: 1 100%;
-	padding-left: var(--col-padding);
-	padding-right: var(--col-padding);
-}
+} 
+.col-1  { flex: 1 8.33%;  }
+.col-2  { flex: 1 16.66%; }
+.col-3  { flex: 1 50%;    }
+.col-4  { flex: 1 30%;    }
+.col-5  { flex: 1 41.66%; }
+.col-6  { flex: 1 50%;    }
+.col-7  { flex: 1 58.33%; }
+.col-8  { flex: 1 66.66%; }
+.col-9  { flex: 1 74.99%; }
+.col-10 { flex: 1 83.33%; }
+.col-11 { flex: 1 91.66%; }
+.col-12 { flex: 1 100%;   }
 
 @media(max-width: 767px){
 	.row {

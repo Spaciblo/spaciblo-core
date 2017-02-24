@@ -21,11 +21,11 @@ func TestSchemaAPI(t *testing.T) {
 	AssertNil(t, err)
 	defer testApi.Stop()
 
-	user, err := CreateUser("bronner@soap.example.com", "Dr", "Bronner", false, -1, dbInfo)
+	user, err := CreateUser("bronner@soap.example.com", "Dr", "Bronner", false, "", dbInfo)
 	AssertNil(t, err)
 	_, err = CreatePassword("1234", user.Id, dbInfo)
 	AssertNil(t, err)
-	staff, err := CreateUser("mr-clean@soap.example.com", "Mr", "Clean", true, -1, dbInfo)
+	staff, err := CreateUser("mr-clean@soap.example.com", "Mr", "Clean", true, "", dbInfo)
 	AssertNil(t, err)
 	_, err = CreatePassword("1234", staff.Id, dbInfo)
 	AssertNil(t, err)

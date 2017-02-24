@@ -47,7 +47,8 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		this.spacesEditorComponent = new spaciblo.components.SpacesEditorComponent(this.spaces)
 		this.el.appendChild(this.spacesEditorComponent.el)
 
-		this.avatarsEditorComponent = new spaciblo.components.AvatarsEditorComponent()
+		this.avatars = new be.api.Avatars()
+		this.avatarsEditorComponent = new spaciblo.components.AvatarsEditorComponent(this.avatars)
 		this.el.appendChild(this.avatarsEditorComponent.el)
 
 		this.router.addListener(this._handleRoutes.bind(this))
@@ -97,6 +98,9 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		this._clearDisplay()
 		this.avatarsEditorComponent.el.style.display = 'block'
 		this.avatarsButton.addClass('selected')
+		if(this.avatars.isNew){
+			this.avatars.fetch()
+		}
 	}
 }
 
@@ -476,7 +480,7 @@ spaciblo.components.SceneGraphNodePropertiesComponent = class extends k.Componen
 		this.settingsComponent.addListener((...params) => { this._handleRemoveNode(...params) }, spaciblo.events.NodeRemoved)
 		this.el.appendChild(this.settingsComponent.el)
 
-		this.templateComponent = new spaciblo.components.SceneGraphNodeTemplateComponent(this.dataObject)
+		this.templateComponent = new spaciblo.components.TemplateEditorComponent(this.dataObject)
 		this.templateComponent.addListener((...params) => { this._handleNodeUpdated(...params) }, spaciblo.events.NodeUpdated)
 		this.el.appendChild(this.templateComponent.el)
 
@@ -541,12 +545,12 @@ spaciblo.components.SceneGraphNodeSettingsComponent = class extends k.Component 
 }
 
 /*
-SceneGraphNodeTemplateComponent provides an editor of a node's template
+TemplateEditorComponent provides an editor of a DataObject template
 */
-spaciblo.components.SceneGraphNodeTemplateComponent = class extends k.Component {
+spaciblo.components.TemplateEditorComponent = class extends k.Component {
 	constructor(dataObject){
 		super(dataObject)
-		this.el.addClass('scene-graph-node-template-component')
+		this.el.addClass('template-editor-component')
 		this.el.addClass('scene-graph-node-property-component')
 
 		this.template = new be.api.Template({ uuid: this.dataObject.get('templateUUID') })
@@ -578,8 +582,7 @@ spaciblo.components.SceneGraphNodeTemplateComponent = class extends k.Component 
 
 		this.dataObject.addListener(() => {
 			let uuid = this.dataObject.get('templateUUID')
-			if(!uuid) return
-			if(uuid === spaciblo.api.RemoveKeyIndicator){
+			if(uuid === spaciblo.api.RemoveKeyIndicator || uuid === null || uuid === ''){
 				this.template.reset({})
 				this._updateTemplate()
 			} else {
@@ -992,9 +995,11 @@ spaciblo.components.SceneNodeSettingComponent = class extends k.Component {
 VectorEditorComponent renders a variable length array of numbers for editing
 */
 spaciblo.components.VectorEditorComponent = class extends k.Component {
-	constructor(dataObject, fieldName, defaultValue=[]){
+	constructor(dataObject, fieldName, defaultValue=[], localSave=false){
 		super(dataObject, { fieldName: fieldName, defaultValue: defaultValue })
 		this.el.addClass('vector-editor-component')
+		this.localSave = localSave
+		this._throttledLocalSave = be.ui.throttle(this._localSave, 1000, false, true)
 		this.lastUpdateSent = Date.now()
 		this._boundHandleModelChange = this._handleModelChange.bind(this)
 		this.inputs = k.el.div().appendTo(this.el)
@@ -1034,10 +1039,19 @@ spaciblo.components.VectorEditorComponent = class extends k.Component {
 			this.inputs.children[i].value = params[i]
 		}
 	}
+	_localSave(changes){
+		this.dataObject.set(this.options.fieldName, changes.join(','))
+		this.dataObject.save().catch(() => {
+			console.error('error saving vector', this.options.fieldName, changes)
+		})
+	}
 	_handleKeyUp(ev){
 		let changes = this._getChanges()
 		if(changes === null) return
 		this.lastUpdateSent = Date.now()
+		if(this.localSave){
+			this._throttledLocalSave(changes)
+		}
 		this.trigger(spaciblo.events.NodeUpdated, this.dataObject.get('id'), this.options.fieldName, changes)
 	}
 	_getChanges(){
@@ -1062,23 +1076,158 @@ spaciblo.components.VectorEditorComponent = class extends k.Component {
 /*
 AvatarsEditorComponent shows a list of avatars and editable details for an avatar when it is selected
 */
-spaciblo.components.AvatarsEditorComponent = class extends k.Component {
+spaciblo.components.AvatarsEditorComponent = class extends be.ui.ListAndDetailComponent {
 	constructor(dataObject=null, options={}){
-		super(dataObject, options)
+		super(dataObject, Object.assign({
+			itemType: be.api.Avatar,
+			itemComponent: spaciblo.components.AvatarItemComponent,
+			detailComponent: spaciblo.components.AvatarDetailComponent
+		}, options))
 		this.el.addClass('avatars-editor-component')
 		this.el.addClass('editor-component')
+	}
+}
+/*
+AvatarItemComponent is used as a list item in a list of Avatars 
+*/
+spaciblo.components.AvatarItemComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, Object.assign({ el: k.el.li() }, options))
+		this.el.addClass('avatar-item-component')
+		this.el.addClass('item-component')
+		if(dataObject === null){
+			throw 'AvatarItemComponent requires an Avatar dataObject'
+		}
+		this.nameEl = k.el.div().appendTo(this.el)
+		this.bindText('name', this.nameEl, value => { 
+			if(value === '' || value === null){ return 'Unnamed Avatar' }
+			return value
+		})
+	}
+}
 
-		this.row = k.el.div({
-			class: 'row'
-		}).appendTo(this.el)
-		this.leftCol = k.el.div({
-			class: 'col-2'
-		}).appendTo(this.row)
-		this.rightCol = k.el.div({
-			class: 'col-10'
-		}).appendTo(this.row)
+/*
+AvatarDetailComponent is used to show and edit the metadata of a Avatar
+*/
+spaciblo.components.AvatarDetailComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('avatar-detail-component')
+		this.el.addClass('detail-component')
 
-		k.el.div('Avatars editor will go here').appendTo(this.rightCol)
+		this.nameInput = new be.ui.TextInputComponent(dataObject, 'name', { autosave: true })
+		this.el.appendChild(this.nameInput.el)
+
+		this.deleteLink = k.el.button({ class: 'small-button delete-button' }, 'Delete').appendTo(this.el)
+		this.listenTo('click', this.deleteLink, this._handleDeleteClick, this)
+
+		this.avatarPartList = new be.api.AvatarParts([], {
+			'avatar-uuid': this.dataObject.get('uuid')
+		})
+		this.avatarPartListComponent = new be.ui.CollectionComponent(this.avatarPartList, {
+			itemComponent: spaciblo.components.AvatarPartDetailComponent,
+			itemOptions: { 'avatar-uuid': this.dataObject.get('uuid') }
+		})
+		this.avatarPartListComponent.el.addClass('avatar-part-list-component')
+		this.el.appendChild(this.avatarPartListComponent.el)
+		this.avatarPartList.fetch()
+
+		this.addEl = k.el.div(
+			{ class: 'add-item' },
+			k.el.button({ class: 'small-button' }, 'Add')
+		).appendTo(this.el)
+		this.listenTo('click', this.addEl.querySelector('button'), this._handleAddClick, this)
+	}
+	cleanup(){
+		super.cleanup()
+		this.nameInput.cleanup()
+	}
+	_handleAddClick(){
+		let item = new be.api.AvatarPart({}, { 'avatar-uuid': this.dataObject.get('uuid') })
+		item.save().then(() => {
+			this.avatarPartList.add(item)
+		}).catch((...params) => {
+			console.error('Error creating item', ...params)
+		})
+	}
+	_handleDeleteClick(){
+		this.dataObject.delete().then(() => {
+			this.trigger('deleted', this)
+		})
+	}
+}
+
+/*
+Used in a list in AvatarDetailComponent to allow editing an avatar part 
+*/
+spaciblo.components.AvatarPartDetailComponent = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('avatar-part-detail-component row')
+		dataObject.options['avatar-uuid'] = options['avatar-uuid'] // Used when saving
+
+		this.deleteLink = k.el.button({ class: 'small-button delete-button' }, 'Delete').appendTo(this.el)
+		this.listenTo('click', this.deleteLink, this._handleDeleteClick, this)
+
+		this.infoCol = k.el.div({ class: 'info-col col-3' }).appendTo(this.el)
+
+		k.el.h3('Name').appendTo(this.infoCol)
+		this.nameInput = new be.ui.TextInputComponent(dataObject, 'name', { autosave: true })
+		this.infoCol.appendChild(this.nameInput.el)
+
+		k.el.h3('Part').appendTo(this.infoCol)
+		this.partInput = new be.ui.TextInputComponent(dataObject, 'part', { autosave: true })
+		this.infoCol.appendChild(this.partInput.el)
+
+		k.el.h3('Parent').appendTo(this.infoCol)
+		this.parentInput = new be.ui.TextInputComponent(dataObject, 'parent', { autosave: true })
+		this.infoCol.appendChild(this.parentInput.el)
+
+		this.positioningCol = k.el.div({ class: 'positioning-col col-3' }).appendTo(this.el)
+
+		this.positioningCol.appendChild(k.el.h3('Position'))
+		this.positionComponent = new spaciblo.components.VectorEditorComponent(this.dataObject, 'position', [0,0,0], true)
+		this.positioningCol.appendChild(this.positionComponent.el)
+
+		this.positioningCol.appendChild(k.el.h3('Orientation'))
+		this.orientationComponent = new spaciblo.components.VectorEditorComponent(this.dataObject, 'orientation', [0,0,0,1], true)
+		this.positioningCol.appendChild(this.orientationComponent.el)
+
+		this.positioningCol.appendChild(k.el.h3('Scale'))
+		this.scaleComponent = new spaciblo.components.VectorEditorComponent(this.dataObject, 'scale', [1,1,1], true)
+		this.positioningCol.appendChild(this.scaleComponent.el)
+
+		this.templateCol = k.el.div({ class: 'template-col col-3' }).appendTo(this.el)
+
+		this.templateComponent = new spaciblo.components.TemplateEditorComponent(this.dataObject)
+		this.templateComponent.addListener((...params) => { this._handleNodeUpdated(...params) }, spaciblo.events.NodeUpdated)
+		this.templateCol.appendChild(this.templateComponent.el)
+
+		this.bufferCol = k.el.div({ class: 'col-2' }).appendTo(this.el)
+	}
+	cleanup(){
+		super.cleanup()
+		this.nameInput.cleanup()
+		this.partInput.cleanup()
+		this.parentInput.cleanup()
+		this.positionComponent.cleanup()
+	}
+	_handleNodeUpdated(eventName, dataObjectId, fieldName, value){
+		if(value === spaciblo.api.RemoveKeyIndicator){
+			this.dataObject.set(fieldName, '')
+		} else {
+			this.dataObject.set(fieldName, value)
+		}
+		this.dataObject.save().catch((...params) => {
+			console.error('Error updating avatar part template', ...params)
+		})
+	}
+	_handleDeleteClick(){
+		this.dataObject.delete().then(() => {
+			this.trigger('deleted', this)
+		}).catch((...params) => {
+			console.error('error deleting an avatar part', ...params)
+		})
 	}
 }
 
