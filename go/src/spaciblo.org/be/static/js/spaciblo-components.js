@@ -111,9 +111,8 @@ spaciblo.components.UserAvatarSelectionComponent = class extends k.Component {
 		if(userDataObject.get('avatarUUID') !== null){
 			this.avatar.fetch()
 		}
-		this.avatarsList.fetch()
-
 		this._hideAvatarList()
+		this.avatarsList.fetch()
 	}
 	_handleItemClick(dataObject){
 		this.dataObject.set('avatarUUID', dataObject.get('uuid'))
