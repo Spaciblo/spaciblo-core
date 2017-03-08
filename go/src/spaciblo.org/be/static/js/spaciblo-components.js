@@ -169,21 +169,61 @@ spaciblo.components.SplashPageComponent = class extends k.Component {
 		this.spacesComponent = new spaciblo.components.SpacesComponent(dataObject)
 		this.el.appendChild(this.spacesComponent.el)
 
+		this.spaceMenuComponent = new spaciblo.components.SpaceMenuComponent(dataObject)
+		this.el.appendChild(this.spaceMenuComponent.el)
+
 		this.router.addListener(this._handleRoutes.bind(this))
 		this.router.start()
 	}
 	_handleRoutes(routeName, ...params){
 		switch(routeName){
 			case 'space':
+				this.spaceMenuComponent.el.style.display = 'none';
 				this.spacesComponent.handleSpaceRoute(params[0])
 				break
 			default:
-				// Do nothing. The SpacesComponent shows a menu.
+				this.spaceMenuComponent.el.style.display = 'block';
 				break
 		}
 	}
 	handleAddedToDOM(){
 		this.spacesComponent.handleAddedToDOM()
+	}
+}
+
+/*
+SpaceMenuComponent shows a list of spaces (each rendered by SpaceItemComponent) for the user to pick one
+*/
+spaciblo.components.SpaceMenuComponent = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('space-menu-component')
+
+		this.el.appendChild(k.el.h2('Pick a space'))
+
+		this.spaceList = new be.ui.CollectionComponent(dataObject, {
+			itemComponent: spaciblo.components.SpaceItemComponent,
+			onClick: this._handleSpaceClick.bind(this)
+		})
+		this.el.appendChild(this.spaceList.el)
+	}
+	cleanup(){
+		super.cleanup()
+		this.spaceList.cleanup()
+	}
+	_handleSpaceClick(space){
+		document.location.href = '#' + space.get('uuid')
+	}
+}
+
+/*
+SpaceItemComponent is used in SpaceMenuComponent to allow choosing a space
+*/
+spaciblo.components.SpaceItemComponent = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('space-item-component')
+		this.el.appendChild(k.el.span(dataObject.get('name')))
 	}
 }
 
@@ -201,11 +241,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 
 		this.renderer = new spaciblo.three.Renderer(this.inputManager)
 		this.el.appendChild(this.renderer.el)
-
-		this.dataObject.addListener(this.handleReset.bind(this), "reset")
-		if(this.dataObject.length > 0){
-			this.handleReset()
-		}
 
 		this.vrButton = k.el.div({ class:'vr-button' }, 'Enter VR').appendTo(this.el)
 
@@ -230,7 +265,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	handleTouchStart(ev){
 		if(this.receivedTouchEvent === false){
 			this.receivedTouchEvent = true
-			this.touchMotionComponent.el.style.display = 'block'
 			this.touchMotionComponent.render()
 		}
 	}
@@ -245,7 +279,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			return
 		}
 		this.vrDisplay = displays[0] // TODO handle more than one display
-		this.vrButton.style.display = 'inline-block'
 		this.vrButton.addEventListener('click', this.handleVRButtonClick.bind(this))
 	}
 	handleVRButtonClick(ev){
@@ -310,6 +343,9 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.client.addListener(this.handleClientMessages.bind(this), spaciblo.events.ClientMessageReceived)
 		this.client.open().then(() => {
 			this.client.joinSpace(space)
+			if(this.vrDisplay){
+				this.vrButton.style.display = 'inline-block'
+			}
 		}).catch(err => {
 			console.error("Error connecting to the WS service", err)
 		})
@@ -337,13 +373,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			default:
 				console.log("Unhandled client message", message)
 		}
-	}
-	handleReset(){
-		this.renderer.clearSpacesMenu()
-		for(let space of this.dataObject){
-			this.renderer.addSpaceToMenu(space, false)
-		}
-		this.renderer.layoutSpaceMenu()
 	}
 	updateSize(){
 		this.renderer.setSize(this.el.offsetWidth, this.el.offsetHeight)

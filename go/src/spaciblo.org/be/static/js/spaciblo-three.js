@@ -1,4 +1,4 @@
-'use strict'
+"use strict";
 
 var spaciblo = spaciblo || {}
 spaciblo.three = spaciblo.three || {}
@@ -97,19 +97,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		// A list of spaces to show when no space is loaded
 		this.spaces = []
-		this.spaceMenuMeshes = []
-		this.spaceMenu = new THREE.Group()
-		this.spaceMenu.name = 'Space Menu'
-		this.spaceMenu.position.z = -8
-		this.spaceMenu.add(new THREE.AmbientLight(0xffffff, 0.4))
-		let smDirLight = new THREE.DirectionalLight(0xffffff, 2)
-		this.spaceMenu.add(smDirLight)
-		smDirLight.target.position.set(-0.5, -0.2, -0.5)
-		this.spaceMenu.add(smDirLight.target)
 
-		this.scene.add(this.spaceMenu)
-
-		this.el.addEventListener('touchstart', this._onTouchStart.bind(this), false)
 		this.el.addEventListener('mousemove', this._onDocumentMouseMove.bind(this), false)
 		this.el.addEventListener('click', this._onClick.bind(this), false)
 		this.inputManager.addListener((...params) => { this._handleInputEventStarted(...params) }, spaciblo.events.InputActionStarted)
@@ -158,19 +146,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	_onClick(ev){
 		ev.preventDefault()
-		if(this.intersectedObj !== null && typeof this.intersectedObj.space !== 'undefined'){
-			this.trigger(spaciblo.events.SpaceSelected, this.intersectedObj.space)
-		}
-	}
-	_onTouchStart(ev){
-		ev.preventDefault()
-		if(this.spaceMenu === null || this.spaceMenu.visible === false){
-			return
-		}
-		let [offsetX, offsetY] = k.documentOffset(this.renderer.domElement)
-		this.mouse.x = ((ev.targetTouches[0].clientX - offsetX) / this.el.offsetWidth) * 2 - 1
-		this.mouse.y = - ((ev.targetTouches[0].clientY - offsetY) / this.el.offsetHeight) * 2 + 1
-		this._updateIntersects()
 		if(this.intersectedObj !== null && typeof this.intersectedObj.space !== 'undefined'){
 			this.trigger(spaciblo.events.SpaceSelected, this.intersectedObj.space)
 		}
@@ -254,7 +229,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				// This is the root
 				this.rootGroup = group
 				this.rootGroup.name = 'Root'
-				this.hideSpaceMenu()
 				this.pivotPoint.add(this.rootGroup)
 			} else {
 				parent.add(group)
@@ -341,94 +315,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 		}
 		return group
-	}
-	hideSpaceMenu(){
-		this.spaceMenu.visible = false
-		this.intersectedObj = null
-	}
-	clearSpacesMenu(){
-		while(this.spaceMenuMeshes.length > 0){
-			this._removeSpaceMesh(0, false)
-		}
-	}
-	removeSpaceFromMenu(space, layout=true){
-		const index = this._indexOfSpaceInMenu(space)
-		if(index === -1) return
-		this._removeSpaceMesh(index, layout)
-	}
-	_removeSpaceMesh(index, layout=true){
-		this.spaceMenu.remove(this.spaceMenuMeshes[index])
-		this.spaceMenuMeshes[index].space = null
-		this.spaceMenuMeshes.splice(index, 1)
-		if(layout){
-			this.layoutSpaceMenu()
-		}
-	}
-	_indexOfSpaceInMenu(space){
-		for(let i in this.spaceMenuMeshes){
-			if(this.spaceMenuMeshes[i].space.equals(space)){
-				return i
-			}
-		}
-		return -1
-	}
-	addSpaceToMenu(space, layout=true){
-		if(this._indexOfSpaceInMenu(space) !== -1) return
-		const geometry = new THREE.BoxBufferGeometry(1, 1, 1)
-		const material = new THREE.MeshPhongMaterial({ 
-			color: new THREE.Color(0xFFDD99),
-			shading: THREE.SmoothShading
-		})
-		const mesh = this._addGeometry(geometry, material)
-		mesh.space = space
-		mesh.name = space.get('name')
-		this.spaceMenuMeshes.push(mesh)
-		this.spaceMenu.add(mesh)
-		if(layout){
-			this.layoutSpaceMenu()
-		}
-	}
-	layoutSpaceMenu(){
-		if(this.spaceMenuMeshes.length == 0) return
-		const distanceBetweenSpaceMenuItems = 2
-		let currentX = (this.spaceMenuMeshes.length - 1) * distanceBetweenSpaceMenuItems * -1
-		currentX = currentX / 2
-		for(let mesh of this.spaceMenuMeshes){
-			mesh.position.x = currentX
-			mesh.position.y = 0
-			mesh.position.z = 0
-			currentX += distanceBetweenSpaceMenuItems
-		}
-	}
-	_animateSpaceMenu(delta){
-		for(let mesh of this.spaceMenuMeshes){
-			mesh.rotation.y += 0.5 * delta
-			mesh.rotation.x -= 0.5 * delta
-		}
-	}
-	_updateIntersects(){
-		this.raycaster.setFromCamera(this.mouse, this.camera)
-		let intersects = this.raycaster.intersectObjects(this.scene.children, true)
-		if(intersects.length > 0){
-			if(typeof intersects[0].object.space === 'undefined'){
-				if(this.intersectedObj){
-					this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
-					this.intersectedObj = null
-				}
-			} else if(this.intersectedObj !== intersects[0].object && intersects[0].object.material.emissive){
-				if(this.intersectedObj !== null){
-					this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
-				}
-				this.intersectedObj = intersects[0].object
-				this.intersectedObj.currentHex = this.intersectedObj.material.emissive.getHex()
-				this.intersectedObj.material.emissive.setHex(0xff0000)
-			}
-		} else {
-			if(this.intersectedObj !== null){
-				this.intersectedObj.material.emissive.setHex(this.intersectedObj.currentHex)
-				this.intersectedObj = null
-			}
-		}
 	}
 	_getTeleportLocation(){
 		/* 
@@ -592,11 +478,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		// Move things that need moving since their last update from the server
 		if(this.rootGroup){
 			this.rootGroup.interpolate(this.clock.elapsedTime)
-		}
-
-		if(this.spaceMenu && this.spaceMenu.visible){
-			this._animateSpaceMenu(delta)
-			this._updateIntersects()
 		}
 
 		if(this.vrDisplay){
