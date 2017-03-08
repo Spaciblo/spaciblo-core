@@ -265,7 +265,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	handleTouchStart(ev){
 		if(this.receivedTouchEvent === false){
 			this.receivedTouchEvent = true
-			this.touchMotionComponent.render()
 		}
 	}
 	handleTouchMotion(eventName, deltaX, deltaY){
@@ -345,6 +344,10 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			this.client.joinSpace(space)
 			if(this.vrDisplay){
 				this.vrButton.style.display = 'inline-block'
+			}
+			if(this.receivedTouchEvent){
+				this.touchMotionComponent.el.style.display = 'block'
+				this.touchMotionComponent.render()
 			}
 		}).catch(err => {
 			console.error("Error connecting to the WS service", err)
