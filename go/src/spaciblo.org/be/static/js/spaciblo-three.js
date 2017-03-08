@@ -514,6 +514,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					if(this.vrDisplay.capabilities.hasPosition){
 						// pose.position is relative to sitting origin
 						this.avatarGroup.head.position.set(...this.vrFrameData.pose.position)
+						spaciblo.three.WORKING_VECTOR3.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+						this.avatarGroup.head.position.add(spaciblo.three.WORKING_VECTOR3)
 					} else {
 						// pose.position is probably a neck model and relative a standing position
 						this.avatarGroup.head.position.set(
@@ -590,6 +592,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 							handHasPosition = true
 							handNode.hasGamepadPosition = true
 							handNode.position.set(...gamepad.pose.position)
+							spaciblo.three.WORKING_VECTOR3.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+							handNode.position.add(spaciblo.three.WORKING_VECTOR3)
 						} else {
 							handNode.hasGamepadPosition = false
 						}
