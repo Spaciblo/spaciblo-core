@@ -163,6 +163,7 @@ func (server *SimHostServer) HandleAddNodeRequest(ctx context.Context, addNodeRe
 		return nil, errors.New("Unknown space UUID: " + addNodeRequest.SpaceUUID)
 	}
 	spaceSim.HandleAddNode(
+		addNodeRequest.ClientUUID,
 		addNodeRequest.Parent,
 		addNodeRequest.TemplateUUID,
 		addNodeRequest.Position,
@@ -177,6 +178,7 @@ func (server *SimHostServer) HandleRemoveNodeRequest(ctx context.Context, remove
 		return nil, errors.New("Unknown space UUID: " + removeNodeRequest.SpaceUUID)
 	}
 	spaceSim.HandleRemoveNode(
+		removeNodeRequest.ClientUUID,
 		removeNodeRequest.Id,
 	)
 	return &simRPC.Ack{Message: "OK"}, nil
@@ -194,6 +196,7 @@ func (server *SimHostServer) HandleUpdateRequest(ctx context.Context, updateRequ
 		}
 		spaceSim.HandleNodeUpdate(
 			nodeUpdate.Id,
+			updateRequest.ClientUUID,
 			settings,
 			nodeUpdate.Position,
 			nodeUpdate.Orientation,

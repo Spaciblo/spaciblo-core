@@ -19,6 +19,19 @@ type User struct {
 	Updated    time.Time `json:"updated" db:"updated"`
 }
 
+func (user *User) DisplayName() string {
+	if user.FirstName != "" && user.LastName == "" {
+		return user.FirstName
+	}
+	if user.LastName != "" && user.FirstName == "" {
+		return user.LastName
+	}
+	if user.FirstName == "" && user.LastName == "" {
+		return "Unnamed User"
+	}
+	return user.FirstName + " " + user.LastName
+}
+
 func CreateUser(email string, firstName string, lastName string, staff bool, avatarUUID string, dbInfo *DBInfo) (*User, error) {
 	user := new(User)
 	user.UUID = UUID()

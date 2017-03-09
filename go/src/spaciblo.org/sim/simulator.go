@@ -29,14 +29,14 @@ SpaceSimulator holds all of the state for a space and can step the simulation fo
 It does not handle any of the communication with clients. That's the job of the SimHostServer and the WS service.
 */
 type SpaceSimulator struct {
-	Running           bool                  // True if the simulator should be automatically ticking
-	Frame             int64                 // The current frame number
-	Name              string                // The Name of the SpaceRecord
-	UUID              string                // The UUID of the SpaceRecord
-	RootNode          *SceneNode            // The scene graph, including SceneNodes for avatars
-	Clients           map[string]*SceneNode // <clientUUID, avatar node (may be nil for avatar-less clients)>
-	Additions         []*SceneAddition      // Nodes added to the scene since the last tick
-	Deletions         []int64               // Node IDs removed from the scene since the last tick
+	Running           bool                   // True if the simulator should be automatically ticking
+	Frame             int64                  // The current frame number
+	Name              string                 // The Name of the SpaceRecord
+	UUID              string                 // The UUID of the SpaceRecord
+	RootNode          *SceneNode             // The scene graph, including SceneNodes for avatars
+	Clients           map[string]*ClientInfo // <clientUUID, ClientInfo>
+	Additions         []*SceneAddition       // Nodes added to the scene since the last tick
+	Deletions         []int64                // Node IDs removed from the scene since the last tick
 	DefaultAvatarUUID string
 	SimHostServer     *SimHostServer
 	DBInfo            *be.DBInfo
@@ -78,7 +78,7 @@ func NewSpaceSimulator(spaceUUID string, simHostServer *SimHostServer, dbInfo *b
 		Name:              spaceRecord.Name,
 		UUID:              spaceUUID,
 		RootNode:          rootNode,
-		Clients:           make(map[string]*SceneNode),
+		Clients:           make(map[string]*ClientInfo),
 		Additions:         []*SceneAddition{},
 		Deletions:         []int64{},
 		DefaultAvatarUUID: avatarRecord.UUID,
@@ -122,46 +122,75 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 	for _, notice := range membershipNotices {
 		// TODO compress duplicate membership notices
 		if notice.Member == true {
-			if notice.Avatar == true {
-				_, err := spaceSim.createAvatar(notice.ClientUUID, notice.UserUUID, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
-				if err != nil {
-					logger.Println("Error creating avatar", err)
-				}
-			} else {
-				spaceSim.Clients[notice.ClientUUID] = nil
+			_, err := spaceSim.createClientInfo(notice.ClientUUID, notice.UserUUID, notice.Avatar, []float64{0, 0, 0}, []float64{0, 0, 0, 1})
+			if err != nil {
+				logger.Println("Error creating avatar", err)
 			}
 		} else {
-			spaceSim.removeAvatar(notice.ClientUUID)
+			spaceSim.removeClient(notice.ClientUUID)
 		}
 	}
 
 	avatarMotionNotices := spaceSim.collectAvatarMotionNotices()
 	for _, notice := range avatarMotionNotices {
 		// TODO compress duplicate motion notices
-		avatarNode, ok := spaceSim.Clients[notice.ClientUUID]
+		info, ok := spaceSim.Clients[notice.ClientUUID]
 		if ok == false {
 			continue
 		}
-		if avatarNode == nil {
+		if info.Avatar == nil {
 			continue // Received an update for a client with no Avatar!
 		}
-		avatarNode.Position.Set(notice.Position)
-		avatarNode.Orientation.Set(notice.Orientation)
-		avatarNode.Translation.Set(notice.Translation)
-		avatarNode.Rotation.Set(notice.Rotation)
-		avatarNode.Scale.Set(notice.Scale)
-		avatarNode.handleBodyUpdates(notice.BodyUpdates)
+
+		// TODO add an auth system (probably via plugin) for these permission checks
+		if info.ClientUUID != notice.ClientUUID {
+			logger.Println("Received an avatar motion notice for someone else's avatar", notice.ClientUUID)
+			continue
+		}
+
+		info.Avatar.Position.Set(notice.Position)
+		info.Avatar.Orientation.Set(notice.Orientation)
+		info.Avatar.Translation.Set(notice.Translation)
+		info.Avatar.Rotation.Set(notice.Rotation)
+		info.Avatar.Scale.Set(notice.Scale)
+		info.Avatar.handleBodyUpdates(notice.BodyUpdates)
 	}
 
 	nodeUpdateNotices := spaceSim.collectNodeUpdateNotices()
 	for _, notice := range nodeUpdateNotices {
-		// TODO Check that the client has permission to update the setting
 		node := spaceSim.RootNode.findById(notice.Id)
 		if node == nil {
-			logger.Println("Received a setting update for an unknown node", notice)
+			logger.Println("Received a node update for an unknown node", notice)
 			continue
 		}
+
+		clientInfo, ok := spaceSim.Clients[notice.ClientUUID]
+		if ok == false {
+			logger.Println("Received a node update from an unknown client", notice.ClientUUID)
+			continue
+		}
+
+		// TODO add an auth system (probably via plugin) for these permission checks
+		nodeClientUUID := node.getClientUUID()
+		if nodeClientUUID == "" {
+			// Node is not part of an avatar, so only logged in Users can update it
+			if clientInfo.User == nil {
+				logger.Println("Received a non-avatar node update from a guest", clientInfo.ClientUUID)
+				continue
+			}
+		} else {
+			// Node is part of an avatar, so make sure that only the owning client can change it
+			if clientInfo.ClientUUID != nodeClientUUID {
+				logger.Println("Received a node update for someone else's avatar:", clientInfo.ClientUUID)
+				continue
+			}
+		}
+
 		for settingName, settingValue := range notice.Settings {
+			if settingName == "clientUUID" {
+				logger.Println("Received a setting update for clientUUID:", clientInfo.ClientUUID)
+				continue
+			}
 			if settingValue == REMOVE_KEY_INDICATOR {
 				node.RemoveSetting(settingName)
 			} else {
@@ -181,7 +210,19 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 
 	addNodeNotices := spaceSim.collectAddNodeNotices()
 	for _, notice := range addNodeNotices {
-		// TODO Check that the client has permission to add a node
+		clientInfo, ok := spaceSim.Clients[notice.ClientUUID]
+		if ok == false {
+			logger.Println("Received an add node request from an unknown client", notice.ClientUUID)
+			continue
+		}
+
+		// TODO add an auth system (probably via plugin) for these permission checks
+		if clientInfo.User == nil {
+			// Guests aren't allowed to add nodes
+			logger.Println("Received an add node request from a guest", notice.ClientUUID)
+			continue
+		}
+
 		parentNode := spaceSim.RootNode.findById(notice.Parent)
 		if parentNode == nil {
 			logger.Println("Received an add node request for an unknown parent node", notice)
@@ -200,7 +241,19 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 
 	removeNodeNotices := spaceSim.collectRemoveNodeNotices()
 	for _, notice := range removeNodeNotices {
-		// TODO Check that the client has permission to remove the node
+		clientInfo, ok := spaceSim.Clients[notice.ClientUUID]
+		if ok == false {
+			logger.Println("Received a remove node request from an unknown client", notice.ClientUUID)
+			continue
+		}
+
+		// TODO add an auth system (probably via plugin) for these permission checks
+		if clientInfo.User == nil {
+			// Guests aren't allowed to add nodes
+			logger.Println("Received a remove node request from a guest", notice.ClientUUID)
+			continue
+		}
+
 		node, parent := spaceSim.RootNode.findNodeAndParentById(notice.Id)
 		if node == nil {
 			logger.Println("Received a remove node request for an unknown node", notice)
@@ -382,8 +435,9 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 	}
 }
 
-func (spaceSim *SpaceSimulator) HandleAddNode(parentId int64, templateUUID string, position []float64, orientation []float64) {
+func (spaceSim *SpaceSimulator) HandleAddNode(clientUUID string, parentId int64, templateUUID string, position []float64, orientation []float64) {
 	spaceSim.AddNodeChannel <- &AddNodeNotice{
+		ClientUUID:   clientUUID,
 		Parent:       parentId,
 		TemplateUUID: templateUUID,
 		Position:     position,
@@ -391,18 +445,20 @@ func (spaceSim *SpaceSimulator) HandleAddNode(parentId int64, templateUUID strin
 	}
 }
 
-func (spaceSim *SpaceSimulator) HandleRemoveNode(id int64) {
+func (spaceSim *SpaceSimulator) HandleRemoveNode(clientUUID string, id int64) {
 	spaceSim.RemoveNodeChannel <- &RemoveNodeNotice{
-		Id: id,
+		ClientUUID: clientUUID,
+		Id:         id,
 	}
 }
 
 /*
 HandleNodeUpdate is called by the sim host when it receives an update request message from a client via the WS service
 */
-func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, settings map[string]string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64, templateUUID string) {
+func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, clientUUID string, settings map[string]string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64, templateUUID string) {
 	spaceSim.NodeUpdateChannel <- &NodeUpdateNotice{
 		Id:           nodeId,
+		ClientUUID:   clientUUID,
 		Settings:     settings,
 		Position:     position,
 		Orientation:  orientation,
@@ -413,110 +469,133 @@ func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, settings map[stri
 	}
 }
 
-func (spaceSim *SpaceSimulator) createAvatar(clientUUID string, userUUID string, position []float64, orientation []float64) (*SceneNode, error) {
+/*
+The User, permissions, and avatar for a given ClientUUID
+*/
+type ClientInfo struct {
+	ClientUUID string
+	Avatar     *SceneNode // May be nil for avatar-less clients
+	User       *be.User   // May be nil for guests
+}
+
+func (spaceSim *SpaceSimulator) createClientInfo(clientUUID string, userUUID string, createAvatar bool, position []float64, orientation []float64) (*ClientInfo, error) {
 	// Check for an existing avatar for this client
-	node, ok := spaceSim.Clients[clientUUID]
+	info, ok := spaceSim.Clients[clientUUID]
 	if ok == true {
-		return node, nil
+		return info, nil
+	}
+
+	info = &ClientInfo{
+		ClientUUID: clientUUID,
 	}
 
 	avatarUUID := spaceSim.DefaultAvatarUUID
 	if userUUID != "" {
 		userRecord, err := be.FindUser(userUUID, spaceSim.DBInfo)
-		if err == nil && userRecord.AvatarUUID != "" {
-			userAvatarRecord, err := apiDB.FindAvatarRecord(userRecord.AvatarUUID, spaceSim.DBInfo)
-			if err == nil {
-				avatarUUID = userAvatarRecord.UUID
-			} else {
-				logger.Println("Could not find avatar for user", avatarUUID)
+		if err == nil {
+			info.User = userRecord
+			if createAvatar {
+				if userRecord.AvatarUUID != "" {
+					userAvatarRecord, err := apiDB.FindAvatarRecord(userRecord.AvatarUUID, spaceSim.DBInfo)
+					if err == nil {
+						avatarUUID = userAvatarRecord.UUID
+					} else {
+						logger.Println("Could not find avatar for user", avatarUUID)
+					}
+				}
 			}
-		}
-	}
-
-	// Find the avatar and parts records
-	avatarRecord, err := apiDB.FindAvatarRecord(avatarUUID, spaceSim.DBInfo)
-	if err != nil {
-		return nil, err
-	}
-	// We're assuming that parts without parents are first in this list of parts so they're there when sub-parts are added
-	partRecords, err := apiDB.FindAvatarPartRecordsForAvatar(avatarRecord.UUID, spaceSim.DBInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the base avatar node
-	state := apiDB.NewSpaceStateNode(position, orientation, []float64{0, 0, 0}, []float64{0, 0, 0}, []float64{0, 0, 0}, "")
-	node, err = NewSceneNode(state, spaceSim.DBInfo)
-	if err != nil {
-		return nil, err
-	}
-	node.Transient = true
-	node.Settings["clientUUID"] = NewStringTuple("clientUUID", clientUUID)
-
-	// Start additions list
-	additions := []*SceneAddition{&SceneAddition{node, spaceSim.RootNode.Id}}
-	partMap := make(map[string]*SceneNode)
-
-	// Create the body part scene nodes, adding them to additions
-	for _, partRecord := range partRecords {
-		templateUUID := ""
-		if partRecord.TemplateUUID != "" {
-			templateRecord, err := apiDB.FindTemplateRecord(partRecord.TemplateUUID, spaceSim.DBInfo)
-			if err == nil {
-				templateUUID = templateRecord.UUID
-			} else {
-				logger.Println("Could not find a template for a body part, ignoring:", partRecord.TemplateUUID, partRecord)
-			}
-		}
-		position, err := partRecord.ParsePosition()
-		if err != nil {
-			logger.Println("Could not parse part record position, ignoring:", partRecord.Position)
-			position = []float64{0, 0, 0}
-		}
-		orientation, err := partRecord.ParseOrientation()
-		if err != nil {
-			logger.Println("Could not parse part record orientation, ignoring:", partRecord.Orientation)
-			orientation = []float64{0, 0, 0, 1}
-		}
-		scale, err := partRecord.ParseScale()
-		if err != nil {
-			logger.Println("Could not parse part record scale, ignoring:", partRecord.Scale)
-			scale = []float64{1, 1, 1}
-		}
-		partNode := NewBodyPartSceneNode(partRecord.Part, templateUUID, position, orientation, scale)
-		if partRecord.Parent != "" {
-			parentNode, ok := partMap[partRecord.Parent]
-			if ok == false {
-				logger.Println("Could not find a parent for a part, ignoring:", partRecord.Part, partRecord.Parent)
-				continue
-			}
-			parentNode.Add(partNode)
-			additions = append(additions, &SceneAddition{partNode, parentNode.Id})
 		} else {
-			node.Add(partNode)
-			additions = append(additions, &SceneAddition{partNode, node.Id})
+			userUUID = ""
 		}
-		partMap[partRecord.Part] = partNode
 	}
 
-	spaceSim.Clients[clientUUID] = node
-	spaceSim.RootNode.Add(node)
+	if createAvatar {
+		// Find the avatar and parts records
+		avatarRecord, err := apiDB.FindAvatarRecord(avatarUUID, spaceSim.DBInfo)
+		if err != nil {
+			return nil, err
+		}
+		// We're assuming that parts without parents are first in this list of parts so they're there when sub-parts are added
+		partRecords, err := apiDB.FindAvatarPartRecordsForAvatar(avatarRecord.UUID, spaceSim.DBInfo)
+		if err != nil {
+			return nil, err
+		}
 
-	spaceSim.Additions = append(spaceSim.Additions, additions...)
-	return node, nil
+		// Create the base avatar node
+		state := apiDB.NewSpaceStateNode(position, orientation, []float64{0, 0, 0}, []float64{0, 0, 0}, []float64{0, 0, 0}, "")
+		node, err := NewSceneNode(state, spaceSim.DBInfo)
+		if err != nil {
+			return nil, err
+		}
+		node.Transient = true
+		node.Settings["clientUUID"] = NewStringTuple("clientUUID", clientUUID)
+		if userUUID != "" {
+			node.Settings["userUUID"] = NewStringTuple("userUUID", userUUID)
+		}
+
+		// Start additions list
+		additions := []*SceneAddition{&SceneAddition{node, spaceSim.RootNode.Id}}
+		partMap := make(map[string]*SceneNode)
+
+		// Create the body part scene nodes, adding them to additions
+		for _, partRecord := range partRecords {
+			templateUUID := ""
+			if partRecord.TemplateUUID != "" {
+				templateRecord, err := apiDB.FindTemplateRecord(partRecord.TemplateUUID, spaceSim.DBInfo)
+				if err == nil {
+					templateUUID = templateRecord.UUID
+				} else {
+					logger.Println("Could not find a template for a body part, ignoring:", partRecord.TemplateUUID, partRecord)
+				}
+			}
+			position, err := partRecord.ParsePosition()
+			if err != nil {
+				logger.Println("Could not parse part record position, ignoring:", partRecord.Position)
+				position = []float64{0, 0, 0}
+			}
+			orientation, err := partRecord.ParseOrientation()
+			if err != nil {
+				logger.Println("Could not parse part record orientation, ignoring:", partRecord.Orientation)
+				orientation = []float64{0, 0, 0, 1}
+			}
+			scale, err := partRecord.ParseScale()
+			if err != nil {
+				logger.Println("Could not parse part record scale, ignoring:", partRecord.Scale)
+				scale = []float64{1, 1, 1}
+			}
+			partNode := NewBodyPartSceneNode(partRecord.Part, templateUUID, position, orientation, scale)
+			if partRecord.Parent != "" {
+				parentNode, ok := partMap[partRecord.Parent]
+				if ok == false {
+					logger.Println("Could not find a parent for a part, ignoring:", partRecord.Part, partRecord.Parent)
+					continue
+				}
+				parentNode.Add(partNode)
+				additions = append(additions, &SceneAddition{partNode, parentNode.Id})
+			} else {
+				node.Add(partNode)
+				additions = append(additions, &SceneAddition{partNode, node.Id})
+			}
+			partMap[partRecord.Part] = partNode
+		}
+		info.Avatar = node
+		spaceSim.RootNode.Add(node)
+		spaceSim.Additions = append(spaceSim.Additions, additions...)
+	}
+	spaceSim.Clients[clientUUID] = info
+	return info, nil
 }
 
-func (spaceSim *SpaceSimulator) removeAvatar(clientUUID string) {
-	node, ok := spaceSim.Clients[clientUUID]
+func (spaceSim *SpaceSimulator) removeClient(clientUUID string) {
+	info, ok := spaceSim.Clients[clientUUID]
 	if ok == false {
-		return // Unknown avatar, ignoring
-	}
-	if node == nil {
-		return // A client with no avatar
+		return // Unknown client, ignoring
 	}
 	delete(spaceSim.Clients, clientUUID)
-	spaceSim.Deletions = append(spaceSim.Deletions, node.Id)
-	spaceSim.RootNode.Remove(node)
+	if info.Avatar != nil {
+		spaceSim.Deletions = append(spaceSim.Deletions, info.Avatar.Id)
+		spaceSim.RootNode.Remove(info.Avatar)
+	}
 }
 
 func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode, error) {
@@ -545,6 +624,9 @@ func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneN
 	return rootNode, nil
 }
 
+/*
+An update to a body part that is received from clients
+*/
 type BodyUpdate struct {
 	Name        string
 	Position    *Vector3
@@ -558,6 +640,7 @@ SceneNode is an element in a space's scene graph
 */
 type SceneNode struct {
 	Id           int64
+	Parent       *SceneNode
 	Settings     map[string]*StringTuple
 	Position     *Vector3
 	Orientation  *Quaternion
@@ -636,6 +719,23 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 		}
 	}
 	return sceneNode, nil
+}
+
+/*
+getClientUUID ascends the scene graph looking for a node with a clientUUID setting (and thus an Avatar)
+return "" if the node isn't part of an Avatar
+*/
+func (node *SceneNode) getClientUUID() string {
+	if node.SettingValue("clientUUID") != "" {
+		return node.SettingValue("clientUUID")
+	}
+	for _, childNode := range node.Nodes {
+		uuid := childNode.getClientUUID()
+		if uuid != "" {
+			return uuid
+		}
+	}
+	return ""
 }
 
 func (node *SceneNode) toSpaceStateNode() *apiDB.SpaceStateNode {
@@ -795,12 +895,15 @@ func (node *SceneNode) SetOrCreateSetting(name string, value string) {
 
 func (node *SceneNode) Add(childNode *SceneNode) {
 	node.Nodes = append(node.Nodes, childNode)
+	childNode.Parent = node
 }
 
 func (node *SceneNode) Remove(childNode *SceneNode) {
 	results := []*SceneNode{}
 	for _, n := range node.Nodes {
-		if n.Id != childNode.Id {
+		if n.Id == childNode.Id {
+			n.Parent = nil
+		} else {
 			results = append(results, n)
 		}
 	}
@@ -813,6 +916,7 @@ type SceneAddition struct {
 }
 
 type AddNodeNotice struct {
+	ClientUUID   string
 	Parent       int64
 	TemplateUUID string
 	Position     []float64
@@ -820,7 +924,8 @@ type AddNodeNotice struct {
 }
 
 type RemoveNodeNotice struct {
-	Id int64
+	ClientUUID string
+	Id         int64
 }
 
 type AvatarMotionNotice struct {
@@ -835,6 +940,7 @@ type AvatarMotionNotice struct {
 
 type NodeUpdateNotice struct {
 	Id           int64
+	ClientUUID   string
 	Settings     map[string]string
 	Position     []float64
 	Orientation  []float64
