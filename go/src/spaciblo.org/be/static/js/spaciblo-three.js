@@ -511,19 +511,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					this.avatarGroup.head.quaternion.set(...this.vrFrameData.pose.orientation)
 				}
 				if(this.vrFrameData.pose.position !== null){
-					if(this.vrDisplay.capabilities.hasPosition){
-						// pose.position is relative to sitting origin
-						this.avatarGroup.head.position.set(...this.vrFrameData.pose.position)
-						spaciblo.three.WORKING_VECTOR3.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
-						this.avatarGroup.head.position.add(spaciblo.three.WORKING_VECTOR3)
-					} else {
-						// pose.position is probably a neck model and relative a standing position
-						this.avatarGroup.head.position.set(
-							spaciblo.three.DEFAULT_HEAD_POSITION[0] + this.vrFrameData.pose.position[0],
-							spaciblo.three.DEFAULT_HEAD_POSITION[1] + this.vrFrameData.pose.position[1],
-							spaciblo.three.DEFAULT_HEAD_POSITION[2] + this.vrFrameData.pose.position[2]
-						)
-					}
+					this.avatarGroup.head.position.set(
+						spaciblo.three.DEFAULT_HEAD_POSITION[0] + this.vrFrameData.pose.position[0],
+						spaciblo.three.DEFAULT_HEAD_POSITION[1] + this.vrFrameData.pose.position[1],
+						spaciblo.three.DEFAULT_HEAD_POSITION[2] + this.vrFrameData.pose.position[2]
+					)
 				}
 
 				// Update the torso by positioning and orienting it underneath the head
