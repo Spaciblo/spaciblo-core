@@ -427,7 +427,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			*/
 
 			// Apply reversed input rotation to the pivot point
-			this.rotationEuler.fromArray([this.inputManager.inputRotation[0] * -delta, this.inputManager.inputRotation[1] * -delta, this.inputManager.inputRotation[2] * -delta])
+			this.rotationEuler.fromArray([
+				this.inputManager.inputRotation[0] * -delta,
+				this.inputManager.inputRotation[1] * -delta,
+				this.inputManager.inputRotation[2] * -delta
+			])
 			this.cameraRotationQuaternion.setFromEuler(this.rotationEuler)
 			this.pivotPoint.quaternion.multiply(this.cameraRotationQuaternion)
 			this.pivotPoint.updateMatrixWorld()
@@ -455,7 +459,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 
 			// Move the avatar group in the scene to line up with the camera
-			this.avatarGroup.position.set(this.rootGroup.position.x * -1, this.rootGroup.position.y * -1, this.rootGroup.position.z * -1)
+			this.avatarGroup.position.set(
+				this.rootGroup.position.x * -1, 
+				this.rootGroup.position.y * -1, 
+				this.rootGroup.position.z * -1
+			)
 			spaciblo.three.WORKING_QUAT.copy(this.pivotPoint.quaternion)
 			spaciblo.three.WORKING_QUAT.inverse()
 			this.avatarGroup.quaternion.copy(spaciblo.three.WORKING_QUAT)
@@ -468,7 +476,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				if(destination !== null){
 					spaciblo.three.WORKING_VECTOR3.copy(destination)
 					this.rootGroup.worldToLocal(spaciblo.three.WORKING_VECTOR3) // Convert to rootGroup local coordinates
-					spaciblo.three.WORKING_VECTOR3.set(spaciblo.three.WORKING_VECTOR3.x, spaciblo.three.WORKING_VECTOR3.y - spaciblo.three.DEFAULT_FOOT_POSITION[1], spaciblo.three.WORKING_VECTOR3.z)
+					spaciblo.three.WORKING_VECTOR3.set(
+						spaciblo.three.WORKING_VECTOR3.x, 
+						spaciblo.three.WORKING_VECTOR3.y - spaciblo.three.DEFAULT_FOOT_POSITION[1], 
+						spaciblo.three.WORKING_VECTOR3.z
+					)
 					spaciblo.three.WORKING_VECTOR3.negate() // Negate because we move the rootGroup instead of the camera
 					this.rootGroup.position.copy(spaciblo.three.WORKING_VECTOR3)
 				}
@@ -572,7 +584,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						if(gamepad.pose.hasOrientation === true && gamepad.pose.orientation !== null){
 							// TODO figure out why Vive controller orientation is not iterable like ...gamepad.pose.orientation
 							handNode.hasGamepadOrientation = true
-							handNode.quaternion.set(gamepad.pose.orientation[0], gamepad.pose.orientation[1], gamepad.pose.orientation[2], gamepad.pose.orientation[3])
+							handNode.quaternion.set(gamepad.pose.orientation[0],
+								gamepad.pose.orientation[1],
+								gamepad.pose.orientation[2],
+								gamepad.pose.orientation[3]
+							)
 							lineNode.visible = this.inputManager.isActionActive(pointingActionName)
 						} else {
 							handNode.hasGamepadOrientation = false
@@ -583,9 +599,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						if(gamepad.pose.hasPosition === true && gamepad.pose.position !== null){
 							handHasPosition = true
 							handNode.hasGamepadPosition = true
-							handNode.position.set(...gamepad.pose.position)
-							spaciblo.three.WORKING_VECTOR3.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
-							handNode.position.add(spaciblo.three.WORKING_VECTOR3)
+							handNode.position.set(
+								spaciblo.three.DEFAULT_HEAD_POSITION[0] + gamepad.pose.position[0],
+								spaciblo.three.DEFAULT_HEAD_POSITION[1] + gamepad.pose.position[1],
+								spaciblo.three.DEFAULT_HEAD_POSITION[2] + gamepad.pose.position[2]
+							)
 						} else {
 							handNode.hasGamepadPosition = false
 						}
@@ -607,7 +625,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 							}
 						}
 
-						if(this.avatarGroup.rightHand){
+						if(this.avatarGroup.rightHand !== null){
 							if(this.avatarGroup.rightHand.hasGamepadPosition === false){
 								spaciblo.three.WORKING_VECTOR3.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
 								spaciblo.three.WORKING_VECTOR3.applyEuler(spaciblo.three.WORKING_EULER)
