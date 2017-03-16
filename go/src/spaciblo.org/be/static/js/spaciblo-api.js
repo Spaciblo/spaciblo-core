@@ -35,8 +35,8 @@ spaciblo.api.LightingTypes = ['ambient', 'directional', 'point', 'spot', 'hemisp
 spaciblo.api.Client = k.eventMixin(class {
 	constructor(serviceURL=spaciblo.api.Client.ServiceURL){
 		this.serviceURL = serviceURL
-		this.socket = null
-		this.space = null
+		this.socket = null // a WebSocket
+		this.space = null  // a Space model
 	}
 	cleanup(){
 		if(this.socket){
@@ -48,6 +48,7 @@ spaciblo.api.Client = k.eventMixin(class {
 			if(this.socket !== null){
 				throw 'Client is already open'
 			}
+
 			this.socket = new WebSocket(this.serviceURL)
 			this.socket.onmessage = this._onMessage.bind(this)
 
@@ -130,6 +131,22 @@ spaciblo.api.Client = k.eventMixin(class {
 			scale: [1, 1, 1]
 		}
 		this.socket.send(JSON.stringify(update))
+	}
+	sendRelaySDP(description, destinationClientUUID){
+		let message = {
+			type: 'Relay-SDP',
+			destinationClientUUID: destinationClientUUID,
+			description: description
+		}
+		this.socket.send(JSON.stringify(message))
+	}
+	sendRelayICE(candidate, destinationClientUUID){
+		let message = {
+			type: 'Relay-ICE',
+			destinationClientUUID: destinationClientUUID,
+			candidate: candidate
+		}
+		this.socket.send(JSON.stringify(message))
 	}
 	static get ServiceURL(){
 		const host = document.location.host.split(':')[0]

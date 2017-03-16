@@ -18,6 +18,10 @@ const SpaceUpdateType = "Space-Update"
 const UpdateRequestType = "Update-Request"
 const AddNodeRequestType = "Add-Node-Request"
 const RemoveNodeRequestType = "Remove-Node-Request"
+const RelaySDPType = "Relay-SDP"
+const SDPType = "SDP"
+const RelayICEType = "Relay-ICE"
+const ICEType = "ICE"
 
 // All messages passed via WebSocket between the browser and the ws service must be of type ClientMessage
 type ClientMessage interface {
@@ -57,6 +61,34 @@ func NewAckMessage(message string) *AckMessage {
 		TypedMessage{Type: AckType},
 		message,
 	}
+}
+
+// RelaySDPMessage is sent by a client when it wants to send a WebRTC SDP message to another client
+type RelaySDPMessage struct {
+	TypedMessage
+	DestinationClientUUID string `json:"destinationClientUUID"`
+	Description           string `json:"description"`
+}
+
+// SDPMessage is received by a client when it should consider an WebRTC SDP description from another client
+type SDPMessage struct {
+	TypedMessage
+	SourceClientUUID string `json:"sourceClientUUID"`
+	Description      string `json:"description"`
+}
+
+// RelayICEMessage is sent by a client when it wants to send a WebRTC ICE candidate to another client
+type RelayICEMessage struct {
+	TypedMessage
+	DestinationClientUUID string `json:"destinationClientUUID"`
+	Candidate             string `json:"candidate"`
+}
+
+// ICEMessage is received by a client when it should consider an WebRTC ICE candidate from another client
+type ICEMessage struct {
+	TypedMessage
+	SourceClientUUID string `json:"sourceClientUUID"`
+	Candidate        string `json:"candidate"`
 }
 
 // JoinSpace is sent by a client when it wants to receive space replication events from a sim
@@ -243,6 +275,14 @@ func ParseMessageJson(rawMessage string) (ClientMessage, error) {
 		parsedMessage = new(RemoveNodeRequestMessage)
 	case UpdateRequestType:
 		parsedMessage = new(UpdateRequestMessage)
+	case RelaySDPType:
+		parsedMessage = new(RelaySDPMessage)
+	case SDPType:
+		parsedMessage = new(SDPMessage)
+	case RelayICEType:
+		parsedMessage = new(RelayICEMessage)
+	case ICEType:
+		parsedMessage = new(ICEMessage)
 	default:
 		return typedMessage, nil
 	}

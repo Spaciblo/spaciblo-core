@@ -169,17 +169,17 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		// Parse
 		typedMessage, err := ParseMessageJson(string(rawMessage))
 		if err != nil {
-			logger.Println("Could not parse ClientMessage", err)
+			logger.Println("Could not parse ClientMessage", err, rawMessage)
 			continue
 		}
 		// Route
-		responseMessage, err := RouteClientMessage(typedMessage, wsConnection.ClientUUID, wsConnection.UserUUID, wsConnection.SpaceUUID, simHostClient)
+		clientUUIDs, responseMessage, err := RouteClientMessage(typedMessage, wsConnection.ClientUUID, wsConnection.UserUUID, wsConnection.SpaceUUID, simHostClient)
 		if err != nil {
 			logger.Printf("Error routing client message: %s", err)
 		}
 		// Respond
-		if responseMessage != nil {
-			wsConnection.Outgoing <- responseMessage
+		if responseMessage != nil && len(clientUUIDs) > 0 {
+			handler.Distribute(clientUUIDs, responseMessage)
 		}
 	}
 }

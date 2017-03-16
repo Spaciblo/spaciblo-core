@@ -236,11 +236,22 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.el.addClass('spaces-component')
 		this.inputManager = new spaciblo.input.InputManager(spaciblo.input.DefaultInputSchema)
 		this.client = null // Will be a spaciblo.api.Client when a Space is selected
+		this.clientUUID = null
 		this.vrDisplay = null
 		this.receivedTouchEvent = false // Set to true iff the first touch event arrives
+		this.receivedSpaceUpdate = false // Set to true when the first space update arrives
 
-		this.renderer = new spaciblo.three.Renderer(this.inputManager)
+		this.audioManager = new spaciblo.audio.SpaceManager()
+		this.audioManager.addListener(this.handleLocalSDP.bind(this), spaciblo.events.GeneratedSDPLocalDescription)
+		this.audioManager.addListener(this.handleLocalICE.bind(this), spaciblo.events.GeneratedICECandidate)
+
+		this.renderer = new spaciblo.three.Renderer(this.inputManager, this.audioManager)
 		this.el.appendChild(this.renderer.el)
+
+		// TODO let the user choose whether or not to share their mic
+		this.audioManager.connectToLocalMicrophone().catch((...params) => {
+			console.error('Error connecting to local microphone', ...params)
+		})
 
 		this.vrButton = k.el.div({ class:'vr-button' }, 'Enter VR').appendTo(this.el)
 
@@ -258,9 +269,19 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.inputManager.addListener(this.handleAvatarMotion.bind(this), spaciblo.events.AvatarMotionChanged)
 		spaciblo.getVRDisplays().then(this.handleVRDisplays.bind(this))
 	}
+	cleanup(){
+		super.cleanup()
+		this.audioManager.cleanup()
+	}
 	handleAddedToDOM(){
 		this.updateSize()
 		this.touchMotionComponent.render()
+	}
+	handleLocalSDP(eventName, description, destinationClientUUID){
+		this.client.sendRelaySDP(description, destinationClientUUID)
+	}
+	handleLocalICE(eventName, candidate, destinationClientUUID){
+		this.client.sendRelayICE(candidate, destinationClientUUID)
 	}
 	handleTouchStart(ev){
 		if(this.receivedTouchEvent === false){
@@ -372,13 +393,99 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 				}
 				*/
 				this.renderer.updateSpace(message.nodeUpdates, message.additions, message.deletions)
+
+				/*
+				If this isn't the initial space update then look for avatars as they 
+				arrive and leave and attempt to set up audio connections.
+				TODO Prevent this from turning into a crippling herd of connections when there are many avatars
+				*/
+				if(this.receivedSpaceUpdate && message.additions){
+					for(let addition of message.additions){
+						if(!addition.settings || !addition.settings.clientUUID) continue
+						if(this.clientUUID === addition.settings.clientUUID) continue
+						this.audioManager.getRemoteUser(addition.settings.clientUUID, true).sendSessionOffer()
+					}
+				}
+				if(this.receivedSpaceUpdate && message.deletions){
+					for(let deletion of message.deletions){
+						if(!deletion.settings || !deletion.settings.clientUUID) continue
+						if(this.clientUUID === deletion.settings.clientUUID) continue
+						this.audioManager.removeRemoteUser(deletion.settings.clientUUID)
+					}
+				}
+				this.receivedSpaceUpdate = true
+				break
+			case 'SDP':
+				if(this.clientUUID === message.sourceClientUUID){
+					console.error('Received an SDP from myself?!')
+					break
+				}
+				this.audioManager.getRemoteUser(message.sourceClientUUID, true).handleSessionDescription(message.description)
+				break
+			case 'ICE':
+				if(this.clientUUID === message.sourceClientUUID){
+					console.error('Received an ICE from myself?!')
+					break
+				}
+				this.audioManager.getRemoteUser(message.sourceClientUUID, true).handleICECandidate(message.candidate)
 				break
 			default:
-				console.log("Unhandled client message", message)
+				console.error("Unhandled client message", message)
 		}
 	}
 	updateSize(){
 		this.renderer.setSize(this.el.offsetWidth, this.el.offsetHeight)
+	}
+}
+
+/*
+AudioVisualizer shows a wave form for an WebAudio AnalyserNode
+*/
+spaciblo.components.AudioVisualizer = class extends k.Component {
+	constructor(analyserNode){
+		super()
+		this.el.addClass('audio-vizualizer')
+		this._boundDraw = this._draw.bind(this)
+		this._audioContext = new AudioContext()
+		this._analyser = analyserNode
+		this._analyser.fftSize = 2048
+		this._bufferLength = this._analyser.frequencyBinCount
+
+		this._dataArray = new Uint8Array(this._bufferLength)
+		this._analyser.getByteTimeDomainData(this._dataArray)
+
+		this._canvas = k.el.canvas().appendTo(this.el)
+		this._canvasContext = this._canvas.getContext('2d')
+	}
+	start(){
+		this._boundDraw()
+	}
+	_draw(){
+		requestAnimationFrame(this._boundDraw)
+		this._analyser.getByteTimeDomainData(this._dataArray)
+
+		this._canvasContext.fillStyle = 'rgb(200, 200, 200)'
+		this._canvasContext.fillRect(0, 0, this._canvas.width, this._canvas.height)
+
+		this._canvasContext.lineWidth = 2
+		this._canvasContext.strokeStyle = 'rgb(0, 0, 0)'
+
+		this._canvasContext.beginPath()
+
+		var sliceWidth = this._canvas.width * 1.0 / this._bufferLength
+		var x = 0
+		for (var i = 0; i < this._bufferLength; i++) {
+			var v = this._dataArray[i] / 128.0
+			var y = v * this._canvas.height / 2
+			if (i === 0) {
+				this._canvasContext.moveTo(x, y)
+			} else {
+				this._canvasContext.lineTo(x, y)
+			}
+			x += sliceWidth
+		}
+		this._canvasContext.lineTo(this._canvas.width, this._canvas.height / 2)
+		this._canvasContext.stroke()
 	}
 }
 

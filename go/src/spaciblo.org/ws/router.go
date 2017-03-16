@@ -7,15 +7,15 @@ import (
 	simRPC "spaciblo.org/sim/rpc"
 )
 
-func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID string, spaceUUID string, simHostClient simRPC.SimHostClient) (ClientMessage, error) {
+func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID string, spaceUUID string, simHostClient simRPC.SimHostClient) ([]string, ClientMessage, error) {
 	switch clientMessage.MessageType() {
 	case PingType:
 		ping := clientMessage.(*PingMessage)
-		return NewAckMessage(ping.Message), nil
+		return []string{clientUUID}, NewAckMessage(ping.Message), nil
 	case JoinSpaceType:
 		if spaceUUID != "" {
 			logger.Println("Tried to join a second space")
-			return nil, errors.New("Tried to join a second space")
+			return nil, nil, errors.New("Tried to join a second space")
 		}
 		// Right now we allow any client into any space
 		// TODO implement some sort of private/public/ACL access
@@ -30,13 +30,13 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 		_, err := simHostClient.HandleClientMembership(context.Background(), rpMessage)
 		if err != nil {
 			logger.Printf("Failed to join space: %v", err)
-			return nil, err
+			return nil, nil, err
 		}
-		return NewAckMessage("Ok"), nil
+		return []string{clientUUID}, NewAckMessage("Ok"), nil
 	case ClientDisconnectedType:
 		if spaceUUID == "" {
 			// No need to notify a sim
-			return nil, nil
+			return nil, nil, nil
 		}
 		rpMessage := &simRPC.ClientMembership{
 			ClientUUID: clientUUID,
@@ -47,9 +47,9 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 		_, err := simHostClient.HandleClientMembership(context.Background(), rpMessage)
 		if err != nil {
 			logger.Printf("Failed to notify sim of disconnected client: %v", err)
-			return nil, err
+			return nil, nil, err
 		}
-		return nil, nil
+		return nil, nil, nil
 	case AvatarMotionType:
 		avatarMotion := clientMessage.(*AvatarMotionMessage)
 		var avatarMotionRPM = &simRPC.AvatarMotion{
@@ -73,9 +73,9 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 		_, err := simHostClient.HandleAvatarMotion(context.Background(), avatarMotionRPM)
 		if err != nil {
 			logger.Printf("Failed to handle avatar motion: %v", err)
-			return nil, err
+			return nil, nil, err
 		}
-		return nil, nil
+		return nil, nil, nil
 	case AddNodeRequestType:
 		addNodeRequest := clientMessage.(*AddNodeRequestMessage)
 		requestRPM := &simRPC.AddNodeRequest{
@@ -87,7 +87,7 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 			Orientation:  addNodeRequest.Orientation,
 		}
 		_, err := simHostClient.HandleAddNodeRequest(context.Background(), requestRPM)
-		return nil, err
+		return nil, nil, err
 	case RemoveNodeRequestType:
 		removeNodeRequest := clientMessage.(*RemoveNodeRequestMessage)
 		requestRPM := &simRPC.RemoveNodeRequest{
@@ -96,7 +96,7 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 			Id:         removeNodeRequest.Id,
 		}
 		_, err := simHostClient.HandleRemoveNodeRequest(context.Background(), requestRPM)
-		return nil, err
+		return nil, nil, err
 	case UpdateRequestType:
 		updateRequest := clientMessage.(*UpdateRequestMessage)
 		updateRPM := &simRPC.UpdateRequest{
@@ -124,9 +124,25 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 			})
 		}
 		_, err := simHostClient.HandleUpdateRequest(context.Background(), updateRPM)
-		return nil, err
+		return nil, nil, err
+	case RelaySDPType:
+		message := clientMessage.(*RelaySDPMessage)
+		response := &SDPMessage{
+			TypedMessage{Type: SDPType},
+			clientUUID,
+			message.Description,
+		}
+		return []string{message.DestinationClientUUID}, response, nil
+	case RelayICEType:
+		message := clientMessage.(*RelayICEMessage)
+		response := &ICEMessage{
+			TypedMessage{Type: ICEType},
+			clientUUID,
+			message.Candidate,
+		}
+		return []string{message.DestinationClientUUID}, response, nil
 	default:
 		logger.Printf("Unknown message type: %s", clientMessage)
-		return NewUnknownMessageTypeMessage(clientMessage.MessageType()), nil
+		return []string{clientUUID}, NewUnknownMessageTypeMessage(clientMessage.MessageType()), nil
 	}
 }

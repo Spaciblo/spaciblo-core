@@ -16,6 +16,7 @@ spaciblo.three.ZERO_VECTOR3 = new THREE.Vector3(0,0,0) // Do no set this to anyt
 spaciblo.three.WORKING_QUAT = new THREE.Quaternion()
 spaciblo.three.WORKING_VECTOR3 = new THREE.Vector3()
 spaciblo.three.WORKING_VECTOR3_2 = new THREE.Vector3()
+spaciblo.three.WORKING_VECTOR3_3 = new THREE.Vector3()
 spaciblo.three.WORKING_EULER = new THREE.Euler()
 spaciblo.three.WORKING_MATRIX4 = new THREE.Matrix4()
 
@@ -42,8 +43,9 @@ spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
 Renderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
 spaciblo.three.Renderer = k.eventMixin(class {
-	constructor(inputManager, background=new THREE.Color(0x99DDff)){
+	constructor(inputManager, audioManager, background=new THREE.Color(0x99DDff)){
 		this.inputManager = inputManager
+		this.audioManager = audioManager
 		this.rootGroup = null // The spaciblo.three.Group at the root of the currently active space scene graph
 		this.templateLoader = new spaciblo.three.TemplateLoader()
 		this.clock = new THREE.Clock()
@@ -63,6 +65,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		this.clientUUID = null	// Will be null until set in this.setClientUUID()
 		this.avatarGroup = null	// Will be null until the avatar is created during an update addition
+		this.remoteAvatarGroups = new Map() // clientUUID -> avatarGroup
 
 		this.width = 0
 		this.height = 0
@@ -85,7 +88,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		this.raycaster = new THREE.Raycaster()
 		this.mouse = new THREE.Vector2(-10000, -10000)
-		this.intersectedObj = null
 
 		this.renderer = new THREE.WebGLRenderer({
 			antialias: true
@@ -95,11 +97,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		//this.renderer.shadowMap.enabled = true
 		//this.renderer.shadowMap.type = THREE.PCFShadowMap
 
-		// A list of spaces to show when no space is loaded
-		this.spaces = []
-
 		this.el.addEventListener('mousemove', this._onDocumentMouseMove.bind(this), false)
-		this.el.addEventListener('click', this._onClick.bind(this), false)
 		this.inputManager.addListener((...params) => { this._handleInputEventStarted(...params) }, spaciblo.events.InputActionStarted)
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
 		this._animate()
@@ -142,12 +140,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	_handleInputEventStarted(eventName, action){
 		if(action.name === 'teleport'){
 			this.shouldTeleport = true
-		}
-	}
-	_onClick(ev){
-		ev.preventDefault()
-		if(this.intersectedObj !== null && typeof this.intersectedObj.space !== 'undefined'){
-			this.trigger(spaciblo.events.SpaceSelected, this.intersectedObj.space)
 		}
 	}
 	_onDocumentMouseMove(ev){
@@ -233,6 +225,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			} else {
 				parent.add(group)
 			}
+			if(group.isAvatar) this.remoteAvatarGroups.set(group.settings.clientUUID, group)
 		}
 		for(let deletion of deletions){
 			let group = this.objectMap.get(deletion)
@@ -247,6 +240,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 			for(let childId of group.getChildrenIds()){
 				this.objectMap.delete(childId)
+			}
+			if(group.isAvatar){
+				this.remoteAvatarGroups.delete(group.settings.clientUUID)
+				this.audioManager.removeRemoteUser(group.settings.clientUUID)
 			}
 		}
 		for(let update of nodeUpdates){
@@ -638,7 +635,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					}
 				}
 			}
-
 			this.vrDisplay.submitFrame()
 			this.inputManager.throttledSendAvatarUpdate()
 		} else {
@@ -648,6 +644,48 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.renderer.render(this.scene, this.camera)
 		}
 
+		// Update the audio manager with the position and orientation of the local and remote avatars
+		if(this.avatarGroup !== null && this.avatarGroup.head !== null){
+			this.audioManager.setHeadPositionAndOrientation(...this._getGroupPositionAndOrientation(this.avatarGroup.head))
+			for(let [clientUUID, remoteAvatarGroup] of this.remoteAvatarGroups){
+				this.audioManager.setRemoteUserPositionAndOrientation(clientUUID, ...this._getGroupPositionAndOrientation(remoteAvatarGroup))
+			}
+		}
+	}
+	_getGroupPositionAndOrientation(group){
+		// Returns world position x,y,z orientation x,y,z up vector x,y,z
+		group.updateMatrixWorld()
+		spaciblo.three.WORKING_VECTOR3.setFromMatrixPosition(group.matrixWorld)
+
+		// Save and zero out three elements of the group's world matrix
+		let matrix = group.matrix
+		const mx = matrix.elements[12]
+		matrix.elements[12] = 0
+		const my = matrix.elements[13]
+		matrix.elements[13] = 0
+		const mz = matrix.elements[14]
+		matrix.elements[14] = 0
+
+		// Multiply the orientation vector by the world matrix of the group
+		spaciblo.three.WORKING_VECTOR3_2.set(0, 0, 1)
+		spaciblo.three.WORKING_VECTOR3_2.applyProjection(matrix)
+		spaciblo.three.WORKING_VECTOR3_2.normalize()
+
+		// Multiply the up vector by the world matrix
+		spaciblo.three.WORKING_VECTOR3_3.set(0, -1, 0)
+		spaciblo.three.WORKING_VECTOR3_3.applyProjection(matrix)
+		spaciblo.three.WORKING_VECTOR3_3.normalize()
+
+		// Restore the zeroed elements of the head's world matrix
+		matrix.elements[12] = mx
+		matrix.elements[13] = my
+		matrix.elements[14] = mz
+
+		return [
+			spaciblo.three.WORKING_VECTOR3.x, spaciblo.three.WORKING_VECTOR3.y, spaciblo.three.WORKING_VECTOR3.z, 
+			spaciblo.three.WORKING_VECTOR3_2.x, spaciblo.three.WORKING_VECTOR3_2.y, spaciblo.three.WORKING_VECTOR3_2.z,
+			spaciblo.three.WORKING_VECTOR3_3.x, spaciblo.three.WORKING_VECTOR3_3.y, spaciblo.three.WORKING_VECTOR3_3.z
+		]
 	}
 	_addGeometry(geometry, material){
 		var mesh = new THREE.Mesh(geometry, material)

@@ -85,3 +85,17 @@
 	padding: 5px 5px 2px 5px;
 	border: solid 1px #EFEFEF;
 }
+
+#page-component {
+	position: relative;
+}
+#page-component .audio-vizualizer {
+	position: absolute;
+	opacity: 0.5;
+	left: 10px;
+	bottom: 10px;
+}
+.audio-vizualizer canvas {
+	width: 100px;
+	height: 100px;
+}

@@ -72,9 +72,6 @@ k.eventMixin = Base => class extends Base {
 			}
 		}
 	}
-	clearListeners(){
-		this._listeners.length = 0
-	}
 	get listeners(){
 		// Returns an array of EventListener instances
 		if(typeof this._listeners == 'undefined'){
@@ -83,7 +80,7 @@ k.eventMixin = Base => class extends Base {
 		return this._listeners
 	}
 	clearListeners(){
-		if(this._listeners){
+		if(typeof this._listeners !== 'undefined'){
 			this._listeners.length = 0
 		}
 	}

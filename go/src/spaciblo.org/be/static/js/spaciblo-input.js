@@ -184,7 +184,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		*/
 		let isTriggering = false
 		for(let gamepad of navigator.getGamepads()){
-			if(gamepad === null) continue
+			if(typeof gamepad === 'undefined' || gamepad === null) continue
 			let handName = gamepad.hand === 'left' ? 'left' : 'right'
 			if(Array.isArray(gamepad.buttons) && gamepad.buttons.length > 0){
 				let pointAction = handName === 'left' ? this.inputSchema.getAction('left-point') : this.inputSchema.getAction('right-point')
