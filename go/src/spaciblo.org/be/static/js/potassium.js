@@ -94,8 +94,11 @@ k.DataObject = k.eventMixin(class {
 	constructor(options={}){
 		this.options = options
 		this._new = true // True until the first fetch returns, regardless of http status
+		this.cleanedUp = false
 	}
 	cleanup(){
+		if(this.cleanedUp) return
+		this.cleanedUp = true
 		this.clearListeners()
 	}
 	// Return true until a fetch (even a failed fetch) returns
@@ -454,6 +457,7 @@ k.Component = k.eventMixin(class {
 	constructor(dataObject=null, options={}){
 		this.dataObject = dataObject // a k.DataModel or k.DataCollection
 		this.options = options
+		this.cleanedUp = false
 		if(typeof this.options.el !== 'undefined'){
 			this.el = this.options.el
 		} else {
@@ -464,6 +468,8 @@ k.Component = k.eventMixin(class {
 		this._el.component = this
 	}
 	cleanup(){
+		if(this.cleanedUp) return
+		this.cleanedUp = true
 		this.clearListeners()
 		for(let bindInfo of this.boundCallbacks){
 			bindInfo.dataObject.removeListener(bindInfo.callback)
@@ -560,12 +566,16 @@ k.Component.ElementChangeEvent = 'element-changed'
 */
 k.Router = k.eventMixin(class {
 	constructor(){
+		this.cleanedUp = false
 		this.routes = [];
 		this.hashListener = this._checkHash.bind(this)
         window.addEventListener('hashchange', this.hashListener, false)
 	}
 	cleanup(){
+		if(this.cleanedUp) return
+		this.cleanedUp = true
 		window.removeEventListener('hashchange', this.hashListener)
+		this.clearListeners()
 	}
 	addRoute(regex, eventName, ...parameters){
 		this.routes.push(new k._Route(regex, eventName, ...parameters))

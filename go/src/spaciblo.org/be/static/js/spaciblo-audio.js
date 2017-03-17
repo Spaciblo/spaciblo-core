@@ -127,7 +127,7 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 				reject('This browser does not provide access to the microphone')
 				return
 			}
-			navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then(stream => {
+			navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
 				this._microphoneStream = stream
 				this._microphoneNode = this._audioContext.createMediaStreamSource(this._microphoneStream)
 				this._microphoneNode.connect(this._microphoneGainNode)

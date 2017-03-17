@@ -289,6 +289,10 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	cleanup(){
 		super.cleanup()
 		this.audioManager.cleanup()
+		this.mainVolumeVisualizer.cleanup()
+		this.microphoneVolumeVisualizer.cleanup()
+		this.renderer.cleanup()
+		this.touchMotionComponent.cleanup()
 	}
 	handleAddedToDOM(){
 		this.updateSize()
@@ -475,6 +479,7 @@ spaciblo.components.AudioVisualizer = class extends k.Component {
 		super()
 		this.el.addClass('audio-visualizer')
 		this._boundDraw = this._draw.bind(this)
+		this._isCleanedup = false
 		this._analysisNode = analysisNode
 		this._analysisNode.fftSize = fftSize
 		this._frequencyInsteadOfByte = frequencyInsteadOfByte
@@ -488,6 +493,10 @@ spaciblo.components.AudioVisualizer = class extends k.Component {
 		this.canvas = k.el.canvas().appendTo(this.el)
 		this.canvasContext = this.canvas.getContext('2d')
 	}
+	cleanup(){
+		super.cleanup()
+		this._isCleanedup = true
+	}
 	start(){
 		this._boundDraw()
 	}
@@ -496,6 +505,7 @@ spaciblo.components.AudioVisualizer = class extends k.Component {
 		throw 'Not implemented'
 	}
 	_draw(){
+		if(this._isCleanedup) return
 		requestAnimationFrame(this._boundDraw)
 		if(this._frequencyInsteadOfByte){
 			this._analysisNode.getByteFrequencyData(this.dataArray)
@@ -554,7 +564,7 @@ spaciblo.components.AudioVolumeVisualizer = class extends spaciblo.components.Au
 		if(average > this._warnValue){
 			this.canvasContext.fillStyle = 'rgb(256, 0, 0)'
 		} else {
-			this.canvasContext.fillStyle = 'rgb(100, 0, 100)'
+			this.canvasContext.fillStyle = 'rgb(100, 100, 100)'
 		}
 		this.canvasContext.fillRect(0, this.canvas.height - barHeight, this.canvas.width, this.canvas.height)
 	}
