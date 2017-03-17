@@ -248,15 +248,26 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.audioManager.addListener(this.handleLocalSDP.bind(this), spaciblo.events.GeneratedSDPLocalDescription)
 		this.audioManager.addListener(this.handleLocalICE.bind(this), spaciblo.events.GeneratedICECandidate)
 
+		this.lowerControlsEl = k.el.div({ class: 'lower-controls' }).appendTo(this.el)
+
 		this.mainVolumeVisualizer = new spaciblo.components.AudioVolumeVisualizer(this.audioManager.mainAnalysisNode)
-		this.el.appendChild(this.mainVolumeVisualizer.el)
+		this.lowerControlsEl.appendChild(this.mainVolumeVisualizer.el)
+
+		this.microphoneVolumeVisualizer = new spaciblo.components.AudioVolumeVisualizer(this.audioManager.microphoneAnalysisNode)
+		this.lowerControlsEl.appendChild(this.microphoneVolumeVisualizer.el)
+		this.listenTo('click', this.microphoneVolumeVisualizer.el, () => {
+			this.audioManager.toggleMicrophoneMute()
+			this.microphoneVolumeVisualizer.handleMuted(this.audioManager.microphoneIsMuted)
+		})
 
 		this.renderer = new spaciblo.three.Renderer(this.inputManager, this.audioManager)
 		this.el.appendChild(this.renderer.el)
 
-		// TODO let the user choose whether or not to share their mic
-		this.audioManager.connectToLocalMicrophone().catch((...params) => {
-			console.error('Error connecting to local microphone', ...params)
+		this.audioManager.connectToLocalMicrophone().then(stream => {
+			this.microphoneVolumeVisualizer.handleConnected(true)
+		}).catch((...params) => {
+			console.error(...params)
+			this.microphoneVolumeVisualizer.handleConnected(false)
 		})
 
 		this.vrButton = k.el.div({ class:'vr-button' }, 'Enter VR').appendTo(this.el)
@@ -283,6 +294,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.updateSize()
 		this.touchMotionComponent.render()
 		this.mainVolumeVisualizer.start()
+		this.microphoneVolumeVisualizer.start()
 	}
 	handleLocalSDP(eventName, description, destinationClientUUID){
 		this.client.sendRelaySDP(description, destinationClientUUID)
@@ -499,6 +511,35 @@ spaciblo.components.AudioVolumeVisualizer = class extends spaciblo.components.Au
 		super(analysisNode, true, 256)
 		this.el.addClass('audio-volume-visualizer')
 		this._warnValue = 0.8 // Above this value the bar turns a warning color
+		this._isConnected = true
+		this._isMuted = false
+
+		this._disconnectedEl = k.el.span({ class: 'icon disconnected' }, 'X').appendTo(this.el)
+		this._mutedEl = k.el.span({ class: 'icon muted' }, 'X').appendTo(this.el)
+
+		this._updateEls()
+	}
+	handleConnected(connected){
+		this._isConnected = connected
+		this._isMuted = false
+		this._updateEls()
+	}
+	handleMuted(mute){
+		this._isMuted = mute
+		this._updateEls()
+	}
+	_updateEls(){
+		if(this._isConnected){
+			this._disconnectedEl.style.display = 'none'
+			if(this._isMuted){
+				this._mutedEl.style.display = 'inline-block'
+			} else {
+				this._mutedEl.style.display = 'none'
+			}
+		} else {
+			this._disconnectedEl.style.display = 'inline-block'
+			this._mutedEl.style.display = 'none'
+		}
 	}
 	draw(){
 		this.canvasContext.fillStyle = 'rgb(256, 256, 256)'

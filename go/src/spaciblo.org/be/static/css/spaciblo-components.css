@@ -32,11 +32,17 @@
 	bottom: 10px;
 	left: 50%;
 }
-.spaces-component > .audio-visualizer {
+.spaces-component > .lower-controls {
 	position: absolute;
 	opacity: 0.5;
 	left: 10px;
 	bottom: 10px;
+}
+
+.spaces-component > .lower-controls > .audio-visualizer {
+	display: inline-block;
+	vertical-align: top;
+	margin-right: 10px;
 }
 
 .space-item-component {
@@ -93,7 +99,24 @@
 	border: solid 1px #EFEFEF;
 }
 
+.audio-visualizer {
+	position: relative;
+	cursor: pointer;
+}
+.audio-visualizer .icon {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	font-size: 2em;
+}
+.audio-visualizer .disconnected {
+	color: red;
+}
+.audio-visualizer .muted {
+	color: black;
+}
 .audio-visualizer canvas {
-	width: 50px;
+	width: 30px;
 	height: 50px;
 }

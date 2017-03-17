@@ -22,15 +22,27 @@ TODO give the user control over the main gain and remote user gains in flat and 
 spaciblo.audio.SpaceManager = k.eventMixin(class {
 	constructor(stunURLs=spaciblo.audio.DEFAULT_STUN_URLS){
 		this._stunURLs = stunURLs
-		this._microphoneStream = null
 		this._remoteUsers = new Map() // clientUUID => RemoteUser
-
-		// RemoteUser x N -> _mainAnalysisNode -> _mainGain -> _audioContext.destination
 		this._audioContext = new AudioContext()
-		this._mainGain = this._audioContext.createGain() // The master volume for the space, fed by the panners in RemoteUsers
-		this._mainGain.connect(this._audioContext.destination)
+
+		// _microphoneStream -> _microphoneNode -> _microphoneGainNode -> _microphoneAnalysisNode -> _microphoneDestinationNode
+		this._microphoneDestinationNode = this._audioContext.createMediaStreamDestination()
+		this._microphoneAnalysisNode = this._audioContext.createAnalyser()
+		this._microphoneAnalysisNode.connect(this._microphoneDestinationNode)
+		this._microphoneGainNode = this._audioContext.createGain()
+		this._microphoneGainNode.connect(this._microphoneAnalysisNode)
+
+		this._microphoneIsMuted = false
+
+		// _microphoneStream and _microphoneNode will be set and connected in connectToLocalMicrophone
+		this._microphoneNode = null
+		this._microphoneStream = null
+
+		// RemoteUser x N -> _mainAnalysisNode -> _mainGainNode -> _audioContext.destination
+		this._mainGainNode = this._audioContext.createGain() // The master volume for the space, fed by the panners in RemoteUsers
+		this._mainGainNode.connect(this._audioContext.destination)
 		this._mainAnalysisNode = this._audioContext.createAnalyser()
-		this._mainAnalysisNode.connect(this._mainGain)
+		this._mainAnalysisNode.connect(this._mainGainNode)
 	}
 	cleanup(){
 		super.cleanup()
@@ -38,8 +50,26 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 		this._remoteUsers.clear()
 		this._audioContext.close()
 	}
+	get microphoneAnalysisNode(){
+		return this._microphoneAnalysisNode
+	}
 	get mainAnalysisNode(){
 		return this._mainAnalysisNode
+	}
+	get microphoneIsMuted(){
+		return this._microphoneIsMuted
+	}
+	toggleMicrophoneMute(){
+		this.setMicrophoneMute(!this._microphoneIsMuted)
+	}
+	setMicrophoneMute(mute){
+		if(mute){
+			this._microphoneIsMuted = true
+			this._microphoneGainNode.gain.value = 0
+		} else {
+			this._microphoneIsMuted = false
+			this._microphoneGainNode.gain.value = 1
+		}
 	}
 	setHeadPositionAndOrientation(
 		positionX, positionY, positionZ, 
@@ -75,7 +105,7 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 	}
 	addRemoteUser(clientUUID){
 		let remoteUser = new spaciblo.audio.RemoteUser(clientUUID, this._audioContext, this._mainAnalysisNode, this.peerConnectionConfig)
-		if(this._microphoneStream) remoteUser.addAudioStream(this._microphoneStream)
+		remoteUser.addAudioStream(this._microphoneDestinationNode.stream)
 		this._remoteUsers.set(clientUUID, remoteUser)
 		remoteUser.addListener((...params) => { this.trigger(...params) }, spaciblo.events.GeneratedSDPLocalDescription)
 		remoteUser.addListener((...params) => { this.trigger(...params) }, spaciblo.events.GeneratedICECandidate)
@@ -88,6 +118,10 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 		remoteUser.cleanup()
 	}
 	connectToLocalMicrophone(){
+		if(this._microphoneStream !== null){
+			console.error('Tried to connect a second time to the local microphone')
+			return null
+		}
 		return new Promise((resolve, reject) => {
 			if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
 				reject('This browser does not provide access to the microphone')
@@ -95,6 +129,8 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 			}
 			navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then(stream => {
 				this._microphoneStream = stream
+				this._microphoneNode = this._audioContext.createMediaStreamSource(this._microphoneStream)
+				this._microphoneNode.connect(this._microphoneGainNode)
 				resolve(stream)
 			}).catch((...params) => {
 				reject(...params)
@@ -128,7 +164,7 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 
 		this._pannerNode = this._audioContext.createPanner() // This is updated with the remote user's position during each frame
 		this._pannerNode.connect(this._destinationAudioNode)
-		this._gainNode = this._audioContext.createGain() // This user's individual gain, seperate from the SpaceManager._mainGain
+		this._gainNode = this._audioContext.createGain() // This user's individual gain, seperate from the SpaceManager._mainGainNode
 		this._gainNode.connect(this._pannerNode)
 		this._analysisNode = this._audioContext.createAnalyser()
 		this._analysisNode.connect(this._gainNode)
@@ -215,8 +251,6 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 			console.error('Added an audio track for a remote user with an existing audio source node', track, this)
 			return
 		}
-		let audioEl = k.el.audio().appendTo(document.getElementById('page-component'))
-		audioEl.srcObject = track.streams[0]
 		this._audioSourceNode = this._audioContext.createMediaStreamSource(track.streams[0])
 		this._audioSourceNode.connect(this._analysisNode)
 	}
