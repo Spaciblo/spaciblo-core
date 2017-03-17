@@ -249,6 +249,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.audioManager.addListener(this.handleLocalICE.bind(this), spaciblo.events.GeneratedICECandidate)
 
 		this.lowerControlsEl = k.el.div({ class: 'lower-controls' }).appendTo(this.el)
+		this.lowerControlsEl.style.display = 'none' // Shown when the space is loaded
 
 		this.mainVolumeVisualizer = new spaciblo.components.AudioVolumeVisualizer(this.audioManager.mainAnalysisNode)
 		this.lowerControlsEl.appendChild(this.mainVolumeVisualizer.el)
@@ -262,13 +263,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 
 		this.renderer = new spaciblo.three.Renderer(this.inputManager, this.audioManager)
 		this.el.appendChild(this.renderer.el)
-
-		this.audioManager.connectToLocalMicrophone().then(stream => {
-			this.microphoneVolumeVisualizer.handleConnected(true)
-		}).catch((...params) => {
-			console.error(...params)
-			this.microphoneVolumeVisualizer.handleConnected(false)
-		})
 
 		this.vrButton = k.el.div({ class:'vr-button' }, 'Enter VR').appendTo(this.el)
 
@@ -401,6 +395,14 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 				this.touchMotionComponent.el.style.display = 'block'
 				this.touchMotionComponent.render()
 			}
+
+			this.lowerControlsEl.style.display = 'block'
+			this.audioManager.connectToLocalMicrophone().then(stream => {
+				this.microphoneVolumeVisualizer.handleConnected(true)
+			}).catch((...params) => {
+				this.microphoneVolumeVisualizer.handleConnected(false)
+			})
+
 		}).catch(err => {
 			console.error("Error connecting to the WS service", err)
 		})

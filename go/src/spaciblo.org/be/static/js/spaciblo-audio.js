@@ -119,8 +119,9 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 	}
 	connectToLocalMicrophone(){
 		if(this._microphoneStream !== null){
-			console.error('Tried to connect a second time to the local microphone')
-			return null
+			return new Promise((resolve, reject) => {
+				resolve(this._microphoneStream)
+			})
 		}
 		return new Promise((resolve, reject) => {
 			if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
