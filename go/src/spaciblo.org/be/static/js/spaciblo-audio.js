@@ -24,15 +24,22 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 		this._stunURLs = stunURLs
 		this._microphoneStream = null
 		this._remoteUsers = new Map() // clientUUID => RemoteUser
+
+		// RemoteUser x N -> _mainAnalysisNode -> _mainGain -> _audioContext.destination
 		this._audioContext = new AudioContext()
 		this._mainGain = this._audioContext.createGain() // The master volume for the space, fed by the panners in RemoteUsers
 		this._mainGain.connect(this._audioContext.destination)
+		this._mainAnalysisNode = this._audioContext.createAnalyser()
+		this._mainAnalysisNode.connect(this._mainGain)
 	}
 	cleanup(){
 		super.cleanup()
 		this._remoteUsers.forEach((clientUUID, remoteUser) => { remoteUser.cleanup() })
 		this._remoteUsers.clear()
 		this._audioContext.close()
+	}
+	get mainAnalysisNode(){
+		return this._mainAnalysisNode
 	}
 	setHeadPositionAndOrientation(
 		positionX, positionY, positionZ, 
@@ -67,7 +74,7 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 		return remoteUser
 	}
 	addRemoteUser(clientUUID){
-		let remoteUser = new spaciblo.audio.RemoteUser(clientUUID, this._audioContext, this._mainGain, this.peerConnectionConfig)
+		let remoteUser = new spaciblo.audio.RemoteUser(clientUUID, this._audioContext, this._mainAnalysisNode, this.peerConnectionConfig)
 		if(this._microphoneStream) remoteUser.addAudioStream(this._microphoneStream)
 		this._remoteUsers.set(clientUUID, remoteUser)
 		remoteUser.addListener((...params) => { this.trigger(...params) }, spaciblo.events.GeneratedSDPLocalDescription)
@@ -212,10 +219,5 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 		audioEl.srcObject = track.streams[0]
 		this._audioSourceNode = this._audioContext.createMediaStreamSource(track.streams[0])
 		this._audioSourceNode.connect(this._analysisNode)
-		/*
-		var visualizer = new spaciblo.components.AudioVisualizer(this._analysisNode)
-		document.getElementById('page-component').appendChild(visualizer.el)
-		visualizer.start()
-		*/
 	}
 })

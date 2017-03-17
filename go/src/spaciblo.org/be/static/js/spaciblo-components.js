@@ -237,13 +237,19 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.inputManager = new spaciblo.input.InputManager(spaciblo.input.DefaultInputSchema)
 		this.client = null // Will be a spaciblo.api.Client when a Space is selected
 		this.clientUUID = null
-		this.vrDisplay = null
+
+		this.inVR = false // True while presenting in an HMD
+		this.vrDisplay = null // VR display data when we have a VR display available
+
 		this.receivedTouchEvent = false // Set to true iff the first touch event arrives
 		this.receivedSpaceUpdate = false // Set to true when the first space update arrives
 
 		this.audioManager = new spaciblo.audio.SpaceManager()
 		this.audioManager.addListener(this.handleLocalSDP.bind(this), spaciblo.events.GeneratedSDPLocalDescription)
 		this.audioManager.addListener(this.handleLocalICE.bind(this), spaciblo.events.GeneratedICECandidate)
+
+		this.mainVolumeVisualizer = new spaciblo.components.AudioVolumeVisualizer(this.audioManager.mainAnalysisNode)
+		this.el.appendChild(this.mainVolumeVisualizer.el)
 
 		this.renderer = new spaciblo.three.Renderer(this.inputManager, this.audioManager)
 		this.el.appendChild(this.renderer.el)
@@ -276,6 +282,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	handleAddedToDOM(){
 		this.updateSize()
 		this.touchMotionComponent.render()
+		this.mainVolumeVisualizer.start()
 	}
 	handleLocalSDP(eventName, description, destinationClientUUID){
 		this.client.sendRelaySDP(description, destinationClientUUID)
@@ -286,6 +293,9 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	handleTouchStart(ev){
 		if(this.receivedTouchEvent === false){
 			this.receivedTouchEvent = true
+			if(this.client !== null && this.inVR === false){
+				this.touchMotionComponent.el.style.display = 'block'
+			}
 		}
 	}
 	handleTouchMotion(eventName, deltaX, deltaY){
@@ -306,10 +316,12 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.enterVR()
 	}
 	handleExitedVR(renderer){
+		this.inVR = false
 		if(this.receivedTouchEvent){
-			this.touchMotionComponent.el.style.display = 'inline-block'
+			this.touchMotionComponent.el.style.display = 'block'
 		}
 		this.updateSize()
+		this.vrButton.style.display = 'inline-block'
 	}
 	enterVR() {
 		if(this.vrDisplay === null){
@@ -320,11 +332,14 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			this.vrDisplay.requestPresent([{
 				source: this.renderer.el
 			}]).then(() => {
+				this.inVR = true
 				if(this.receivedTouchEvent){
 					this.touchMotionComponent.el.style.display = 'none'
 				}
+				this.vrButton.style.display = 'none'
 				this.renderer.setVRDisplay(this.vrDisplay)
 			}).catch(e => {
+				this.inVR = false
 				console.error('Unable to init VR', e)
 			})
 		}
@@ -439,53 +454,103 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 }
 
 /*
-AudioVisualizer shows a wave form for an WebAudio AnalyserNode
+AudioVisualizer is the base class for k.Components that render some visualization to canvas for a WebAudio AnalysisNode
+It takes care of getting audio data into this.dataArray, requesting animation frames, etc.
+Extending classes override draw() with their specific canvas manipulation code.
 */
 spaciblo.components.AudioVisualizer = class extends k.Component {
-	constructor(analyserNode){
+	constructor(analysisNode, frequencyInsteadOfByte=false, fftSize=2048){
 		super()
-		this.el.addClass('audio-vizualizer')
+		this.el.addClass('audio-visualizer')
 		this._boundDraw = this._draw.bind(this)
-		this._audioContext = new AudioContext()
-		this._analyser = analyserNode
-		this._analyser.fftSize = 2048
-		this._bufferLength = this._analyser.frequencyBinCount
-
-		this._dataArray = new Uint8Array(this._bufferLength)
-		this._analyser.getByteTimeDomainData(this._dataArray)
-
-		this._canvas = k.el.canvas().appendTo(this.el)
-		this._canvasContext = this._canvas.getContext('2d')
+		this._analysisNode = analysisNode
+		this._analysisNode.fftSize = fftSize
+		this._frequencyInsteadOfByte = frequencyInsteadOfByte
+		this.bufferLength = this._analysisNode.frequencyBinCount
+		this.dataArray = new Uint8Array(this.bufferLength)
+		if(this._frequencyInsteadOfByte){
+			this._analysisNode.getByteFrequencyData(this.dataArray)
+		} else {
+			this._analysisNode.getByteTimeDomainData(this.dataArray)
+		}
+		this.canvas = k.el.canvas().appendTo(this.el)
+		this.canvasContext = this.canvas.getContext('2d')
 	}
 	start(){
 		this._boundDraw()
 	}
+	draw(){
+		// Extending clients override this with their specific canvas drawing code
+		throw 'Not implemented'
+	}
 	_draw(){
 		requestAnimationFrame(this._boundDraw)
-		this._analyser.getByteTimeDomainData(this._dataArray)
+		if(this._frequencyInsteadOfByte){
+			this._analysisNode.getByteFrequencyData(this.dataArray)
+		} else {
+			this._analysisNode.getByteTimeDomainData(this.dataArray)
+		}
+		this.draw()
+	}
+}
 
-		this._canvasContext.fillStyle = 'rgb(200, 200, 200)'
-		this._canvasContext.fillRect(0, 0, this._canvas.width, this._canvas.height)
+spaciblo.components.AudioVolumeVisualizer = class extends spaciblo.components.AudioVisualizer {
+	constructor(analysisNode){
+		super(analysisNode, true, 256)
+		this.el.addClass('audio-volume-visualizer')
+		this._warnValue = 0.8 // Above this value the bar turns a warning color
+	}
+	draw(){
+		this.canvasContext.fillStyle = 'rgb(256, 256, 256)'
+		this.canvasContext.fillRect(0, 0, this.canvas.width, this.canvas.height)
 
-		this._canvasContext.lineWidth = 2
-		this._canvasContext.strokeStyle = 'rgb(0, 0, 0)'
+		let sum = 0
+		for (var i = 0; i < this.bufferLength; i++) {
+			sum += this.dataArray[i] / 128.0
+		}
+		const average = sum / this.bufferLength // Value in range [0,1]
+		const barHeight = this.canvas.height * average
+		if(average > this._warnValue){
+			this.canvasContext.fillStyle = 'rgb(256, 0, 0)'
+		} else {
+			this.canvasContext.fillStyle = 'rgb(100, 0, 100)'
+		}
+		this.canvasContext.fillRect(0, this.canvas.height - barHeight, this.canvas.width, this.canvas.height)
+	}
+}
 
-		this._canvasContext.beginPath()
 
-		var sliceWidth = this._canvas.width * 1.0 / this._bufferLength
+/*
+AudioVisualizer shows a wave form for an WebAudio AnalyserNode
+*/
+spaciblo.components.AudioWaveVisualizer = class extends spaciblo.components.AudioVisualizer {
+	constructor(analysisNode){
+		super(analysisNode)
+		this.el.addClass('audio-wave-vizualizer')
+	}
+	draw(){
+		this.canvasContext.fillStyle = 'rgb(200, 200, 200)'
+		this.canvasContext.fillRect(0, 0, this.canvas.width, this.canvas.height)
+
+		this.canvasContext.lineWidth = 2
+		this.canvasContext.strokeStyle = 'rgb(0, 0, 0)'
+
+		this.canvasContext.beginPath()
+
+		var sliceWidth = this.canvas.width * 1.0 / this.bufferLength
 		var x = 0
-		for (var i = 0; i < this._bufferLength; i++) {
-			var v = this._dataArray[i] / 128.0
-			var y = v * this._canvas.height / 2
+		for (var i = 0; i < this.bufferLength; i++) {
+			var v = this.dataArray[i] / 128.0
+			var y = v * this.canvas.height / 2
 			if (i === 0) {
-				this._canvasContext.moveTo(x, y)
+				this.canvasContext.moveTo(x, y)
 			} else {
-				this._canvasContext.lineTo(x, y)
+				this.canvasContext.lineTo(x, y)
 			}
 			x += sliceWidth
 		}
-		this._canvasContext.lineTo(this._canvas.width, this._canvas.height / 2)
-		this._canvasContext.stroke()
+		this.canvasContext.lineTo(this.canvas.width, this.canvas.height / 2)
+		this.canvasContext.stroke()
 	}
 }
 

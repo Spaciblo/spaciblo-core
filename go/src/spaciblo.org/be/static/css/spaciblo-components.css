@@ -15,20 +15,6 @@
 	margin-bottom: 15px;
 	color: #666;
 }
-.space-item-component {
-	padding: 10px;
-	background-color: white;
-	cursor: pointer;
-	min-width: 15em;
-	border: solid 1px #DDD;
-	border-radius: 10px;
-	text-align: center;
-	margin-bottom: 15px;
-	color: #666;
-}
-.space-item-component:hover {
-	background-color: #EFEFEF;
-}
 .spaces-component .spaces-renderer {
 	width: 100%;
 	height: 100%;
@@ -45,6 +31,27 @@
 	position: absolute;
 	bottom: 10px;
 	left: 50%;
+}
+.spaces-component > .audio-visualizer {
+	position: absolute;
+	opacity: 0.5;
+	left: 10px;
+	bottom: 10px;
+}
+
+.space-item-component {
+	padding: 10px;
+	background-color: white;
+	cursor: pointer;
+	min-width: 15em;
+	border: solid 1px #DDD;
+	border-radius: 10px;
+	text-align: center;
+	margin-bottom: 15px;
+	color: #666;
+}
+.space-item-component:hover {
+	background-color: #EFEFEF;
 }
 
 .touch-motion-component {
@@ -86,16 +93,7 @@
 	border: solid 1px #EFEFEF;
 }
 
-#page-component {
-	position: relative;
-}
-#page-component .audio-vizualizer {
-	position: absolute;
-	opacity: 0.5;
-	left: 10px;
-	bottom: 10px;
-}
-.audio-vizualizer canvas {
-	width: 100px;
-	height: 100px;
+.audio-visualizer canvas {
+	width: 50px;
+	height: 50px;
 }
