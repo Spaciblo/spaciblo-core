@@ -104,8 +104,7 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 		return remoteUser
 	}
 	addRemoteUser(clientUUID){
-		let remoteUser = new spaciblo.audio.RemoteUser(clientUUID, this._audioContext, this._mainAnalysisNode, this.peerConnectionConfig)
-		remoteUser.addAudioStream(this._microphoneDestinationNode.stream)
+		let remoteUser = new spaciblo.audio.RemoteUser(clientUUID, this._audioContext, this._microphoneDestinationNode.stream, this._mainAnalysisNode, this.peerConnectionConfig)
 		this._remoteUsers.set(clientUUID, remoteUser)
 		remoteUser.addListener((...params) => { this.trigger(...params) }, spaciblo.events.GeneratedSDPLocalDescription)
 		remoteUser.addListener((...params) => { this.trigger(...params) }, spaciblo.events.GeneratedICECandidate)
@@ -151,14 +150,22 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 RemoteUser holds the RTCPeerConnection to a user in the same space, usually managed by SpaceManager
 */
 spaciblo.audio.RemoteUser = k.eventMixin(class {
-	constructor(remoteClientUUID, audioContext, destinationAudioNode, peerConnectionConfig){
+	constructor(remoteClientUUID, audioContext, inputStream, destinationAudioNode, peerConnectionConfig){
 		this._remoteClientUUID = remoteClientUUID
 		this._audioContext = audioContext
 		this._destinationAudioNode = destinationAudioNode
 		this._peerConnectionConfig = peerConnectionConfig
 
 		this._peerConnection = new RTCPeerConnection(this._peerConnectionConfig)
-		this._peerConnection.ontrack = this._handlePeerTrack.bind(this)
+		this._peerConnection.addStream(inputStream)
+		if(typeof this._peerConnection.ontrack !== 'undefined'){
+			this._peerConnection.ontrack = this._handlePeerTrack.bind(this)
+			this._audioEl = null
+		} else {
+			// The older WebRTC API clients (Chrome) require an <audio> element to be associated with the stream
+			this._peerConnection.onaddstream = this._handlePeerStream.bind(this)
+			this._audioEl = k.el.audio().appendTo(document.body)
+		}
 		this._peerConnection.onicecandidate = this._handlePeerICECandidate.bind(this)
 
 		// _audioSourceNode -> _analysisNode -> _gainNode -> _pannerNode -> _destinationAudioNode
@@ -171,10 +178,10 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 		this._analysisNode.connect(this._gainNode)
 
 		this._audioSourceNode = null // a MediaStreamAudioSourceNode created from the WebRTC track stream
-
 	}
 	cleanup(){
 		this.clearListeners()
+		if(this._audioEl !== null) this._audioEl.remove()
 		if(this._peerConnection){
 			this._peerConnection.close()
 		}
@@ -223,9 +230,6 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 			console.error(...params)
 		})
 	}
-	addAudioStream(audioStream){
-		this._peerConnection.addStream(audioStream)
-	}
 	sendSessionOffer(){
 		this._peerConnection.createOffer().then(description => {
 			this._peerConnection.setLocalDescription(description).then(() => {
@@ -243,7 +247,14 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 		}
 		this.trigger(spaciblo.events.GeneratedICECandidate, JSON.stringify(event.candidate), this._remoteClientUUID)
 	}
+	_handlePeerStream(event){
+		// This is called when we're using the older onaddstream WebRTC API
+		this._audioEl.srcObject = event.stream // Chrome requires the stream be associated with an <audio> element
+		this._audioSourceNode = this._audioContext.createMediaStreamSource(event.stream)
+		this._audioSourceNode.connect(this._analysisNode)
+	}
 	_handlePeerTrack(track){
+		// This is called when we're using the newer ontrack WebRTC API
 		if(track.track.kind !== 'audio'){
 			console.error("Unknown track kind", track.track.kind, track)
 			return

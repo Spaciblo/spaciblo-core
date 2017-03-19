@@ -660,6 +660,13 @@ k.el.domElementFunction = function(tagName, ...params){
 		return this
 	}
 
+	el.remove = function(){
+		if(this.parent){
+			this.parent.removeChild(this)
+		}
+		return this
+	}
+
 	// A convenience function to allow appending strings, dictionaries of attributes, arrays of subchildren, or children
 	el.append = function(child=null){
 		if(child === null){ return }
@@ -701,12 +708,14 @@ k.el.domElementFunction = function(tagName, ...params){
 		for(let child of holdingArray){
 			this.appendChild(child);
 		}
+		return this
 	}
 
 	el.sortByAttribute = function(attributeName, comparator=k.defaultComparator){
 		this.sort((el1, el2) => {
 			return comparator(el1.getAttribute(attributeName), el2.getAttribute(attributeName))
 		})
+		return this
 	}
 
 	// Convenience functions to add and remove classes from this element without duplication
