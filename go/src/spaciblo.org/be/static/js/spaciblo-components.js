@@ -13,6 +13,8 @@ spaciblo.events.InputActionStarted = 'spaciblo-input-action-started'
 spaciblo.events.InputActionEnded = 'spaciblo-input-action-ended'
 spaciblo.events.GamepadAdded = 'spaciblo-gamepad-added'
 spaciblo.events.GamepadRemoved = 'spaciblo-gamepad-removed'
+spaciblo.events.MuteRequested = 'spaciblo-mute-requested'
+spaciblo.events.UnmuteRequested = 'spaciblo-unmute-requested'
 
 /*
 AccountPageComponent wraps all of the logic for a/index.html
@@ -247,12 +249,31 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.audioManager = new spaciblo.audio.SpaceManager()
 		this.audioManager.addListener(this.handleLocalSDP.bind(this), spaciblo.events.GeneratedSDPLocalDescription)
 		this.audioManager.addListener(this.handleLocalICE.bind(this), spaciblo.events.GeneratedICECandidate)
+		this.audioManager.addListener(this.handleAudioRemoteUserAdded.bind(this), spaciblo.events.AudioRemoteUserAdded)
+		this.audioManager.addListener(this.handleAudioRemoteUserRemoved.bind(this), spaciblo.events.AudioRemoteUserRemoved)
+
+		this.audioControlComponent = new spaciblo.components.AudioControlComponent(this.audioManager.mainGainNode)
+		this.audioControlComponent.el.style.display = 'none'
+		this.el.appendChild(this.audioControlComponent.el)
+		this.audioControlComponent.addListener(() => {
+			this.mainVolumeVisualizer.handleMuted(true)
+		}, spaciblo.events.MuteRequested)
+		this.audioControlComponent.addListener(() => {
+			this.mainVolumeVisualizer.handleMuted(false)
+		}, spaciblo.events.UnmuteRequested)
 
 		this.lowerControlsEl = k.el.div({ class: 'lower-controls' }).appendTo(this.el)
 		this.lowerControlsEl.style.display = 'none' // Shown when the space is loaded
 
 		this.mainVolumeVisualizer = new spaciblo.components.AudioVolumeVisualizer(this.audioManager.mainAnalysisNode)
 		this.lowerControlsEl.appendChild(this.mainVolumeVisualizer.el)
+		this.listenTo('click', this.mainVolumeVisualizer.el, (event) => {
+			if(this.audioControlComponent.el.style.display == 'none'){
+				this.audioControlComponent.el.style.display = 'block'
+			} else {
+				this.audioControlComponent.el.style.display = 'none'
+			}
+		})
 
 		this.microphoneVolumeVisualizer = new spaciblo.components.AudioVolumeVisualizer(this.audioManager.microphoneAnalysisNode)
 		this.lowerControlsEl.appendChild(this.microphoneVolumeVisualizer.el)
@@ -299,6 +320,12 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	}
 	handleLocalICE(eventName, candidate, destinationClientUUID){
 		this.client.sendRelayICE(candidate, destinationClientUUID)
+	}
+	handleAudioRemoteUserAdded(eventName, remoteUser){
+		this.audioControlComponent.addRemoteUser(remoteUser)
+	}
+	handleAudioRemoteUserRemoved(eventName, remoteUser){
+		this.audioControlComponent.removeRemoteUser(remoteUser)
 	}
 	handleTouchStart(ev){
 		if(this.receivedTouchEvent === false){
@@ -402,7 +429,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			}).catch((...params) => {
 				this.microphoneVolumeVisualizer.handleConnected(false)
 			})
-
 		}).catch(err => {
 			console.error("Error connecting to the WS service", err)
 		})
@@ -472,6 +498,81 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 }
 
 /*
+AudioControlComponent is shown by the SpacesComponent to allow the user to control audio from remote users
+*/
+spaciblo.components.AudioControlComponent = class extends k.Component {
+	constructor(mainGainNode){
+		super()
+		this._mainGainNode = mainGainNode
+		this._oldGainValue = 0
+		this.el.addClass('audio-control-component')
+		this.el.appendChild(k.el.h2('Audio'))
+
+		this._remoteUserComponents = new Map() // clientUUID -> RemoteUserAudioComponent
+		this._remoteUsersEl = k.el.div({ class: 'remote-users' }).appendTo(this.el)
+
+		this._muteToggle = k.el.button({
+			class: 'mute-toggle',
+			type: 'button'
+		}, 'Mute all').appendTo(this.el)
+		this.listenTo('click', this._muteToggle, (event) => {
+			if(this._mainGainNode.gain.value === 0){
+				this._mainGainNode.gain.value = 1
+				this._muteToggle.innerText = 'Mute all'
+				this.trigger(spaciblo.events.UnmuteRequested)
+			} else {
+				this._oldGainValue = this._mainGainNode.gain.value
+				this._mainGainNode.gain.value = 0
+				this._muteToggle.innerText = 'Unmute all'
+				this.trigger(spaciblo.events.MuteRequested)
+			}
+		})
+	}
+	addRemoteUser(remoteUser){
+		// RemoteUser is from spaciblo.audio
+		if(this._remoteUserComponents.has(remoteUser.clientUUID)) return
+		const component = new spaciblo.components.RemoteUserAudioComponent(remoteUser)
+		this._remoteUsersEl.appendChild(component.el)
+		this._remoteUserComponents.set(remoteUser.clientUUID, component)
+		component.start()
+	}
+	removeRemoteUser(remoteUser){
+		const component = this._remoteUserComponents.get(remoteUser.clientUUID)
+		if(typeof component === 'undefined') return
+		this._remoteUserComponents.delete(remoteUser.clientUUID)
+		component.el.remove()
+		component.cleanup()
+	}
+}
+
+/*
+RemoteUserAudioComponent is shown in the AudioControlComponent for each spaciblo.audio.RemoteUser
+*/
+spaciblo.components.RemoteUserAudioComponent = class extends k.Component {
+	constructor(remoteUser){
+		super()
+		this.el.addClass('remote-user-audio-component')
+		this._remoteUser = remoteUser
+		this._volumeComponent = new spaciblo.components.AudioVolumeVisualizer(this._remoteUser.analysisNode)
+		this.listenTo('click', this._volumeComponent.el, ()=> {
+			this._remoteUser.toggleMuted()
+			this._volumeComponent.handleMuted(this._remoteUser.isMuted)
+		})
+		this.el.appendChild(this._volumeComponent.el)
+	}
+	start(){
+		this._volumeComponent.start()
+	}
+	pause(){
+		this._volumeComponent.pause()
+	}
+	cleanup(){
+		super.cleanup()
+		this._volumeComponent.cleanup()
+	}
+}
+
+/*
 AudioVisualizer is the base class for k.Components that render some visualization to canvas for a WebAudio AnalysisNode
 It takes care of getting audio data into this.dataArray, requesting animation frames, etc.
 Extending classes override draw() with their specific canvas manipulation code.
@@ -535,6 +636,9 @@ spaciblo.components.AudioVolumeVisualizer = class extends spaciblo.components.Au
 		this._isConnected = connected
 		this._isMuted = false
 		this._updateEls()
+	}
+	toggleMuted(){
+		this.handleMuted(this._isMuted === false)
 	}
 	handleMuted(mute){
 		this._isMuted = mute

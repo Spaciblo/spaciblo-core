@@ -661,8 +661,8 @@ k.el.domElementFunction = function(tagName, ...params){
 	}
 
 	el.remove = function(){
-		if(this.parent){
-			this.parent.removeChild(this)
+		if(this.parentElement){
+			this.parentElement.removeChild(this)
 		}
 		return this
 	}

@@ -6,6 +6,8 @@ spaciblo.events = spaciblo.events || {}
 
 spaciblo.events.GeneratedSDPLocalDescription = 'generated-sdp-local-description'
 spaciblo.events.GeneratedICECandidate = 'generated-ice-candidate'
+spaciblo.events.AudioRemoteUserAdded = 'audio-remote-user-added'
+spaciblo.events.AudioRemoteUserRemoved = 'audio-remote-user-removed'
 
 // TODO Run our own STUN/ICE service
 spaciblo.audio.DEFAULT_STUN_URLS = [
@@ -52,6 +54,9 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 	}
 	get microphoneAnalysisNode(){
 		return this._microphoneAnalysisNode
+	}
+	get mainGainNode(){
+		return this._mainGainNode
 	}
 	get mainAnalysisNode(){
 		return this._mainAnalysisNode
@@ -108,12 +113,14 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 		this._remoteUsers.set(clientUUID, remoteUser)
 		remoteUser.addListener((...params) => { this.trigger(...params) }, spaciblo.events.GeneratedSDPLocalDescription)
 		remoteUser.addListener((...params) => { this.trigger(...params) }, spaciblo.events.GeneratedICECandidate)
+		this.trigger(spaciblo.events.AudioRemoteUserAdded, remoteUser)
 		return remoteUser
 	}
 	removeRemoteUser(clientUUID){
 		let remoteUser = this._remoteUsers.get(clientUUID)
 		if(!remoteUser) return
 		this._remoteUsers.delete(clientUUID)
+		this.trigger(spaciblo.events.AudioRemoteUserRemoved, remoteUser)
 		remoteUser.cleanup()
 	}
 	connectToLocalMicrophone(){
@@ -155,6 +162,9 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 		this._audioContext = audioContext
 		this._destinationAudioNode = destinationAudioNode
 		this._peerConnectionConfig = peerConnectionConfig
+
+		this._isMuted = false
+		this._oldGain = 0
 
 		this._peerConnection = new RTCPeerConnection(this._peerConnectionConfig)
 		this._peerConnection.addStream(inputStream)
@@ -201,6 +211,28 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 			this._pannerNode.disconnect()
 			this._pannerNode = null
 		}
+	}
+	get isMuted(){
+		return this._isMuted
+	}
+	toggleMuted(){
+		this.setMuted(this._isMuted === false)
+	}
+	setMuted(mute){
+		if(this._isMuted === mute) return
+		this._isMuted = mute
+		if(this._isMuted){
+			this._oldGain = this._gainNode.gain.value
+			this._gainNode.gain.value = 0
+		} else {
+			this._gainNode.gain.value = this._oldGain
+		}
+	}
+	get clientUUID(){
+		return this._remoteClientUUID
+	}
+	get analysisNode(){
+		return this._analysisNode
 	}
 	setPosition(x, y, z){
 		this._pannerNode.setPosition(x, y, z)
