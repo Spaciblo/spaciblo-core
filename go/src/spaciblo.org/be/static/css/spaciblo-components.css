@@ -50,10 +50,11 @@
 	position: absolute;
 	bottom: 70px;
 	left: 10px;
+	opacity: 0.7;
 }
 
 .audio-control-component {
-	background-color: rgba(200, 200, 200, 0.4);
+	background-color: rgb(200, 200, 200);
 	padding: 15px;
 	border-radius: 10px;
 }

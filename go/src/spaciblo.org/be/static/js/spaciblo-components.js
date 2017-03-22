@@ -270,8 +270,10 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.listenTo('click', this.mainVolumeVisualizer.el, (event) => {
 			if(this.audioControlComponent.el.style.display == 'none'){
 				this.audioControlComponent.el.style.display = 'block'
+				this.audioControlComponent.start()
 			} else {
 				this.audioControlComponent.el.style.display = 'none'
+				this.audioControlComponent.pause()
 			}
 		})
 
@@ -503,6 +505,7 @@ AudioControlComponent is shown by the SpacesComponent to allow the user to contr
 spaciblo.components.AudioControlComponent = class extends k.Component {
 	constructor(mainGainNode){
 		super()
+		this._paused = true
 		this._mainGainNode = mainGainNode
 		this._oldGainValue = 0
 		this.el.addClass('audio-control-component')
@@ -528,13 +531,32 @@ spaciblo.components.AudioControlComponent = class extends k.Component {
 			}
 		})
 	}
+	cleanup(){
+		super.cleanup()
+		for(let [index, remoteUserAudioComponent] of this._remoteUserComponents){
+			remoteUserAudioComponent.cleanup()
+		}
+		this._remoteUserComponents.clear()
+	}
+	get paused(){ return this._paused }
+	set paused(value){
+		if(value === this._paused) return
+		this._paused = value
+		for(let [index, remoteUserAudioComponent] of this._remoteUserComponents){
+			remoteUserAudioComponent.paused = this._paused
+		}
+	}
+	start(){ this.paused = false }
+	pause(){ this.paused = true }
 	addRemoteUser(remoteUser){
 		// RemoteUser is from spaciblo.audio
 		if(this._remoteUserComponents.has(remoteUser.clientUUID)) return
 		const component = new spaciblo.components.RemoteUserAudioComponent(remoteUser)
 		this._remoteUsersEl.appendChild(component.el)
 		this._remoteUserComponents.set(remoteUser.clientUUID, component)
-		component.start()
+		if(this.paused === false){
+			component.start()
+		}
 	}
 	removeRemoteUser(remoteUser){
 		const component = this._remoteUserComponents.get(remoteUser.clientUUID)
@@ -560,12 +582,10 @@ spaciblo.components.RemoteUserAudioComponent = class extends k.Component {
 		})
 		this.el.appendChild(this._volumeComponent.el)
 	}
-	start(){
-		this._volumeComponent.start()
-	}
-	pause(){
-		this._volumeComponent.pause()
-	}
+	get paused(){ return this._volumeComponent.paused }
+	set paused(value){ this._volumeComponent.paused = value }
+	start(){ this.paused = false }
+	pause(){ this.paused = true }
 	cleanup(){
 		super.cleanup()
 		this._volumeComponent.cleanup()
@@ -581,8 +601,8 @@ spaciblo.components.AudioVisualizer = class extends k.Component {
 	constructor(analysisNode, frequencyInsteadOfByte=false, fftSize=2048){
 		super()
 		this.el.addClass('audio-visualizer')
+		this._paused = true
 		this._boundDraw = this._draw.bind(this)
-		this._isCleanedup = false
 		this._analysisNode = analysisNode
 		this._analysisNode.fftSize = fftSize
 		this._frequencyInsteadOfByte = frequencyInsteadOfByte
@@ -598,17 +618,24 @@ spaciblo.components.AudioVisualizer = class extends k.Component {
 	}
 	cleanup(){
 		super.cleanup()
-		this._isCleanedup = true
+		this._paused = true
 	}
-	start(){
-		this._boundDraw()
+	get paused(){ return this._paused }
+	set paused(value){
+		if(value === this._paused) return
+		this._paused = value
+		if(this._paused === false){
+			this._boundDraw()
+		}
 	}
+	start(){ this.paused = false }
+	pause(){ this.paused = true }
 	draw(){
 		// Extending clients override this with their specific canvas drawing code
 		throw 'Not implemented'
 	}
 	_draw(){
-		if(this._isCleanedup) return
+		if(this._paused) return
 		requestAnimationFrame(this._boundDraw)
 		if(this._frequencyInsteadOfByte){
 			this._analysisNode.getByteFrequencyData(this.dataArray)
