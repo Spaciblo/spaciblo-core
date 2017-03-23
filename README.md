@@ -1,12 +1,22 @@
 # Spaciblō Core
 
-The Spaciblō project builds hosting tools for browser based, social, 3D spaces. 
+The Spaciblō project builds hosting tools for browser based, social, 3D spaces.
 
-This repository holds the implementation of the Spaciblō tools. The [Spaciblō](https://github.com/Spaciblo/spaciblo) repository will hold the project-wide documents and [wiki](https://github.com/Spaciblo/spaciblo/wiki). 
+If you're new to Spaciblō, check out our handy [Frequently Asked Questions page](https://github.com/Spaciblo/spaciblo/wiki/Frequently-Asked-Questions) where you will find out what the heck this is and how to start playing with it. (It's neat, we promise!)
 
-We started this project a few years ago with Python and early WebGL, but it was slow going. Now we're implementing it using Go, ES6, and a mature WebGL with WebVR coming soon.
+This repository, [Spaciblō Core](https://github.com/Spaciblo/spaciblo-core), holds the source code for the Spaciblō web service that hosts browser based, social, 3D spaces with voice chat. If you want to run your own virtual reality server then this repository is for you!
 
-This is pre-alpha software and is currently suitable only for developers interested in working on web based VR spaces. That said, it has good bones and with work can turn into a useful piece of infrastructure for VR on the web.
+The [Spaciblō](https://github.com/Spaciblo/spaciblo) repository holds the project-wide documents and the [wiki](https://github.com/Spaciblo/spaciblo/wiki). 
+
+The [Core development lists](https://github.com/orgs/Spaciblo/projects/1) show what we're working on and considering for the future.
+
+# To build or not to build
+
+To access a Spaciblō space, you just need a web browser. If you want to run your own Spaciblō services on your own machines then you'll need to build spaciblo-core from source.
+
+Eventually, we'll offer binary distributions but for now we've made the build process pretty straight-forward people who are comfortable with a command line.
+
+You'll need a Linux or OS X based environment that has [go](https://golang.org/) and PostgreSQL installed and in your PATH. The Spaciblō services can be run in a virtual machine, so if you're on Windows you can use [VirtualBox](https://www.virtualbox.org/) or some other VM to bring up a Linux based environment. Pretty much any modern distro will do.
 
 # Building
 
@@ -20,29 +30,27 @@ So, to build just run:
 
 ## Database setup
 
-Spaciblō works with PostgreSQL. Look at the top of the Makefile for the username/password/database settings that the make targets use during development.
+Spaciblō works with PostgreSQL. Look at the top of the [Makefile](https://github.com/Spaciblo/spaciblo-core/blob/master/Makefile) for the username/password/database settings that the make targets use during development. You could change those, but for now just use the defaults.
 
 ## Development
 
-During dev, it's handy to install demo templates and a space:
+During dev, it's handy to install demo templates and a couple of spaces:
 
 	make install_demo
 
-The `make run_{api,sim,ws}` targets will set environment variables useful during dev and run one of the services, but most of the time it's easier to start all of the services in one process like so:
+There are three services that make up Spaciblō, but during development it's easiest to run them all together in one process like so:
 
 	make run_all
 
-Point your browser at [https://127.0.0.1:9000](https://127.0.0.1:9000/).
+Now, point your browser at [https://127.0.0.1:9000](https://127.0.0.1:9000/).
 
-By default, the service is using a self-signed cert so you will need to reassure your browser that it's ok by creating a security exception. On firefox, you may need to do that for both the [web service](https://127.0.0.1:9000/) and for the [WebSocket service](https://127.0.0.1:9020/).
+By default, the service uses a self-signed cert so you will need to reassure your browser that it's ok by creating a security exception. On firefox, you will need to do that for both the [web service](https://127.0.0.1:9000/) and for the [WebSocket service](https://127.0.0.1:9020/). On Chrome, a security exception for port 9000 will automatically apply to port 9020.
 
-Now, click a cube and to enter a space. Use the arrow keys to move around.
+Now, click one of the space names listed in the middle of the page to enter a space. Use the arrow keys or WASD to move around.
 
-Point a second browser at the same URL and they'll see each others' avatars.
+Point a second browser at the same URL and they'll see each others' avatars and (WebRTC willing) be able to hear each other.
 
-If you use the run_all target and want to access the service through a firewall or inside a cloud security group, you'll need to open up port 9000 (HTTP) and 9020 (WebSocket to sim proxy).
-
-If you want to run the services in their own processes, look in the Makefile to see what environment variables need to be set to determine ports, DB settings, etc.
+If your machine is recognized by WebVR as VR-ready then you'll see a link in the bottom right hand corner that will let you enter the space in VR. 
 
 ## Generating new protobuf code
 
@@ -52,4 +60,13 @@ You shouldn't need to do this unless you change one of the *.proto files, but if
 
 The 'make generate_protobuf' target will generate the service code in api.pb.go, sim.pb.go, and ws.pb.go.
 
+# Running a public server
+
+All three of the Spaciblō services (web api, web socket service, and simulator) are configured by environment variables so that it is possible to deploy them into a container service like Docker. Check out the `run_api`, `run_sim` and `run_ws` make targets for examples of how to run each service.
+
+For a quick and dirty public server, it's easiest to use the all-in-one process like in the `run_all` make target.
+
+If you use the `run_all` make target (and thus the default ports) and want to access the service through a firewall or inside a cloud security group, you'll need to open up port 9000 (HTTPS) and 9020 (WebSocket to sim proxy).
+
+No web browser will enter VR unless the service is running over HTTPS connections, so you'll need to either use the bogus cert that is in the repo or change the TLS_CERT and TLS_KEY environment variables to point at your cert files.
  
