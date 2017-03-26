@@ -181,7 +181,7 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 		} else {
 			// Node is part of an avatar, so make sure that only the owning client can change it
 			if clientInfo.ClientUUID != nodeClientUUID {
-				logger.Println("Received a node update for someone else's avatar:", clientInfo.ClientUUID)
+				logger.Println("Received a node update for someone else's avatar:", clientInfo.ClientUUID, nodeClientUUID)
 				continue
 			}
 		}
@@ -228,7 +228,7 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 			logger.Println("Received an add node request for an unknown parent node", notice)
 			continue
 		}
-		state := apiDB.NewSpaceStateNode(notice.Position, notice.Orientation, []float64{0, 0, 0}, []float64{0, 0, 0}, []float64{0, 0, 0}, notice.TemplateUUID)
+		state := apiDB.NewSpaceStateNode(notice.Position, notice.Orientation, notice.Translation, notice.Rotation, []float64{0, 0, 0}, notice.TemplateUUID)
 		childNode, err := NewSceneNode(state, spaceSim.DBInfo)
 		if err != nil {
 			logger.Println("Could not create a new node", err)
@@ -435,13 +435,15 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 	}
 }
 
-func (spaceSim *SpaceSimulator) HandleAddNode(clientUUID string, parentId int64, templateUUID string, position []float64, orientation []float64) {
+func (spaceSim *SpaceSimulator) HandleAddNode(clientUUID string, parentId int64, templateUUID string, position []float64, orientation []float64, translation []float64, rotation []float64) {
 	spaceSim.AddNodeChannel <- &AddNodeNotice{
 		ClientUUID:   clientUUID,
 		Parent:       parentId,
 		TemplateUUID: templateUUID,
 		Position:     position,
 		Orientation:  orientation,
+		Translation:  translation,
+		Rotation:     rotation,
 	}
 }
 
@@ -676,13 +678,11 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 		templateRecord, err = apiDB.FindTemplateRecord(stateNode.TemplateUUID, dbInfo)
 		if err != nil {
 			logger.Println("Error searching for template uuid: ", stateNode.TemplateUUID+": ", err)
-			return nil, err
 		}
 	} else if stateNode.TemplateName != "" {
 		templateRecord, err = apiDB.FindTemplateRecordByField("name", stateNode.TemplateName, dbInfo)
 		if err != nil {
 			logger.Println("Error searching for template name: ", stateNode.TemplateName+": ", err)
-			return nil, err
 		}
 	}
 	sceneNode := &SceneNode{
@@ -691,8 +691,8 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 		TemplateUUID: NewStringField(""),
 		Position:     NewVector3(stateNode.Position),
 		Orientation:  NewQuaternion(stateNode.Orientation),
-		Translation:  NewVector3([]float64{0, 0, 0}),
-		Rotation:     NewVector3([]float64{0, 0, 0}),
+		Translation:  NewVector3(stateNode.Translation),
+		Rotation:     NewVector3(stateNode.Rotation),
 		Scale:        NewVector3(stateNode.Scale),
 		Nodes:        []*SceneNode{},
 	}
@@ -729,11 +729,8 @@ func (node *SceneNode) getClientUUID() string {
 	if node.SettingValue("clientUUID") != "" {
 		return node.SettingValue("clientUUID")
 	}
-	for _, childNode := range node.Nodes {
-		uuid := childNode.getClientUUID()
-		if uuid != "" {
-			return uuid
-		}
+	if node.Parent != nil {
+		return node.Parent.getClientUUID()
 	}
 	return ""
 }
@@ -921,6 +918,8 @@ type AddNodeNotice struct {
 	TemplateUUID string
 	Position     []float64
 	Orientation  []float64
+	Translation  []float64
+	Rotation     []float64
 }
 
 type RemoveNodeNotice struct {

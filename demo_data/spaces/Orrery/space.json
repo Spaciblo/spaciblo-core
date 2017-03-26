@@ -1,0 +1,85 @@
+{
+	"settings": {
+		"name": "Root",
+		"background-color": "#333333",
+		"light-type": "ambient",
+		"light-color": "#FFFFFF",
+		"light-intensity": "2"
+	},
+	"nodes": [
+		{
+			"settings": { "name": "Solar System" },
+			"position": [-36, 0.5, -2],
+			"scale": [0.01, 0.01, 0.01],
+			"nodes":[
+				{
+					"settings": { "name": "Sol" },
+					"template-name": "Sol",
+					"rotation": [0, 0.25132, 0]
+				},
+				{
+					"settings": { "name": "Mercury orbit" },
+					"rotation":[0, 0.07139, 0],
+					"nodes":[{ "settings": { "name": "Mercury" }, "template-name": "Mercury", "position": [1500, 0, 0], "rotation": [0, 0.10713, 0] }]
+				},
+				{
+					"settings": { "name": "Venus orbit" },
+					"rotation":[0, 0.02796, 0],
+					"nodes":[{ "settings": { "name": "Venus" }, "template-name": "Venus", "position": [2500, 0, 0], "rotation": [0, 0.02585, 0] }]
+				},
+				{
+					"settings": { "name": "Earth orbit" },
+					"rotation":[0, 0.01720, 0],
+					"nodes":[{
+						"settings": { "name": "Earth" },
+						"template-name": "Earth",
+						"orientation": [0, 0, 0, 1],
+						"rotation": [0, 6.26622, 0],
+						"position": [3500, 0, 0],
+						"nodes":[{
+							"settings": { "name": "Luna orbit" },
+							"rotation": [0, 0.20943, 0],
+							"nodes":[{
+								"settings": { "name": "Luna" }, 
+								"template-name":"Luna", 
+								"position": [30, 0, 0],
+								"scale": [10, 10, 10]
+							}]
+						}]
+					}]
+				},
+				{
+					"settings": { "name": "Mars orbit" },
+					"rotation":[0, 0.00914, 0],
+					"nodes":[{ "settings": { "name": "Mars" }, "template-name": "Mars", "position": [4500, 0, 0], "rotation": [0, 6.12396, 0] }]
+				},
+				{
+					"settings": { "name": "Jupiter orbit" },
+					"rotation":[0, 0.00145, 0],
+					"nodes":[{ "settings": { "name": "Jupiter" }, "template-name": "Jupiter", "position": [5500, 0, 0], "rotation": [0, 15.32110, 0] }]
+				},
+				{
+					"settings": { "name": "Saturn orbit" },
+					"rotation":[0, 0.000583, 0],
+					"nodes":[{ "settings": { "name": "Saturn" }, "template-name": "Saturn", "position": [6500, 0, 0], "rotation": [0, 14.15131, 0] }]
+				},
+				{
+					"settings": { "name": "Uranus orbit" },
+					"rotation":[0, 0.0002047, 0],
+					"nodes":[{ "settings": { "name": "Uranus" }, "template-name": "Uranus", "position": [7500, 0, 0], "rotation": [0, 8.75095, 0] }]
+				},
+				{
+					"settings": { "name": "Neptune orbit" },
+					"rotation":[0, 0.0001043, 0],
+					"nodes":[{ "settings": { "name": "Neptune" }, "template-name": "Neptune", "position": [8500, 0, 0], "rotation": [0, 8.18123, 0] }]
+				},
+				{
+					"settings": { "name": "Pluto orbit" },
+					"rotation":[0, 0.000069362, 0],
+					"orientation":[0, 0, 0.1, 0.9],
+					"nodes":[{ "settings": { "name": "Pluto" }, "template-name": "Pluto", "position": [9500, 0, 0], "rotation": [0, 0.98379, 0] }]
+				}
+			]
+		}
+	]
+}

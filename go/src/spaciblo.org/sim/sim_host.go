@@ -168,6 +168,8 @@ func (server *SimHostServer) HandleAddNodeRequest(ctx context.Context, addNodeRe
 		addNodeRequest.TemplateUUID,
 		addNodeRequest.Position,
 		addNodeRequest.Orientation,
+		addNodeRequest.Translation,
+		addNodeRequest.Rotation,
 	)
 	return &simRPC.Ack{Message: "OK"}, nil
 }

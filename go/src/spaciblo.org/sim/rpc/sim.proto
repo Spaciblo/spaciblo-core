@@ -103,6 +103,8 @@ message AddNodeRequest {
 	int64 parent = 4;
 	repeated double position = 5;
 	repeated double orientation = 6;
+	repeated double translation = 7;
+	repeated double rotation = 8;
 }
 
 message RemoveNodeRequest {

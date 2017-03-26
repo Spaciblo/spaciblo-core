@@ -20,6 +20,7 @@ spaciblo.three.WORKING_VECTOR3_3 = new THREE.Vector3()
 spaciblo.three.WORKING_EULER = new THREE.Euler()
 spaciblo.three.WORKING_MATRIX4 = new THREE.Matrix4()
 
+spaciblo.three.DEFAULT_BACKGROUND_COLOR = new THREE.Color(0x99DDff)
 spaciblo.three.DEFAULT_LIGHT_COLOR = '#FFFFFF'
 spaciblo.three.DEFAULT_LIGHT_INTENSITY = 0.7
 spaciblo.three.DEFAULT_LIGHT_SKY_COLOR  = '#0077FF'
@@ -43,14 +44,14 @@ spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
 Renderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
 spaciblo.three.Renderer = k.eventMixin(class {
-	constructor(inputManager, audioManager, background=new THREE.Color(0x99DDff)){
+	constructor(inputManager, audioManager){
 		this.inputManager = inputManager
 		this.audioManager = audioManager
 		this.rootGroup = null // The spaciblo.three.Group at the root of the currently active space scene graph
 		this.templateLoader = new spaciblo.three.TemplateLoader()
 		this.clock = new THREE.Clock()
 		this.scene = new THREE.Scene()
-		this.scene.background = background
+		this.scene.background = spaciblo.three.DEFAULT_BACKGROUND_COLOR
 		this.pivotPoint = new THREE.Object3D() // Will hold the rootGroup and let us move the scene around the camera instead of moving the camera around in the scene, which doesn't work in VR
 		this.pivotPoint.name = "PivotPoint"
 		this.pivotPoint.position.set(
@@ -198,6 +199,14 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.camera.updateProjectionMatrix()
 		this.renderer.setSize(this.width, this.height, false)
 	}
+	setBackgroundColor(color){
+		if(typeof color === 'undefined' || color === null || color === ''){
+			this.scene.background = spaciblo.three.DEFAULT_BACKGROUND_COLOR
+			return
+		}
+		this.scene.remove(this.defaultSky)
+		this.scene.background = new THREE.Color(color)
+	}
 	updateSpace(nodeUpdates=[], additions=[], deletions=[]) {
 		nodeUpdates = nodeUpdates || []
 		additions = additions || []
@@ -222,6 +231,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				this.rootGroup = group
 				this.rootGroup.name = 'Root'
 				this.pivotPoint.add(this.rootGroup)
+				this.setBackgroundColor(this.rootGroup.settings['background-color'])
 			} else {
 				parent.add(group)
 			}
@@ -277,6 +287,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 			group.updateSettings(update.settings)
 			group.updateTemplate(update.templateUUID, this.templateLoader)
+
+			if(group === this.rootGroup && group.settings['background-color']){
+				this.setBackgroundColor(group.settings['background-color'])
+			}
 		}
 	}
 	_createGroupFromAddition(state){
@@ -294,6 +308,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		if(state.scale){
 			group.scale.set(...state.scale)
+		}
+		if(state.rotation){
+			console.log('rotation', ...state.rotation)
+			group.rotationMotion.set(...state.rotation)
+		}
+		if(state.translation){
+			group.translationMotion.set(...state.translation)
 		}
 		group.updateSettings(state.settings)
 		if(state.settings && state.settings.clientUUID){

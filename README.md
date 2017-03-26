@@ -14,7 +14,7 @@ The [Core development lists](https://github.com/orgs/Spaciblo/projects/1) show w
 
 To access a Spaciblō space, you just need a web browser. If you want to run your own Spaciblō services on your own machines then you'll need to build spaciblo-core from source.
 
-Eventually, we'll offer binary distributions but for now we've made the build process pretty straight-forward people who are comfortable with a command line.
+Eventually we'll offer binary distributions, but for now we've made the build process pretty straight-forward for people who are comfortable with a command line.
 
 You'll need a Linux or OS X based environment that has [go](https://golang.org/) and PostgreSQL installed and in your PATH. The Spaciblō services can be run in a virtual machine, so if you're on Windows you can use [VirtualBox](https://www.virtualbox.org/) or some other VM to bring up a Linux based environment. Pretty much any modern distro will do.
 
