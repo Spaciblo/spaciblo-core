@@ -51,7 +51,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.templateLoader = new spaciblo.three.TemplateLoader()
 		this.clock = new THREE.Clock()
 		this.scene = new THREE.Scene()
-		this.scene.background = spaciblo.three.DEFAULT_BACKGROUND_COLOR
 		this.pivotPoint = new THREE.Object3D() // Will hold the rootGroup and let us move the scene around the camera instead of moving the camera around in the scene, which doesn't work in VR
 		this.pivotPoint.name = "PivotPoint"
 		this.pivotPoint.position.set(
@@ -94,7 +93,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			antialias: true
 		})
 		this.renderer.domElement.setAttribute('class', 'three-js-spaces-renderer spaces-renderer')
-		this.renderer.setClearColor(0xffffff)
+		this.renderer.setClearColor(spaciblo.three.DEFAULT_BACKGROUND_COLOR)
 		//this.renderer.shadowMap.enabled = true
 		//this.renderer.shadowMap.type = THREE.PCFShadowMap
 
@@ -178,9 +177,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			if(this.firstVRFrame === false){
 				this.firstVRFrame = true
 			}
-			// TODO make the sky gradient work in VR
-			this.scene.remove(this.defaultSky)
-			this.scene.background = null
 		}
 		this.vrDisplay = vrDisplay
 	}
@@ -201,11 +197,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	setBackgroundColor(color){
 		if(typeof color === 'undefined' || color === null || color === ''){
-			this.scene.background = spaciblo.three.DEFAULT_BACKGROUND_COLOR
+			this.renderer.setClearColor(spaciblo.three.DEFAULT_BACKGROUND_COLOR)
 			return
 		}
 		this.scene.remove(this.defaultSky)
-		this.scene.background = new THREE.Color(color)
+		this.renderer.setClearColor(new THREE.Color(color))
 	}
 	updateSpace(nodeUpdates=[], additions=[], deletions=[]) {
 		nodeUpdates = nodeUpdates || []
@@ -310,7 +306,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			group.scale.set(...state.scale)
 		}
 		if(state.rotation){
-			console.log('rotation', ...state.rotation)
 			group.rotationMotion.set(...state.rotation)
 		}
 		if(state.translation){
@@ -689,12 +684,12 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		// Multiply the orientation vector by the world matrix of the group
 		spaciblo.three.WORKING_VECTOR3_2.set(0, 0, 1)
-		spaciblo.three.WORKING_VECTOR3_2.applyProjection(matrix)
+		spaciblo.three.WORKING_VECTOR3_2.applyMatrix4(matrix)
 		spaciblo.three.WORKING_VECTOR3_2.normalize()
 
 		// Multiply the up vector by the world matrix
 		spaciblo.three.WORKING_VECTOR3_3.set(0, -1, 0)
-		spaciblo.three.WORKING_VECTOR3_3.applyProjection(matrix)
+		spaciblo.three.WORKING_VECTOR3_3.applyMatrix4(matrix)
 		spaciblo.three.WORKING_VECTOR3_3.normalize()
 
 		// Restore the zeroed elements of the head's world matrix
