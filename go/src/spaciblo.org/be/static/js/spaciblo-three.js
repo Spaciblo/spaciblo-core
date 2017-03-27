@@ -298,9 +298,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		group.state = state
 		if(state.position){
 			group.position.set(...state.position)
+			group.updatePosition.set(...state.position)
 		}
 		if(state.orientation){
 			group.quaternion.set(...state.orientation)
+			group.updateQuaternion.set(...state.orientation)
 		}
 		if(state.scale){
 			group.scale.set(...state.scale)

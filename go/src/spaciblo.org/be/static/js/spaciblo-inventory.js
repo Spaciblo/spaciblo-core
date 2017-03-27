@@ -423,7 +423,7 @@ spaciblo.components.SceneGraphNode = class extends k.Component {
 		}
 	}
 	get _displayName(){
-		return this.dataObject.get('name', this.dataObject.get('clientUUID', '')) || 'Unnamed'
+		return this.dataObject.get('name', 'Unnamed')
 	}
 	_handleAddClick(ev){
 		if(ev) ev.preventDefault()
