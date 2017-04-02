@@ -122,6 +122,16 @@ k.DataObject = k.eventMixin(class {
 		// Extending classes can override this to allow less strict equality
 		return this === obj
 	}
+	onFirstReset(func){
+		// If already reset, immediately call func, otherwise wait until the first reset and then call func
+		if(this._new){
+			this.addListener(() => {
+				func(this)
+			}, 'reset', true)
+		} else {
+			func(this)
+		}
+	}
 	get fetchOptions(){
 		// Extending classes can override this to add headers, methods, etc to the fetch call
 		return {
@@ -223,6 +233,9 @@ k.DataModel = class extends k.DataObject {
 		Find a value held within this k.DataModel. 
 		Return values may be native types or, if mapped by options.fieldDataObjects, another k.DataObject
 	*/
+	has(fieldName){
+		return typeof this.data[fieldName] !== 'undefined'
+	}
 	get(fieldName, defaultValue=null){
 		if(typeof this.data[fieldName] === 'undefined' || this.data[fieldName] === null || this.data[fieldName] === ''){
 			return defaultValue

@@ -357,7 +357,7 @@ spaciblo.components.SceneGraphNodeData = class extends k.DataModel {
 	handleUpdate(update){
 		this._updateSettings(update)
 		this._updatePositioning(update)
-		if(typeof update.templateUUID !== 'undefined'){
+		if(typeof update.templateUUID !== 'undefined' && update.templateUUID !== ''){
 			this.set('templateUUID', update.templateUUID)
 		}
 	}
@@ -581,17 +581,16 @@ spaciblo.components.TemplateEditorComponent = class extends k.Component {
 		}
 
 		this.dataObject.addListener(() => {
-			let uuid = this.dataObject.get('templateUUID')
-			if(uuid === spaciblo.api.RemoveKeyIndicator || uuid === null || uuid === ''){
-				this.template.reset({})
-				this._updateTemplate()
-			} else {
-				this.template.reset({ 'uuid': uuid})
+			if(this.dataObject.has('templateUUID') && this.dataObject.get('templateUUID') !== spaciblo.api.RemoveKeyIndicator){
+				this.template.reset({ 'uuid': this.dataObject.get('templateUUID') })
 				this.template.fetch().then(() => {
 					this._updateTemplate()
 				}).catch((...params) => {
 					console.error('error', ...params)
 				})
+			} else {
+				this.template.reset({})
+				this._updateTemplate()
 			}
 		}, 'changed:templateUUID')
 	}
@@ -1018,7 +1017,7 @@ spaciblo.components.VectorEditorComponent = class extends k.Component {
 			}
 			return results
 		}
-		console.log('unknown vector val', val)
+		console.error('unknown vector val', val)
 		return []
 	}
 	cleanup(){

@@ -20,6 +20,11 @@
 			function initPage(){
 				window.pageComponent = new spaciblo.components.AccountPageComponent()
 				document.getElementById('page-component').appendChild(window.pageComponent.el)
+				be.currentUser.onFirstReset(user => {
+					if(typeof user.get('uuid') !== 'undefined'){
+						document.getElementById('email').focus()
+					}
+				})
 			}
 			document.addEventListener("schema-populated", initPage)
 		</script>
