@@ -208,7 +208,8 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 		this.receivedFirstUpdate = false
 		this.clientUUID = null
 		this.rootNode = null
-		this.selectedNode = null 
+		this.selectedNode = null
+		this._addedToParent = null
 		this.client.addListener(this._boundHandleClientMessages, spaciblo.events.ClientMessageReceived)
 	}
 	openClient(){
@@ -300,6 +301,10 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 				this.el.appendChild(node.el)
 			} else {
 				parent.addChild(node)
+				if(this._addedToParent === parent.dataObject.get('id')){
+					this._addedToParent = null
+					this._handleNodeClick('node-click', node)
+				}
 			}
 		} catch (e){
 			console.error(e)			
@@ -329,6 +334,7 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 		node.cleanup()
 	}
 	_handleAddNodeClick(eventName, node){
+		this._addedToParent = node.dataObject.get('id')
 		this.client.sendAddNode(node.dataObject.get('id'), '', [0,0,0], [0,0,0,1])
 	}
 	_handleNodeClick(eventName, node){
