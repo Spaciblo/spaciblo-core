@@ -1,10 +1,10 @@
 {
 	"settings": {
 		"name": "Root",
-		"background-color": "#333333",
+		"background-color": "#111",
 		"light-type": "ambient",
 		"light-color": "#FFFFFF",
-		"light-intensity": "2"
+		"light-intensity": "1"
 	},
 	"nodes": [
 		{
