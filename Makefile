@@ -84,13 +84,13 @@ go_get_deps:
 	go get golang.org/x/crypto/bcrypt
 	go get gopkg.in/gorp.v2
 	go get google.golang.org/grpc
-	go get github.com/golang/protobuf/{proto,protoc-gen-go}
 
 lint:
 	go install github.com/golang/lint/...
 	golint spaciblo.org/...
 
 generate_protobuf:
+	go get github.com/golang/protobuf/{proto,protoc-gen-go}
 	protoc -I ${SIM_GRPC_DIR} ${SIM_GRPC_DIR}sim.proto --go_out=plugins=grpc:${SIM_GRPC_DIR}
 	protoc -I ${WS_GRPC_DIR} ${WS_GRPC_DIR}ws.proto --go_out=plugins=grpc:${WS_GRPC_DIR}
 
