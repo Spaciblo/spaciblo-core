@@ -1,4 +1,4 @@
-.PHONY: clean clean_deps go_get_deps lint compile install_demo test psql
+.PHONY: clean clean_deps go_get_deps lint compile install_demo test psql create_user change_password
 
 API_PORT		:= 9000
 SIM_PORT 		:= 9010
@@ -23,7 +23,7 @@ SESSION_SECRET := "fr0styth3sn0wm@n"
 STATIC_DIR := $(PWD)/go/src/spaciblo.org/be/static/
 FILE_STORAGE_DIR := $(PWD)/file_storage
 
-MAIN_PKGS := spaciblo.org/api/api spaciblo.org/sim/sim spaciblo.org/ws/ws spaciblo.org/all_in_one spaciblo.org/be/install_demo
+MAIN_PKGS := spaciblo.org/api/api spaciblo.org/sim/sim spaciblo.org/ws/ws spaciblo.org/all_in_one spaciblo.org/be/install_demo spaciblo.org/be/manage_users
 
 COMMON_POSTGRES_ENVS := POSTGRES_USER=$(POSTGRES_USER) \
 						POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
@@ -38,6 +38,9 @@ TEST_POSTGRES_ENVS := 	$(COMMON_POSTGRES_ENVS) \
 
 DEMO_RUNTIME_ENVS := 	$(MAIN_POSTGRES_ENVS) \
 						FILE_STORAGE_DIR=$(FILE_STORAGE_DIR) \
+
+MANAGE_USERS_RUNTIME_ENVS := 	$(MAIN_POSTGRES_ENVS) \
+								FILE_STORAGE_DIR=$(FILE_STORAGE_DIR) \
 
 COMMON_RUNTIME_ENVS := 	TLS_CERT=$(TLS_CERT) \
 						TLS_KEY=$(TLS_KEY)
@@ -117,6 +120,14 @@ install_demo:
 	-echo "drop database $(POSTGRES_DB_NAME); create database $(POSTGRES_DB_NAME);" | psql -U $(POSTGRES_USER)
 	go install -v spaciblo.org/be/install_demo
 	$(DEMO_RUNTIME_ENVS) $(GOBIN)/install_demo
+
+create_user:
+	go install -v spaciblo.org/be/manage_users
+	$(MANAGE_USERS_RUNTIME_ENVS) $(GOBIN)/manage_users create
+
+update_password:
+	go install -v spaciblo.org/be/manage_users
+	$(MANAGE_USERS_RUNTIME_ENVS) $(GOBIN)/manage_users password
 
 test_sim:
 	-echo "drop database $(POSTGRES_TEST_DB_NAME)" | psql -U $(POSTGRES_USER)
