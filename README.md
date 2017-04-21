@@ -12,7 +12,7 @@ The [Core development lists](https://github.com/orgs/Spaciblo/projects/1) show w
 
 # To build or not to build
 
-To access a Spaciblō space, you just need a web browser. If you want to run your own Spaciblō services on your own machines then you'll need to build spaciblo-core from source.
+To access a Spaciblō space, you just need a web browser. If you want to run your own Spaciblō services on your own machines then you'll need to build this repo (spaciblo-core) from source.
 
 Eventually we'll offer binary distributions, but for now we've made the build process pretty straight-forward for people who are comfortable with a command line.
 
@@ -30,11 +30,11 @@ So, to build just run:
 
 ## Database setup
 
-Spaciblō works with PostgreSQL. Look at the top of the [Makefile](https://github.com/Spaciblo/spaciblo-core/blob/master/Makefile) for the username/password/database settings that the make targets use during development. You could change those, but for now just use the defaults.
+Spaciblō works with PostgreSQL. Look at the top of the [Makefile](https://github.com/Spaciblo/spaciblo-core/blob/master/Makefile) for the username/password/database settings that the make targets use during development. You could change those, but for now just set up PostgreSQL to use the defaults.
 
 ## Development
 
-During dev, it's handy to install demo templates and a couple of spaces:
+During dev, it's handy to install demo accounts, templates, and a few spaces:
 
 	make install_demo
 
@@ -52,11 +52,13 @@ Point a second browser at the same URL and they'll see each others' avatars and 
 
 If your machine is recognized by WebVR as VR-ready then you'll see a link in the bottom right hand corner that will let you enter the space in VR. 
 
+If you used `install_demo` to set up accounts then you can log in on the [account page](https://127.0.0.1:9000/a/) using the email/password of alice@example.com/1234 to gain access to the [inventory](https://127.0.0.1:9000/i/) where you will find the template, space, and avatar editors. There you can upload new 3D art, arrange them in spaces, and manipulate the avatars that are available to your users.
+
 ## Generating new protobuf code
 
 You shouldn't need to do this unless you change one of the *.proto files, but if you do that then do this to generate new go code for gRPC:
 
-[Download the 3.1.0 protobuf compiler](https://github.com/google/protobuf/releases) for your platform and install it beside spaciblo-core such that `protoc` is in `../protoc-3.1.0/bin/` relative to the root of spaciblo-core.
+[Download the 3.1.0 protobuf compiler](https://github.com/google/protobuf/releases) for your platform and install it beside spaciblo-core such that the `protoc` directory is in `../protoc-3.1.0/bin/` relative to the root of spaciblo-core.
 
 The 'make generate_protobuf' target will generate the service code in api.pb.go, sim.pb.go, and ws.pb.go.
 
@@ -68,5 +70,4 @@ For a quick and dirty public server, it's easiest to use the all-in-one process 
 
 If you use the `run_all` make target (and thus the default ports) and want to access the service through a firewall or inside a cloud security group, you'll need to open up port 9000 (HTTPS) and 9020 (WebSocket to sim proxy).
 
-No web browser will enter VR unless the service is running over HTTPS connections, so you'll need to either use the bogus cert that is in the repo or change the TLS_CERT and TLS_KEY environment variables to point at your cert files.
- 
+No web browser will enter VR unless the service is running over HTTPS connections, so you'll need to either use the bogus cert that is in the repo or change the TLS_CERT and TLS_KEY environment variables to point at your valid cert files.
