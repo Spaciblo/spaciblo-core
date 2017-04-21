@@ -3,8 +3,3 @@ collect
 file_storage/
 go/bin
 go/pkg
-go/src/github.com/
-go/src/labix.org/
-go/src/golang.org/
-go/src/gopkg.in/
-go/src/google.golang.org/
