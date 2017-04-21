@@ -60,14 +60,16 @@ WS_RUNTIME_ENVS := 		WS_PORT=$(WS_PORT) \
 SIM_GRPC_DIR := go/src/spaciblo.org/sim/rpc/
 WS_GRPC_DIR := go/src/spaciblo.org/ws/rpc/
 
-all: go_get_deps compile
+all: compile
 
 clean:
 	rm -rf go/bin go/pkg deploy collect
 
+# Use this only if you're updating the vendored libs
 clean_deps:
-	rm -rf go/src/github.com go/src/golang.org go/src/gopkg.in google.golang.org
+	rm -rf go/src/vendor/*
 
+# Use this only if you're updating the vendored libs. You'll need to move these to go/src/vendor/ and remove all of their .git dirs
 go_get_deps:
 	go get github.com/chai2010/assert
 	go get github.com/urfave/negroni
