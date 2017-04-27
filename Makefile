@@ -20,7 +20,6 @@ POSTGRES_TEST_DB_NAME := spaciblo_test
 
 SESSION_SECRET := "fr0styth3sn0wm@n"
 
-STATIC_DIR := $(PWD)/go/src/spaciblo.org/be/static/
 FILE_STORAGE_DIR := $(PWD)/file_storage
 
 MAIN_PKGS := spaciblo.org/api/api spaciblo.org/sim/sim spaciblo.org/ws/ws spaciblo.org/all_in_one spaciblo.org/be/install_demo spaciblo.org/be/manage_users
@@ -46,7 +45,6 @@ COMMON_RUNTIME_ENVS := 	TLS_CERT=$(TLS_CERT) \
 						TLS_KEY=$(TLS_KEY)
 
 API_RUNTIME_ENVS := 	API_PORT=$(API_PORT) \
-						STATIC_DIR=$(STATIC_DIR) \
 						FILE_STORAGE_DIR=$(FILE_STORAGE_DIR) \
 						DOCROOT_DIR=$(DOCROOT_DIR) \
 						SESSION_SECRET=$(SESSION_SECRET) \

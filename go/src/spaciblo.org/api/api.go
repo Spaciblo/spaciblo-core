@@ -32,10 +32,6 @@ func StartAPI() error {
 	if err != nil {
 		return err
 	}
-	staticDir := os.Getenv("STATIC_DIR")
-	if staticDir == "" {
-		return errors.New("No STATIC_DIR env variable")
-	}
 	fsDir := os.Getenv("FILE_STORAGE_DIR")
 	if fsDir == "" {
 		return errors.New("No FILE_STORAGE_DIR env variable")
@@ -44,7 +40,10 @@ func StartAPI() error {
 	if sessionSecret == "" {
 		return errors.New("No SESSION_SECRET env variable")
 	}
-	docrootEndDir := os.Getenv("DOCROOT_DIR") // Optional
+	docrootDir := os.Getenv("DOCROOT_DIR") // Optional
+	if docrootDir == "" {
+		return errors.New("No DOCROOT_DIR env variable")
+	}
 
 	certPath := os.Getenv("TLS_CERT")
 	if certPath == "" {
@@ -56,8 +55,7 @@ func StartAPI() error {
 	}
 
 	logger.Print("API_PORT:\t\t", port)
-	logger.Print("STATIC_DIR:\t", staticDir)
-	logger.Print("DOCROOT_DIR:\t", docrootEndDir)
+	logger.Print("DOCROOT_DIR:\t", docrootDir)
 	logger.Print("FILE_STORAGE_DIR:\t", fsDir)
 	logger.Print("DB HOST:\t\t", be.DBHost, ":", be.DBPort)
 	logger.Print("TLS_CERT:\t\t", certPath)
@@ -80,15 +78,9 @@ func StartAPI() error {
 	store := cookiestore.New([]byte(sessionSecret))
 	server.Use(sessions.Sessions(be.AuthCookieName, store))
 
-	if docrootEndDir != "" {
-		feStatic := negroni.NewStatic(http.Dir(docrootEndDir))
-		feStatic.Prefix = ""
-		server.Use(feStatic)
-	}
-
-	static := negroni.NewStatic(http.Dir(staticDir))
-	static.Prefix = "/api/static"
-	server.Use(static)
+	feStatic := negroni.NewStatic(http.Dir(docrootDir))
+	feStatic.Prefix = ""
+	server.Use(feStatic)
 
 	api := be.NewAPI("/api/"+VERSION, VERSION, fs, dbInfo)
 	addApiResources(api)
