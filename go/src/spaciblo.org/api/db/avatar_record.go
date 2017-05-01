@@ -19,14 +19,14 @@ AvatarPartRecord associates an AvatarRecord with a TemplateRecord that represent
 type AvatarPartRecord struct {
 	Id           int64  `json:"id" db:"id, primarykey, autoincrement"`
 	UUID         string `json:"uuid" db:"u_u_i_d"`
-	Avatar       int64  `json:"-" db:"avatar"`                  // TODO make this a foreign key
-	TemplateUUID string `json:"templateUUID" db:"templateUUID"` // TODO make this a foreign key
-	Name         string `json:"name" db:"name"`                 // A human readable name, like "Left Lobster Claw"
-	Part         string `json:"part" db:"part"`                 // System short name like "head", "torso", "left_hand", or "right_hand"
-	Parent       string `json:"parent" db:"parent"`             // The AvatarPartRecord.Part name of the scene graph parent of this part, empty if the parent is the root of the avatar
-	Position     string `json:"position" db:"position"`         // "x,y,z" vector3 relative to avatar origin TODO figure out how to use PostgreSQL array types
-	Orientation  string `json:"orientation" db:"orientation"`   // "x,y,z,w" quaternion relative to avatar origin
-	Scale        string `json:"scale" db:"scale"`               // "x,y,z" scale of the part
+	Avatar       int64  `json:"-" db:"avatar"`                   // TODO make this a foreign key
+	TemplateUUID string `json:"templateUUID" db:"template_uuid"` // TODO make this a foreign key
+	Name         string `json:"name" db:"name"`                  // A human readable name, like "Left Lobster Claw"
+	Part         string `json:"part" db:"part"`                  // System short name like "head", "torso", "left_hand", or "right_hand"
+	Parent       string `json:"parent" db:"parent"`              // The AvatarPartRecord.Part name of the scene graph parent of this part, empty if the parent is the root of the avatar
+	Position     string `json:"position" db:"position"`          // "x,y,z" vector3 relative to avatar origin TODO figure out how to use PostgreSQL array types
+	Orientation  string `json:"orientation" db:"orientation"`    // "x,y,z,w" quaternion relative to avatar origin
+	Scale        string `json:"scale" db:"scale"`                // "x,y,z" scale of the part
 	// TODO offer avatar part customization of textures, colors, morphs, positioning, etc
 }
 

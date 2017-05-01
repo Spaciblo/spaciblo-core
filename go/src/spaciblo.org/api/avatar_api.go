@@ -86,36 +86,6 @@ func (resource AvatarsResource) Post(request *be.APIRequest) (int, interface{}, 
 	return 200, record, responseHeader
 }
 
-func (resource AvatarResource) Delete(request *be.APIRequest) (int, interface{}, http.Header) {
-	responseHeader := map[string][]string{}
-	if request.User == nil {
-		return 401, be.NotLoggedInError, responseHeader
-	}
-	if request.User.Staff == false {
-		return 401, be.StaffOnlyError, responseHeader
-	}
-
-	avatarUUID, _ := request.PathValues["uuid"]
-	avatar, err := apiDB.FindAvatarRecord(avatarUUID, request.DBInfo)
-	if err != nil {
-		return 404, be.APIError{
-			Id:      "no_such_avatar",
-			Message: "No such avatar: " + avatarUUID,
-			Error:   err.Error(),
-		}, responseHeader
-	}
-
-	err = apiDB.DeleteAvatarRecord(avatar, request.DBInfo)
-	if err != nil {
-		return 500, be.APIError{
-			Id:      "error_deleting",
-			Message: "Error deleting",
-			Error:   err.Error(),
-		}, responseHeader
-	}
-	return 200, "{}", responseHeader
-}
-
 type AvatarResource struct {
 }
 
@@ -185,4 +155,34 @@ func (resource AvatarResource) Put(request *be.APIRequest) (int, interface{}, ht
 	}
 
 	return 200, avatar, responseHeader
+}
+
+func (resource AvatarResource) Delete(request *be.APIRequest) (int, interface{}, http.Header) {
+	responseHeader := map[string][]string{}
+	if request.User == nil {
+		return 401, be.NotLoggedInError, responseHeader
+	}
+	if request.User.Staff == false {
+		return 401, be.StaffOnlyError, responseHeader
+	}
+
+	avatarUUID, _ := request.PathValues["uuid"]
+	avatar, err := apiDB.FindAvatarRecord(avatarUUID, request.DBInfo)
+	if err != nil {
+		return 404, be.APIError{
+			Id:      "no_such_avatar",
+			Message: "No such avatar: " + avatarUUID,
+			Error:   err.Error(),
+		}, responseHeader
+	}
+
+	err = apiDB.DeleteAvatarRecord(avatar, request.DBInfo)
+	if err != nil {
+		return 500, be.APIError{
+			Id:      "error_deleting",
+			Message: "Error deleting",
+			Error:   err.Error(),
+		}, responseHeader
+	}
+	return 200, "{}", responseHeader
 }

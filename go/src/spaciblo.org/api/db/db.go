@@ -23,6 +23,8 @@ func MigrateDB(dbInfo *be.DBInfo) error {
 	dbInfo.Map.AddTableWithName(TemplateDataRecord{}, TemplateDataTable).SetKeys(true, "Id")
 	dbInfo.Map.AddTableWithName(AvatarRecord{}, AvatarTable).SetKeys(true, "Id")
 	dbInfo.Map.AddTableWithName(AvatarPartRecord{}, AvatarPartTable).SetKeys(true, "Id")
+	dbInfo.Map.AddTableWithName(FlockRecord{}, FlockTable).SetKeys(true, "Id")
+	dbInfo.Map.AddTableWithName(FlockMemberRecord{}, FlockMemberTable).SetKeys(true, "Id")
 	err := dbInfo.Map.CreateTablesIfNotExists()
 	if err != nil {
 		return err

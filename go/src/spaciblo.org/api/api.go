@@ -109,4 +109,8 @@ func addApiResources(api *be.API) {
 	api.AddResource(NewAvatarResource(), true)
 	api.AddResource(NewAvatarPartsResource(), true)
 	api.AddResource(NewAvatarPartResource(), true)
+	api.AddResource(NewFlockResource(), true)
+	api.AddResource(NewFlocksResource(), true)
+	api.AddResource(NewFlockMemberResource(), true)
+	api.AddResource(NewFlockMembersResource(), true)
 }

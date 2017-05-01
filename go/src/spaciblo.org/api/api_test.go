@@ -12,6 +12,119 @@ import (
 	. "github.com/chai2010/assert"
 )
 
+func TestFlockAPI(t *testing.T) {
+	err := be.CreateDB()
+	AssertNil(t, err)
+	dbInfo, err := db.InitDB()
+	AssertNil(t, err)
+	defer func() {
+		be.WipeDB(dbInfo)
+		dbInfo.Connection.Close()
+	}()
+
+	testApi, err := be.NewTestAPI()
+	AssertNil(t, err)
+	defer testApi.Stop()
+	addApiResources(testApi.API)
+	apiDB.MigrateDB(testApi.DBInfo)
+
+	client, err := be.NewClient(testApi.URL())
+	AssertNil(t, err)
+
+	be.AssertStatus(t, 401, "GET", testApi.URL()+"/flock/") // Unauthed people should not be able to fetch flocks
+
+	user, err := be.CreateUser("alice@example.com", "Alice", "Example", true, "", dbInfo)
+	AssertNil(t, err)
+	_, err = be.CreatePassword("1234", user.Id, dbInfo)
+	AssertNil(t, err)
+	err = client.Authenticate("alice@example.com", "1234")
+	AssertNil(t, err)
+
+	list, err := client.GetList("/flock/")
+	AssertNil(t, err)
+	arr := list.Objects.([]interface{})
+	AssertEqual(t, 0, len(arr)) // Alice should be able to list flocks, but have none
+
+	data1 := &apiDB.FlockRecord{Name: "Flock 0"}
+	flockRecord1 := &apiDB.FlockRecord{}
+	err = client.PostAndReceiveJSON("/flock/", data1, flockRecord1)
+	AssertNil(t, err) // Alice should be able to create a flock
+
+	list, err = client.GetList("/flock/")
+	AssertNil(t, err)
+	arr = list.Objects.([]interface{})
+	AssertEqual(t, 1, len(arr)) // Alice should now have a flock in her list of flocks
+	flock := arr[0].(map[string]interface{})
+	AssertEqual(t, "Flock 0", flock["name"])
+
+	// Get and update the flock
+	flockRecord2 := &apiDB.FlockRecord{}
+	err = client.GetJSON("/flock/"+flockRecord1.UUID, flockRecord2)
+	AssertNil(t, err)
+	AssertEqual(t, flockRecord1.UUID, flockRecord2.UUID)
+	AssertEqual(t, flockRecord1.Name, flockRecord2.Name)
+	flockRecord2.Name = "New Name"
+	flockRecord3 := &apiDB.FlockRecord{}
+	err = client.PutAndReceiveJSON("/flock/"+flockRecord2.UUID, flockRecord2, flockRecord3)
+	AssertNil(t, err)
+	AssertEqual(t, flockRecord1.UUID, flockRecord3.UUID)
+	AssertEqual(t, "New Name", flockRecord3.Name)
+
+	// Create a new user to test privacy
+	client2, err := be.NewClient(testApi.URL())
+	AssertNil(t, err)
+	user2, err := be.CreateUser("bob@example.com", "Bob", "Example", true, "", dbInfo)
+	AssertNil(t, err)
+	_, err = be.CreatePassword("1234", user2.Id, dbInfo)
+	AssertNil(t, err)
+	err = client2.Authenticate("bob@example.com", "1234")
+	AssertNil(t, err)
+
+	list, err = client2.GetList("/flock/")
+	AssertNil(t, err)
+	arr = list.Objects.([]interface{})
+	AssertEqual(t, 0, len(arr))                                                          // Bob should not be able to see Alice's flock in their list of flocks
+	be.AssertStatus(t, 401, "GET", testApi.URL()+"/flock/"+flockRecord1.UUID+"/member/") // Unauthed people should not be able to fetch flock members
+
+	list, err = client.GetList("/flock/" + flockRecord1.UUID + "/member/")
+	AssertNil(t, err)
+	arr = list.Objects.([]interface{})
+	AssertEqual(t, 0, len(arr)) // There should be no members in this flock, yet
+
+	template1, err := apiDB.CreateTemplateRecord("Template 1", "test.gltf", "", "", dbInfo)
+	AssertNil(t, err)
+
+	data2 := &apiDB.FlockMemberRecord{TemplateUUID: template1.UUID}
+	flockMemberRecord1 := &apiDB.FlockMemberRecord{}
+	err = client.PostAndReceiveJSON("/flock/"+flockRecord1.UUID+"/member/", data2, flockMemberRecord1)
+	AssertNil(t, err)
+
+	list, err = client.GetList("/flock/" + flockRecord1.UUID + "/member/")
+	AssertNil(t, err)
+	arr = list.Objects.([]interface{})
+	AssertEqual(t, 1, len(arr)) // There should be one member in this flock
+
+	// Get the flock member directly
+	flockMemberRecord2 := &apiDB.FlockMemberRecord{}
+	err = client.GetJSON("/flock-member/"+flockMemberRecord1.UUID, flockMemberRecord2)
+	AssertNil(t, err)
+	AssertEqual(t, flockMemberRecord1.UUID, flockMemberRecord2.UUID)
+	AssertEqual(t, flockMemberRecord1.TemplateUUID, flockMemberRecord2.TemplateUUID)
+	AssertEqual(t, "0,0,0", flockMemberRecord2.Position)
+
+	// Update the flock member
+	flockMemberRecord2.Position = "1,2,3"
+	flockMemberRecord3 := &apiDB.FlockMemberRecord{}
+	err = client.PutAndReceiveJSON("/flock-member/"+flockMemberRecord1.UUID, flockMemberRecord2, flockMemberRecord3)
+	AssertNil(t, err)
+	AssertEqual(t, flockMemberRecord1.UUID, flockMemberRecord3.UUID)
+	AssertEqual(t, flockMemberRecord1.TemplateUUID, flockMemberRecord3.TemplateUUID)
+	AssertEqual(t, "1,2,3", flockMemberRecord3.Position)
+
+	err = client.Delete("/flock-member/" + flockMemberRecord1.UUID)
+	AssertNil(t, err)
+}
+
 func TestAvatarAPI(t *testing.T) {
 	err := be.CreateDB()
 	AssertNil(t, err)
