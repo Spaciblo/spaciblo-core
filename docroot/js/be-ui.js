@@ -1,5 +1,9 @@
 'use strict'
 
+/*
+Common, application non-specific user interface components and helper functions.
+*/
+
 var be = be || {}
 be.ui = be.ui || {}
 be.events = be.events || {}
@@ -39,7 +43,7 @@ be.ui.ToggleComponent = class extends k.Component {
 }
 
 /*
-Initializes the first letter in the value
+Makes upper case the first letter in valueString
 */
 be.ui.initialUpperCase = function(valueString){
 	if(valueString == false) return ''
@@ -99,7 +103,6 @@ be.ui.FileDropTarget = class extends k.Component {
 		this.el.addEventListener('drop', ev => { this._handleDrop(ev) }, false)
 	}
 	_handleNewFiles(files){
-		console.log('Files', files)
 		this.trigger(be.events.FilesDropped, this, files)
 	}
 	_handleDragOver(ev){
@@ -262,6 +265,9 @@ be.ui.CollectionComponent = class extends k.Component {
 	}
 }
 
+/*
+DefaultItemComponent is used by be.ui.CollectionComponent if no itemComponent option is passed
+*/
 be.ui.DefaultItemComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, Object.assign({ el: k.el.li() }, options))
@@ -272,7 +278,7 @@ be.ui.DefaultItemComponent = class extends k.Component {
 
 
 /*
-ListAndDetailComponent shows a list of items and a detail component when and item is selected
+ListAndDetailComponent shows a list of items and a detail component when an item is selected
 */
 be.ui.ListAndDetailComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
@@ -482,8 +488,14 @@ be.ui.LoginComponent = class extends k.Component {
 	}
 }
 
+/*
+Rate limit a function call. Wait is the minimum number of milliseconds between calls.
+If leading is true, the first call to the throttled function is immediately called.
+If trailing is true, once the wait time has passed the function is called. 
+
+This code is cribbed from https://github.com/jashkenas/underscore
+*/
 be.ui.throttle = function(func, wait, leading=true, trailing=true) {
-	// Cribbed from https://github.com/jashkenas/underscore
 	var timeout, context, args, result
 	var previous = 0
 

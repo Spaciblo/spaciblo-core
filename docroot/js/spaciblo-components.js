@@ -246,6 +246,11 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.receivedTouchEvent = false // Set to true iff the first touch event arrives
 		this.receivedSpaceUpdate = false // Set to true when the first space update arrives
 
+		this.workerManager = new spaciblo.workers.Manager()
+		this.workerManager.addListener((...params) => {
+			this.handleWorkerRequestedPORTSChange(...params)
+		}, spaciblo.events.WorkerRequestedPORTSChange)
+
 		this.audioManager = new spaciblo.audio.SpaceManager()
 		this.audioManager.addListener(this.handleLocalSDP.bind(this), spaciblo.events.GeneratedSDPLocalDescription)
 		this.audioManager.addListener(this.handleLocalICE.bind(this), spaciblo.events.GeneratedICECandidate)
@@ -261,6 +266,9 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.audioControlComponent.addListener(() => {
 			this.mainVolumeVisualizer.handleMuted(false)
 		}, spaciblo.events.UnmuteRequested)
+
+		this.flocks = new be.api.Flocks()
+		this.flocks.fetch().catch(err => { console.error(err) })
 
 		this.lowerControlsEl = k.el.div({ class: 'lower-controls' }).appendTo(this.el)
 		this.lowerControlsEl.style.display = 'none' // Shown when the space is loaded
@@ -284,7 +292,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			this.microphoneVolumeVisualizer.handleMuted(this.audioManager.microphoneIsMuted)
 		})
 
-		this.renderer = new spaciblo.three.Renderer(this.inputManager, this.audioManager)
+		this.renderer = new spaciblo.three.Renderer(this.inputManager, this.audioManager, this.workerManager, this.flocks)
 		this.el.appendChild(this.renderer.el)
 
 		this.vrButton = k.el.div({ class:'vr-button' }, 'Enter VR').appendTo(this.el)
@@ -316,6 +324,11 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.touchMotionComponent.render()
 		this.mainVolumeVisualizer.start()
 		this.microphoneVolumeVisualizer.start()
+	}
+	handleWorkerRequestedPORTSChange(eventName, data){
+		let update = Object.assign({}, data)
+		delete update['name']
+		this.client.sendUpdatesRequest([update])
 	}
 	handleLocalSDP(eventName, description, destinationClientUUID){
 		this.client.sendRelaySDP(description, destinationClientUUID)

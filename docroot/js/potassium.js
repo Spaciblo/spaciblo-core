@@ -146,7 +146,7 @@ k.DataObject = k.eventMixin(class {
 				if(response.status != 200){
 					throw 'Fetch failed with status ' + response.status
 				}
-				return response.json() 
+				return response.json()
 			}).then(data => {
 				data = this.parse(data)
 				this._new = false
@@ -161,7 +161,7 @@ k.DataObject = k.eventMixin(class {
 		}.bind(this))
 	}
 	save(){
-		// Ask the server for data for this model or collection
+		// Tell the server to create (POST) or update (PUT) this model or collection
 		return new Promise(function(resolve, reject){
 			this.trigger('saving', this)
 			let options = Object.assign({}, this.fetchOptions)
@@ -175,7 +175,7 @@ k.DataObject = k.eventMixin(class {
 				if(response.status != 200){
 					throw 'Save failed with status ' + response.status
 				}
-				return response.json() 
+				return response.json()
 			}).then(data => {
 				data = this.parse(data)
 				this.reset(data)
@@ -348,6 +348,24 @@ k.DataCollection = class extends k.DataObject {
 		}
 		return this.dataObjects[index]
 	}
+	create(data, options={}){
+		// Creates an child instance and POSTs it to the collection
+		return new Promise(function(resolve, reject){
+			let fetchOptions = Object.assign(options, this.fetchOptions)
+			fetchOptions.method = 'post'
+			fetchOptions.body = JSON.stringify(data)
+			fetch(this.url, fetchOptions).then(response => {
+				if(response.status != 200){
+					throw 'Create failed with status ' + response.status
+				}
+				return response.json()
+			}).then(data => {
+				let dataObject = this.generateDataObject(data)
+				this.add(dataObject)
+				resolve(dataObject)
+			}).catch(reject)
+		}.bind(this))
+	}
 	add(dataObject){
 		if(dataObject instanceof k.DataObject == false){
 			dataObject = this.generateDataObject(dataObject)
@@ -356,6 +374,7 @@ k.DataCollection = class extends k.DataObject {
 			return
 		}
 		this.dataObjects.push(dataObject)
+		dataObject.collection = this
 		this.trigger('added', this, dataObject)
 		if(this._comparator && this._inReset == false && this._inAddBatch == false){
 			this.sort(this._comparator)
@@ -399,6 +418,7 @@ k.DataCollection = class extends k.DataObject {
 		}
 		this.dataObjects[index].removeListener(this._boundRelayListener)
 		this.dataObjects.splice(index, 1)
+		dataObject.collection = null
 		this.trigger('removed', this, dataObject)
 	}
 	reset(data){

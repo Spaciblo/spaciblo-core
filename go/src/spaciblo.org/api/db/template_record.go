@@ -7,21 +7,25 @@ import (
 const TemplateTable = "templates"
 
 type TemplateRecord struct {
-	Id     int64  `json:"id" db:"id, primarykey, autoincrement"`
-	UUID   string `json:"uuid" db:"u_u_i_d"`  // TODO make unique
-	Name   string `json:"name" db:"name"`     // A human readable name like "Top Hat" or "Mountain"
-	Source string `json:"source" db:"source"` // TODO make not null
-	Part   string `json:"part" db:"part"`     // The default AvatarPartRecord.Part name (if any)
-	Parent string `json:"parent" db:"parent"` // The default AvatarPartRecord.Parent name (if any)
+	Id           int64  `json:"id" db:"id, primarykey, autoincrement"`
+	UUID         string `json:"uuid" db:"u_u_i_d"`               // TODO make unique
+	Name         string `json:"name" db:"name"`                  // A human readable name like "Top Hat" or "Mountain"
+	Geometry     string `json:"geometry" db:"geometry"`          // The name of the graphics file to load with this template, like Something.obj or Something.gltf
+	ClientScript string `json:"clientScript" db:"client_script"` // A script to run as a WebWorker in the browser
+	SimScript    string `json:"simScript" db:"sim_script"`       // A script to run in the sim TODO add scripting to the sim
+	Part         string `json:"part" db:"part"`                  // The default AvatarPartRecord.Part name (if any)
+	Parent       string `json:"parent" db:"parent"`              // The default AvatarPartRecord.Parent name (if any)
 }
 
-func CreateTemplateRecord(name string, source string, part string, parent string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
+func CreateTemplateRecord(name string, geometry string, clientScript string, simScript string, part string, parent string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
 	record := &TemplateRecord{
-		Name:   name,
-		UUID:   be.UUID(),
-		Source: source,
-		Part:   part,
-		Parent: parent,
+		Name:         name,
+		UUID:         be.UUID(),
+		Geometry:     geometry,
+		ClientScript: clientScript,
+		SimScript:    simScript,
+		Part:         part,
+		Parent:       parent,
 	}
 	err := dbInfo.Map.Insert(record)
 	if err != nil {

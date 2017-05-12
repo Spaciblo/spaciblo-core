@@ -75,7 +75,7 @@ func (resource TemplatesResource) Post(request *be.APIRequest) (int, interface{}
 	if err != nil {
 		return 400, be.BadRequestError, responseHeader
 	}
-	record, err := apiDB.CreateTemplateRecord(data.Name, data.Source, data.Part, data.Parent, request.DBInfo)
+	record, err := apiDB.CreateTemplateRecord(data.Name, data.Geometry, data.ClientScript, data.SimScript, data.Part, data.Parent, request.DBInfo)
 	if err != nil {
 		return 500, be.APIError{
 			Id:      "db_error",
@@ -145,7 +145,9 @@ func (resource TemplateResource) Put(request *be.APIRequest) (int, interface{}, 
 
 	// Only some attributes can be updated
 	template.Name = updatedTemplate.Name
-	template.Source = updatedTemplate.Source
+	template.Geometry = updatedTemplate.Geometry
+	template.ClientScript = updatedTemplate.ClientScript
+	template.SimScript = updatedTemplate.SimScript
 	template.Parent = updatedTemplate.Parent
 	template.Part = updatedTemplate.Part
 	err = apiDB.UpdateTemplateRecord(template, request.DBInfo)

@@ -21,7 +21,7 @@ type FlockMemberRecord struct {
 	Orientation  string `json:"orientation" db:"orientation"` // "0,0,0,1"
 	Translation  string `json:"translation" db:"translation"` // "0,0,0"
 	Rotation     string `json:"rotation" db:"rotation"`       // "0,0,0"
-	Scale        string `json:"scale" db:"scale"`             // "0,0,0"
+	Scale        string `json:"scale" db:"scale"`             // "1,1,1"
 }
 
 func CreateFlockMemberRecord(flockUUID string, templateUUID string, dbInfo *be.DBInfo) (*FlockMemberRecord, error) {
@@ -33,7 +33,7 @@ func CreateFlockMemberRecord(flockUUID string, templateUUID string, dbInfo *be.D
 		Orientation:  "0,0,0,1",
 		Translation:  "0,0,0",
 		Rotation:     "0,0,0",
-		Scale:        "0,0,0",
+		Scale:        "1,1,1",
 	}
 	err := dbInfo.Map.Insert(record)
 	if err != nil {

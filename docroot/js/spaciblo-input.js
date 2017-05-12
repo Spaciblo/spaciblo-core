@@ -1,4 +1,5 @@
 'use strict'
+
 /*
 Input related code that handles user events from the keyboard, gamepad, etc
 */
@@ -86,7 +87,8 @@ spaciblo.input._defaultActions = [
 	'rotate-right',
 	'left-point',
 	'right-point',
-	'teleport'
+	'teleport',
+	'toggle-flock'
 ]
 spaciblo.input._defaultActions.forEach((name, index) => {
 	spaciblo.input.DefaultInputSchema.addAction(new spaciblo.input.InputAction(name))
@@ -108,7 +110,9 @@ spaciblo.input._defaultChords = [
 	[68, false, false, false, false, 'rotate-right'],
 
 	[37, false, false, false, false, 'rotate-left'],
-	[39, false, false, false, false, 'rotate-right']
+	[39, false, false, false, false, 'rotate-right'],
+
+	[88, false, false, false, false, 'toggle-flock']
 ]
 spaciblo.input._defaultChords.forEach((chord, index) => {
 	chord[5] = spaciblo.input.DefaultInputSchema.getAction(chord[5])
@@ -363,11 +367,11 @@ spaciblo.input.KeyMap.set(83, 's')
 spaciblo.input.KeyMap.set(68, 'd')
 spaciblo.input.KeyMap.set(82, 'r')
 spaciblo.input.KeyMap.set(70, 'f')
+spaciblo.input.KeyMap.set(88, 'x')
 spaciblo.input.KeyMap.set(16, 'shift')
 spaciblo.input.KeyMap.set(17, 'control')
 spaciblo.input.KeyMap.set(18, 'alt')
 spaciblo.input.KeyMap.set(224, 'meta')
-
 
 // A list of modifier keys like shift, alt, control, and meta
 spaciblo.input.MODIFIER_KEYCODES = [16, 17, 18, 224]

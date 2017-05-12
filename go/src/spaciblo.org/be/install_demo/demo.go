@@ -211,24 +211,34 @@ func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.Loc
 		return nil, err
 	}
 
-	// Find a glTF or obj source file
+	// Find a glTF or obj source file and scripts
 	var sourceInfo os.FileInfo
+	var clientScriptName = ""
+	var simScriptName = ""
 	for _, dataInfo := range dataFileInfos {
 		if dataInfo.Name() == name+".gltf" {
 			sourceInfo = dataInfo
-			break
+			continue
 		}
 		if dataInfo.Name() == name+".obj" {
 			sourceInfo = dataInfo
-			break
+			continue
+		}
+		if dataInfo.Name() == "client.js" {
+			clientScriptName = dataInfo.Name()
+			continue
+		}
+		if dataInfo.Name() == "sim.js" {
+			simScriptName = dataInfo.Name()
+			continue
 		}
 	}
 	if sourceInfo == nil {
-		logger.Fatal("Could not find a source file for name")
+		logger.Fatal("Could not find a geometry file for name")
 		return nil, nil
 	}
 
-	template, err := apiDB.CreateTemplateRecord(name, sourceInfo.Name(), "", "", dbInfo)
+	template, err := apiDB.CreateTemplateRecord(name, sourceInfo.Name(), clientScriptName, simScriptName, "", "", dbInfo)
 	logger.Printf("Creating template: %s: %s", name, template.UUID)
 	if err != nil {
 		logger.Fatal("Could not create a template: ", err)

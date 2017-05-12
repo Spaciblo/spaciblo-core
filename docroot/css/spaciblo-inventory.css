@@ -19,7 +19,7 @@
 .inventory-page-component .detail-component .delete-button {
 	position: absolute;
 	top: 15px;
-	right: 15px;
+	right: 35px;
 	color: red;
 }
 .inventory-page-component .detail-component input[type=text] {
@@ -27,6 +27,9 @@
 	padding: 5px 3px;
 }
 
+.template-detail-component .template-data-text-editor {
+	margin-top: 30px;
+}
 
 .template-detail-component input[type=text] {
 	width: 250px;
@@ -163,6 +166,42 @@ div.vector-editor-component input[type=text] {
 .template-picker-item-component:hover {
 	border: solid 1px #DDDDDD;
 	background-color: #EFEFEF;
+}
+
+.template-data-text-editor-ui-wrapper {
+	width: 100%;
+}
+
+.template-data-text-editor-ui-wrapper button {
+		margin-top: 10px;
+}
+
+.template-data-text-editor-ui-wrapper .save-button {
+	float: right;
+}
+
+.template-data-text-editor-ui-wrapper textarea {
+	width: 100%;
+	height: 30em;
+	border: solid 1px #CECECE;
+	white-space: pre;
+	padding: 10px;
+}
+
+.template-data-text-editor-ui-wrapper.full-screen {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	margin: 10px;
+	padding: 10px;
+	width: 96%;
+	height: 90vh;
+	border: solid 1px #CECECE;
+	background-color: rgba(200, 200, 200, 0.7);
+}
+
+.template-data-text-editor-ui-wrapper.full-screen textarea {
+	height: 90%;
 }
 
 .avatar-part-list-component {

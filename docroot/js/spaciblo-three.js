@@ -1,5 +1,9 @@
 "use strict";
 
+/*
+Three.js specific code for the scene graph, rendering, picking, and input management. 
+*/
+
 var spaciblo = spaciblo || {}
 spaciblo.three = spaciblo.three || {}
 spaciblo.three.events = spaciblo.three.events || {}
@@ -44,12 +48,24 @@ spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
 Renderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
 spaciblo.three.Renderer = k.eventMixin(class {
-	constructor(inputManager, audioManager){
+	constructor(inputManager, audioManager, workerManager, flocks){
 		this.inputManager = inputManager
 		this.audioManager = audioManager
+		this.workerManager = workerManager
+		this.flocks = flocks
+
+		this.activeFlock = null // Null until the user toggles the flock open, when this is set and members are fetched
+		this.flockIsLoaded = false
+		this.flockGroup = new THREE.Group()
+		this.flockGroup.name = 'flock'
+		this.flockGroup.visible = false
+
 		this.rootGroup = null // The spaciblo.three.Group at the root of the currently active space scene graph
 		this.templateLoader = new spaciblo.three.TemplateLoader()
+
 		this.clock = new THREE.Clock()
+		this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 10000)
+
 		this.scene = new THREE.Scene()
 		this.pivotPoint = new THREE.Object3D() // Will hold the rootGroup and let us move the scene around the camera instead of moving the camera around in the scene, which doesn't work in VR
 		this.pivotPoint.name = "PivotPoint"
@@ -59,7 +75,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			spaciblo.three.DEFAULT_HEAD_POSITION[2] * -1
 		)
 		this.scene.add(this.pivotPoint)
-		this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 10000)
+		this.scene.add(this.flockGroup)
 
 		this.shouldTeleport = false // Set to true when the input manager triggers an InputEventStarted for the 'teleport' action
 
@@ -97,8 +113,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		//this.renderer.shadowMap.enabled = true
 		//this.renderer.shadowMap.type = THREE.PCFShadowMap
 
-		this.el.addEventListener('mousemove', this._onDocumentMouseMove.bind(this), false)
-		this.inputManager.addListener((...params) => { this._handleInputEventStarted(...params) }, spaciblo.events.InputActionStarted)
+		this.el.addEventListener('mousemove', this._onMouseMove.bind(this), false)
+		this.el.addEventListener('click', this._onMouseClick.bind(this), false)
+		this.inputManager.addListener((...params) => {
+			this._handleInputEventStarted(...params)
+		}, spaciblo.events.InputActionStarted)
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
 		this._animate()
 	}
@@ -140,13 +159,60 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	_handleInputEventStarted(eventName, action){
 		if(action.name === 'teleport'){
 			this.shouldTeleport = true
+		} else if (action.name === 'toggle-flock'){
+			this._toggleFlock()
 		}
 	}
-	_onDocumentMouseMove(ev){
+	_toggleFlock(){
+		if(this.flockIsLoaded){
+			this.flockGroup.visible = !this.flockGroup.visible
+			return
+		}
+
+		// Is there an active flock? If not, do nothing
+		this.activeFlock = this.flocks.getActiveFlock()
+		if(this.activeFlock === null){
+			console.error('No active flock')
+			return
+		}
+
+		// Load the active flock
+		this.flockIsLoaded = true
+		this.flockGroup.visible = true
+		this.activeFlock.getMembers().fetch().then(() => {
+			for(let member of this.activeFlock.getMembers()){
+				this.flockGroup.add(this._createGroupFromFlockMember(member))
+			}
+		}).catch(err => {
+			console.error('Error fetching flock members', err)
+		})
+	}
+	_onMouseMove(ev){
 		ev.preventDefault()
 		let [offsetX, offsetY] = k.documentOffset(this.renderer.domElement)
 		this.mouse.x = ((ev.clientX - offsetX) / this.el.offsetWidth) * 2 - 1
 		this.mouse.y = - ((ev.clientY - offsetY) / this.el.offsetHeight) * 2 + 1
+	}
+	_onMouseClick(ev){
+		const intersectionEvent = this._getClickIntersection()
+		if(intersectionEvent === null) return
+
+		// TODO Route this through the InputManager
+
+		let obj = intersectionEvent.object
+		// Head up the hierarchy until we find a worker or the root
+		while(typeof obj.worker === 'undefined' && obj.parent !== null){
+			obj = obj.parent
+		}
+		if(obj.worker){
+			obj.worker.handleGroupClicked(obj)
+		}
+	}
+	_getClickIntersection(){
+		this.raycaster.setFromCamera(this.mouse, this.camera)
+		let intersects = this.raycaster.intersectObjects(this.scene.children, true)
+		if(intersects.length === 0) return null
+		return intersects[0]
 	}
 	_createDefaultSky(){
 		let vertexShader = document.getElementById('skyVertexShader').textContent
@@ -244,6 +310,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			} else {
 				this.scene.remove(group)
 			}
+			if(group.worker){
+				group.worker.handleGroupRemoved(group)
+				group.worker = null
+			}
 			for(let childId of group.getChildrenIds()){
 				this.objectMap.delete(childId)
 			}
@@ -289,8 +359,23 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 		}
 	}
+	_createGroupFromFlockMember(flockMember){
+		let group = new spaciblo.three.Group(this.workerManager)
+		group.name = 'flock member'
+		group.flockMember = flockMember
+		group.renderer = this
+		group.position.set(...flockMember.getFloatArray('position', [0,0,0]))
+		group.updatePosition.set(...flockMember.getFloatArray('position', [0,0,0]))
+		group.quaternion.set(...flockMember.getFloatArray('orientation', [0,0,0,1]))
+		group.updateQuaternion.set(...flockMember.getFloatArray('orientation', [0,0,0,1]))
+		group.rotation.set(...flockMember.getFloatArray('rotation', [0,0,0]))
+		group.translationMotion.set(...flockMember.getFloatArray('translation', [0,0,0]))
+		group.scale.set(...flockMember.getFloatArray('scale', [1,1,1]))
+		group.updateTemplate(flockMember.get('templateUUID'), this.templateLoader)
+		return group
+	}
 	_createGroupFromAddition(state){
-		let group = new spaciblo.three.Group()
+		let group = new spaciblo.three.Group(this.workerManager)
 		if(typeof state.id != 'undefined'){
 			this.objectMap.set(state.id, group)
 		}
@@ -730,7 +815,10 @@ spaciblo.three.parseSettingFloatArray = function(name, settings, defaultValue=nu
 	if(settings[name] === ''){
 		return defaultValue
 	}
-	let tokens = settings[name].split(',')
+	return spaciblo.three.parseFloatArray(settings[name])
+}
+spaciblo.three.parseFloatArray = function(value){
+	let tokens = value.split(',')
 	let results = []
 	for(let token of tokens){
 		let val = parseFloat(token)
@@ -790,8 +878,9 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 	}
 })
 
-spaciblo.three.Group = function(){
+spaciblo.three.Group = function(workerManager){
 	THREE.Group.call(this)
+	this.workerManager = workerManager
 	this.lastUpdate = null									// time in milliseconds of last update
 	this.updatePosition = new THREE.Vector3(0,0,0) 			// The position recieved from the sim
 	this.updateQuaternion = new THREE.Quaternion(0,0,0,1) 	// the orientation receive from the sim
@@ -837,22 +926,24 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 
 		this.template = templateLoader.addTemplate(templateUUID)
 		var loadIt = (loadingGroup) => {
-			const extension = loadingGroup.template.getSourceExtension()
+			const extension = loadingGroup.template.getGeometryExtension()
 			if(extension === 'gltf'){
-				spaciblo.three.GLTFLoader.load(loadingGroup.template.sourceURL()).then(gltf => {
+				spaciblo.three.GLTFLoader.load(loadingGroup.template.geometryURL()).then(gltf => {
 					loadingGroup.setGLTF(gltf)
 				}).catch(err => {
 					console.error('Could not fetch gltf', err)
 				})
 			} else if(extension === 'obj'){
-				spaciblo.three.OBJLoader.load(loadingGroup.template.getBaseURL(), loadingGroup.template.get('source')).then(obj => {
+				spaciblo.three.OBJLoader.load(loadingGroup.template.getBaseURL(), loadingGroup.template.get('geometry')).then(obj => {
 					loadingGroup.setOBJ(obj)
 				}).catch(err => {
 					console.error('Could not fetch obj', err)
 				})
 			} else {
-				console.error('Unknown extension for template source.', extension, loadingGroup.template)
+				console.error('Unknown extension for template geometry.', extension, loadingGroup.template)
 			}
+			loadingGroup.worker = this.workerManager.getOrCreateTemplateWorker(loadingGroup.template)
+			loadingGroup.worker.handleGroupAdded(loadingGroup)
 		}
 
 		if(this.template.loading === false){
@@ -944,7 +1035,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 	setOBJ: function(obj){
 		//this._enableShadows(obj)
 		this.templateNode = obj
-		this.add(obj)
+		this.add(this.templateNode)
 	},
 	setupParts: function(){
 		// Find the body nodes created by update additions from the simulator
@@ -1059,17 +1150,17 @@ spaciblo.three.findChildNodeByName = function(name, node, deepSearch=true, resul
 }
 
 spaciblo.three.OBJLoader = class {
-	static load(baseURL, source){
+	static load(baseURL, geometry){
 		return new Promise(function(resolve, reject){
 			const mtlLoader = new THREE.MTLLoader()
 			mtlLoader.setPath(baseURL)
-			const mtlName = source.split('.')[source.split(':').length - 1] + '.mtl'
+			const mtlName = geometry.split('.')[geometry.split(':').length - 1] + '.mtl'
 			mtlLoader.load(mtlName, (materials) => {
 				materials.preload()
 				let objLoader = new THREE.OBJLoader()
 				objLoader.setMaterials(materials)
 				objLoader.setPath(baseURL)
-				objLoader.load(source, (obj) => {
+				objLoader.load(geometry, (obj) => {
 					resolve(obj)
 				}, () => {} , (...params) => {
 					console.error('Failed to load obj', ...params)

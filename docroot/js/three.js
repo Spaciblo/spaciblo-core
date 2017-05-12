@@ -8445,7 +8445,7 @@
 
 				} else {
 
-					console.warn( msg );
+					console.error( msg );
 
 				}
 

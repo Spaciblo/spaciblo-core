@@ -8,6 +8,7 @@ spaciblo.events.SettingUpdated = 'spaciblo-setting-updated'
 spaciblo.events.NodeUpdated = 'spaciblo-node-updated'
 spaciblo.events.TemplatePicked = 'spaciblo-template-picked'
 spaciblo.events.NodeRemoved = 'spaciblo-node-removed'
+spaciblo.events.TemplateDataItemSelected = 'spaciblo-template-data-item-selected';
 
 /* 
 The number of miliseconds after input to ignore model updates so that
@@ -1277,25 +1278,39 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 		this.el.addClass('detail-component')
 		if(dataObject === null) throw 'TemplateDetailComponent requires a Template dataObject'
 
-		k.el.h3('Name').appendTo(this.el)
+		this.templateDataTextEditor = null
+
+		this.row = k.el.div({ class: 'row' }).appendTo(this.el)
+		this.leftCol = k.el.div({ class: 'col-3' }).appendTo(this.row)
+		this.rightCol = k.el.div({ class: 'col-9' }).appendTo(this.row)
+
+		k.el.h3('Name').appendTo(this.leftCol)
 		this.nameInput = new be.ui.TextInputComponent(dataObject, 'name', { autosave: true })
-		this.el.appendChild(this.nameInput.el)
+		this.leftCol.appendChild(this.nameInput.el)
 
-		k.el.h3('Source').appendTo(this.el)
-		this.sourceInput = new be.ui.TextInputComponent(dataObject, 'source', { autosave: true })
-		this.el.appendChild(this.sourceInput.el)
+		k.el.h3('Geometry').appendTo(this.leftCol)
+		this.geometryInput = new be.ui.TextInputComponent(dataObject, 'geometry', { autosave: true })
+		this.leftCol.appendChild(this.geometryInput.el)
 
-		k.el.h3('Parent').appendTo(this.el)
+		k.el.h3('Client Script').appendTo(this.leftCol)
+		this.clientScriptInput = new be.ui.TextInputComponent(dataObject, 'clientScript', { autosave: true })
+		this.leftCol.appendChild(this.clientScriptInput.el)
+
+		k.el.h3('Sim Script (TODO)').appendTo(this.leftCol)
+		this.simScriptInput = new be.ui.TextInputComponent(dataObject, 'simScript', { autosave: true })
+		this.leftCol.appendChild(this.simScriptInput.el)
+
+		k.el.h3('Parent').appendTo(this.leftCol)
 		this.parentInput = new be.ui.TextInputComponent(dataObject, 'parent', { autosave: true })
-		this.el.appendChild(this.parentInput.el)
+		this.leftCol.appendChild(this.parentInput.el)
 
-		k.el.h3('Part').appendTo(this.el)
+		k.el.h3('Part').appendTo(this.leftCol)
 		this.partInput = new be.ui.TextInputComponent(dataObject, 'part', { autosave: true })
-		this.el.appendChild(this.partInput.el)
+		this.leftCol.appendChild(this.partInput.el)
 
 		this.dropTarget = new be.ui.FileDropTarget()
 		this.dropTarget.addListener((...params) => { this._handleFilesDropped(...params) }, be.events.FilesDropped)
-		this.el.appendChild(this.dropTarget.el)
+		this.leftCol.appendChild(this.dropTarget.el)
 
 		this.templateDataList = new be.api.TemplateDataList([], {
 			uuid: this.dataObject.get('uuid')
@@ -1305,8 +1320,31 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 			itemOptions: { templateUUID: this.dataObject.get('uuid') }
 		})
 		this.templateDataListComponent.el.addClass('template-data-list-component')
-		this.el.appendChild(this.templateDataListComponent.el)
+		this.leftCol.appendChild(this.templateDataListComponent.el)
 		this.templateDataList.fetch()
+		this.templateDataList.addListener(this._handleTemplateDataClicked.bind(this), spaciblo.events.TemplateDataItemSelected)
+
+		this.addTemplateDataForm = k.el.form().appendTo(this.leftCol)
+		this.templateDataNameInput = k.el.input({
+			placeholder: 'data file name'
+		}).appendTo(this.addTemplateDataForm)
+		this.addTemplateDataSubmit = k.el.button('add').appendTo(this.addTemplateDataForm)
+		this.listenTo('click', this.addTemplateDataSubmit, ev =>{
+			ev.preventDefault()
+			let name = this.templateDataNameInput.value.trim()
+			if(name === '') return false
+			this.templateDataNameInput.value = ''
+			this._hideTemplateDataForm()
+			this.templateDataList.create({ name: name }).catch((...params) => {
+				console.error('error', ...params)
+			})
+			return false
+		})
+		this.addTemplateDataLink = k.el.button({ class: 'add-template-data-link small-button' }, '+').appendTo(this.leftCol)
+		this.listenTo('click', this.addTemplateDataLink, ev => {
+			this._showTemplateDataForm()
+		})
+		this._hideTemplateDataForm()
 
 		this.deleteLink = k.el.button({ class: 'small-button delete-button' }, 'Delete').appendTo(this.el)
 		this.listenTo('click', this.deleteLink, this._handleDeleteClick, this)
@@ -1314,10 +1352,30 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 	cleanup(){
 		super.cleanup()
 		this.nameInput.cleanup()
-		this.sourceInput.cleanup()
+		this.geometryInput.cleanup()
 		this.parentInput.cleanup()
 		this.partInput.cleanup()
 		this.dropTarget.cleanup()
+	}
+	_hideTemplateDataForm(){
+		this.addTemplateDataForm.style.display = 'none'
+		this.addTemplateDataLink.style.display = 'block'
+	}
+	_showTemplateDataForm(){
+		this.addTemplateDataForm.style.display = 'block'
+		this.addTemplateDataLink.style.display = 'none'
+	}
+	_handleTemplateDataClicked(eventName, templateData){
+		if(templateData.get('name').toLowerCase().endsWith('.js')){
+			this._showDataTextEditor(templateData)
+		}
+	}
+	_showDataTextEditor(templateData){
+		if(this.templateDataTextEditor !== null){
+			this.templateDataTextEditor.el.remove()
+		}
+		this.templateDataTextEditor = new spaciblo.components.TemplateDataTextEditor(templateData, { template: this.dataObject })
+		this.rightCol.appendChild(this.templateDataTextEditor.el)
 	}
 	_handleDeleteClick(){
 		this.dataObject.delete().then(() => {
@@ -1344,6 +1402,80 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 }
 
 /*
+A basic text editor for text data from TemplateData objects
+*/
+spaciblo.components.TemplateDataTextEditor = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('template-data-text-editor')
+		this.isFullScreen = false
+
+		this.uiWrapper = k.el.div({ class: 'template-data-text-editor-ui-wrapper'})
+		this.el.appendChild(this.uiWrapper)
+
+		this.textEl = k.el.textarea()
+		this.textEl.spellcheck = false
+		this.uiWrapper.appendChild(this.textEl)
+		this.listenTo('keydown', this.textEl, ev => {
+			if(ev.keyCode !== 9) return true
+			ev.preventDefault()
+			if (document.selection) {
+				// IE
+				var sel = document.selection.createRange();
+				sel.text = '	';
+			} else if (this.textEl.selectionStart || this.textEl.selectionStart === 0) {
+				// Others
+				var startPos = this.textEl.selectionStart;
+				var endPos = this.textEl.selectionEnd;
+				this.textEl.value = this.textEl.value.substring(0, startPos) + '	' + this.textEl.value.substring(endPos, this.textEl.value.length);
+				this.textEl.selectionStart = startPos + 1;
+				this.textEl.selectionEnd = startPos + 1;
+			} else {
+				this.textEl.value += '	';
+			}
+			return false
+		})
+
+		this.saveButton = k.el.button({
+			class: 'save-button',
+			accesskey: 's'
+		}, 'save')
+		this.uiWrapper.appendChild(this.saveButton)
+		this.listenTo('click', this.saveButton, ev => { 
+			this.dataObject.saveText(this.options.template.get('uuid'), this.textEl.value)
+		})
+
+		this.fullScreenButton = k.el.button('full screen')
+		this.uiWrapper.appendChild(this.fullScreenButton)
+		this.listenTo('click', this.fullScreenButton, this._toggleFullScreen.bind(this))
+
+		this.dataObject.getData(options.template.get('uuid')).then(data => {
+			this.textEl.value = data
+		}).catch(err => {
+			console.error(err)
+		})
+
+		this.dataObject.addListener(() => {
+			this.el.remove()
+			this.cleanup()
+		}, 'deleted', true)
+	}
+	_toggleFullScreen(ev){
+		if(this.isFullScreen){
+			this.isFullScreen = false
+			document.body.removeChild(this.uiWrapper)
+			this.el.appendChild(this.uiWrapper)
+			this.uiWrapper.removeClass('full-screen')
+		} else {
+			this.isFullScreen = true
+			this.el.removeChild(this.uiWrapper)
+			document.body.appendChild(this.uiWrapper)
+			this.uiWrapper.addClass('full-screen')
+		}
+	}
+}
+
+/*
 TemplateDataItemComponent renders a TemplateData as part of a list
 */
 spaciblo.components.TemplateDataItemComponent = class extends k.Component {
@@ -1351,12 +1483,19 @@ spaciblo.components.TemplateDataItemComponent = class extends k.Component {
 		super(dataObject, options)
 		this.el.addClass('template-data-item-component')
 		this.el.addClass('item-component')
-		this.el.appendChild(k.el.span(dataObject.get('name')))
+		this.nameEl = k.el.span(dataObject.get('name'))
+		this.el.appendChild(this.nameEl)
 		this.deleteLink = k.el.button({ class: 'small-button' }, 'x').appendTo(this.el)
 		this.listenTo('click', this.deleteLink, this._handleDeleteClick, this)
+		this.listenTo('click', this.nameEl, this._handleClick, this)
 	}
-	_handleDeleteClick(){
+	_handleClick(){
+		this.dataObject.collection.trigger(spaciblo.events.TemplateDataItemSelected, this.dataObject)
+	}
+	_handleDeleteClick(ev){
+		ev.preventDefault()
 		this.dataObject.set('uuid', this.options.templateUUID)
 		this.dataObject.delete()
+		return false
 	}
 }

@@ -352,7 +352,7 @@ func TestTemplateAPI(t *testing.T) {
 	AssertEqual(t, record0.UUID, record1.UUID)
 	AssertEqual(t, record0.Name, record1.Name)
 
-	be.AssertStatus(t, 404, "GET", testApi.URL()+"/template/"+record0.UUID+"/data/"+record0.Source)
+	be.AssertStatus(t, 404, "GET", testApi.URL()+"/template/"+record0.UUID+"/data/"+record0.Geometry)
 
 	data0, err := apiDB.CreateTemplateDataRecord(record0.Id, "odo.gltf", "bogusKey", dbInfo)
 	AssertNil(t, err)
@@ -360,12 +360,12 @@ func TestTemplateAPI(t *testing.T) {
 
 	file0, err := be.TempFile(tempDir, 10)
 	AssertNil(t, err)
-	key, err := testApi.API.FileStorage.Put(record0.Source, file0)
+	key, err := testApi.API.FileStorage.Put(record0.Geometry, file0)
 	AssertNil(t, err)
-	_, err = apiDB.CreateTemplateDataRecord(record0.Id, record0.Source, key, dbInfo)
+	_, err = apiDB.CreateTemplateDataRecord(record0.Id, record0.Geometry, key, dbInfo)
 	AssertNil(t, err)
 
-	reader, err := client.GetFile("/template/" + record0.UUID + "/data/" + record0.Source)
+	reader, err := client.GetFile("/template/" + record0.UUID + "/data/" + record0.Geometry)
 	AssertNil(t, err)
 	AssertNotNil(t, reader)
 }
