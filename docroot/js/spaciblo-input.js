@@ -6,6 +6,88 @@ Input related code that handles user events from the keyboard, gamepad, etc
 
 var spaciblo = spaciblo || {}
 spaciblo.input = spaciblo.input || {}
+spaciblo.events = spaciblo.events || {}
+
+spaciblo.events.EnvironmentChanged = 'spaciblo-environment-changed'
+
+/*
+Environment exposes what we know about the hardware and current state of the browser as it relates to VR
+Do we have touch events? Do we have orientation events? Are we currently presenting in an HMD?
+This information is used by the input manager to determine what schema should be active.
+This information is also used by the SpacesComponent to show or hide the appropriate overlay widgets.
+*/
+spaciblo.input.Environment = k.eventMixin(class {
+	constructor(){
+		this._hasWebVR = false
+		this._inWebVR = false
+		this._inCardboard = false
+		this._inHeadset = false
+		this._hasTouch = false
+		this._hasOrientation = false
+
+		// Listen for the first orientation event and set _hasOrientation if it arrives
+		let orientationFunc = ev => {
+			window.removeEventListener('deviceorientation', orientationFunc)
+			this._hasOrientation = true
+			this.trigger(spaciblo.events.EnvironmentChanged, this)
+		}
+		window.addEventListener('deviceorientation', orientationFunc, false)
+
+		// Listen for the first touch event and set _hasTouch if it arrives
+		let touchFunc = ev => {
+			window.removeEventListener('touchstart', touchFunc)
+			this._hasTouch = true
+			this.trigger(spaciblo.events.EnvironmentChanged, this)
+		}
+		window.addEventListener('touchstart', touchFunc, false)
+	}
+
+	// True if there is a WebVR display available
+	get hasWebVR(){ return this._hasWebVR }
+	set hasWebVR(val){
+		if(val === this._hasWebVR) return
+		this._hasWebVR = val
+		this.trigger(spaciblo.events.EnvironmentChanged, this)
+	}
+
+	// True if currently presenting in a WebVR display
+	get inWebVR(){ return this._inWebVR }
+	set inWebVR(val){
+		if(val === this._inWebVR) return
+		this._inWebVR = val
+		this.trigger(spaciblo.events.EnvironmentChanged, this)
+	}
+
+	// True if the device is able to run cardboard
+	get hasCardboard(){
+		return this.hasTouch && this.hasOrientation && this.isMobile
+	}
+
+	// True if presenting in Cardboard
+	get inCardboard(){ return this._inCardboard }
+	set inCardboard(val){
+		if(val === this._inCardboard) return
+		this._inCardboard = val
+		this.trigger(spaciblo.events.EnvironmentChanged, this)
+	}
+
+	// True if presenting Cardboard or a WebVR display
+	get inHeadset(){ return this._inHeadset }
+	set inHeadset(val){
+		if(val === this._inHeadset) return
+		this._inHeadset = val
+		this.trigger(spaciblo.events.EnvironmentChanged, this)
+	}
+
+	// True as soon as we receive at least one touch event
+	get hasTouch(){ return this._hasTouch }
+
+	// True as soon as we receive at least one orientation event
+	get hasOrientation(){ return this._hasOrientation }
+
+	// True if the browser is recognized as a mobile browser
+	get isMobile(){ return be.isMobile.any() }
+})
 
 // Some combination of keys (e.g. shift control z)
 spaciblo.input.KeyChord = class {
@@ -87,7 +169,6 @@ spaciblo.input._defaultActions = [
 	'rotate-right',
 	'left-point',
 	'right-point',
-	'teleport',
 	'toggle-flock'
 ]
 spaciblo.input._defaultActions.forEach((name, index) => {
@@ -124,9 +205,10 @@ InputManager tracks user input (keyboard, gamepad, etc) and translates them into
 It also keeps a few 3D data structures (rotation, translation) used by the renderer in each frame render
 */
 spaciblo.input.InputManager = k.eventMixin(class {
-	constructor(inputSchema){
+	constructor(environment){
+		this.environment = environment
 		this.throttledSendAvatarUpdate = be.ui.throttle(this._sendAvatarUpdate, 100)
-		this.inputSchema = inputSchema
+		this.inputSchema = spaciblo.input.DefaultInputSchema
 		this.currentActions = new Set()
 		this.currentKeyChord = null
 		this.gamepadIsTriggering = false // Temporary hack to track whether the main gampad button is down

@@ -4,7 +4,6 @@ var spaciblo = spaciblo || {}
 spaciblo.events = spaciblo.events || {}
 spaciblo.components = spaciblo.components || {}
 
-spaciblo.events.SpaceSelected = 'spaciblo-space-selected'
 spaciblo.events.RendererExitedVR = 'spaciblo-exited-vr'
 spaciblo.events.AvatarMotionChanged = 'spaciblo-avatar-motion-changed'
 spaciblo.events.TouchMotion = 'spaciblo-touch-motion'
@@ -236,27 +235,37 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('spaces-component')
-		this.inputManager = new spaciblo.input.InputManager(spaciblo.input.DefaultInputSchema)
-		this.client = null // Will be a spaciblo.api.Client when a Space is selected
-		this.clientUUID = null
 
-		this.inVR = false // True while presenting in an HMD
+		this.client = null // Will be a spaciblo.api.Client when a Space is selected
+		this.clientUUID = null // An ID for our client that is provided by the WebSocket service
+
 		this.vrDisplay = null // VR display data when we have a VR display available
 
-		this.receivedTouchEvent = false // Set to true iff the first touch event arrives
 		this.receivedSpaceUpdate = false // Set to true when the first space update arrives
 
+		// The environment tracks state like whether we're in a headset or have touch events
+		this.environment = new spaciblo.input.Environment()
+		this.environment.addListener((eventName, env) => {
+			this.updateOverlays()
+		}, spaciblo.events.EnvironmentChanged)
+
+		// The input manager maps user input from a variety of devices into abstract input events
+		this.inputManager = new spaciblo.input.InputManager(this.environment)
+
+		// The worker manager handles the scripts from each Template type that are run in web workers
 		this.workerManager = new spaciblo.workers.Manager()
 		this.workerManager.addListener((...params) => {
 			this.handleWorkerRequestedPORTSChange(...params)
 		}, spaciblo.events.WorkerRequestedPORTSChange)
 
+		// The audio manager tracks WebRTC audio streams for each remote user
 		this.audioManager = new spaciblo.audio.SpaceManager()
 		this.audioManager.addListener(this.handleLocalSDP.bind(this), spaciblo.events.GeneratedSDPLocalDescription)
 		this.audioManager.addListener(this.handleLocalICE.bind(this), spaciblo.events.GeneratedICECandidate)
 		this.audioManager.addListener(this.handleAudioRemoteUserAdded.bind(this), spaciblo.events.AudioRemoteUserAdded)
 		this.audioManager.addListener(this.handleAudioRemoteUserRemoved.bind(this), spaciblo.events.AudioRemoteUserRemoved)
 
+		// The audio control component displays wee level widgets for local and remote audio streams
 		this.audioControlComponent = new spaciblo.components.AudioControlComponent(this.audioManager.mainGainNode)
 		this.audioControlComponent.el.style.display = 'none'
 		this.el.appendChild(this.audioControlComponent.el)
@@ -267,12 +276,15 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			this.mainVolumeVisualizer.handleMuted(false)
 		}, spaciblo.events.UnmuteRequested)
 
+		// Flocks are the set of local apps that you run, separate from the things in the space you're visiting
 		this.flocks = new be.api.Flocks()
 		this.flocks.fetch().catch(err => { console.error(err) })
 
+		// The lower controls element contain the audio widgets
 		this.lowerControlsEl = k.el.div({ class: 'lower-controls' }).appendTo(this.el)
 		this.lowerControlsEl.style.display = 'none' // Shown when the space is loaded
 
+		// Local volume level widget
 		this.mainVolumeVisualizer = new spaciblo.components.AudioVolumeVisualizer(this.audioManager.mainAnalysisNode)
 		this.lowerControlsEl.appendChild(this.mainVolumeVisualizer.el)
 		this.listenTo('click', this.mainVolumeVisualizer.el, (event) => {
@@ -285,6 +297,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			}
 		})
 
+		// Local microphone level widget
 		this.microphoneVolumeVisualizer = new spaciblo.components.AudioVolumeVisualizer(this.audioManager.microphoneAnalysisNode)
 		this.lowerControlsEl.appendChild(this.microphoneVolumeVisualizer.el)
 		this.listenTo('click', this.microphoneVolumeVisualizer.el, () => {
@@ -292,11 +305,14 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			this.microphoneVolumeVisualizer.handleMuted(this.audioManager.microphoneIsMuted)
 		})
 
+		// The renderer manages the Three.js scene graph and WebGL canvas
 		this.renderer = new spaciblo.three.Renderer(this.inputManager, this.audioManager, this.workerManager, this.flocks)
 		this.el.appendChild(this.renderer.el)
 
+		// Toggles the view into WebVR headsets
 		this.vrButton = k.el.div({ class:'vr-button' }, 'Enter VR').appendTo(this.el)
 
+		// Allows users on touch screens to drag in order to move around the space
 		this.touchMotionComponent = new spaciblo.components.TouchMotionComponent()
 		this.el.appendChild(this.touchMotionComponent.el)
 		this.touchMotionComponent.addListener(this.handleTouchMotion.bind(this), spaciblo.events.TouchMotion)
@@ -304,9 +320,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 
 		this.updateSize()
 
-		window.addEventListener('touchstart', ev => { this.handleTouchStart(ev) }, false)
 		window.addEventListener('resize', () => { this.updateSize() })
-		this.renderer.addListener(this.handleSpaceSelected.bind(this), spaciblo.events.SpaceSelected)
 		this.renderer.addListener(this.handleExitedVR.bind(this), spaciblo.events.RendererExitedVR)
 		this.inputManager.addListener(this.handleAvatarMotion.bind(this), spaciblo.events.AvatarMotionChanged)
 		spaciblo.getVRDisplays().then(this.handleVRDisplays.bind(this))
@@ -319,9 +333,32 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.renderer.cleanup()
 		this.touchMotionComponent.cleanup()
 	}
+	updateOverlays(){
+		// Show or hide the motion controller
+		if(this.environment.inHeadset){
+			this.touchMotionComponent.el.style.display = 'none'
+		} else if(this.environment.hasTouch && this.client !== null) {
+			this.touchMotionComponent.el.style.display = 'block'
+			this.touchMotionComponent.render()
+		}
+
+		// Show or hide the enter VR button
+		if(this.environment.inHeadset){
+			this.vrButton.style.display = 'none'
+		} else if(this.environment.hasWebVR && this.client !== null) {
+			this.vrButton.style.display = 'inline-block'
+		}
+
+		// Show or hide the lower controls, including audio widgets
+		if(this.environment.inHeadset){
+			this.lowerControlsEl.style.display = 'none'
+		} else if(this.client !== null){
+			this.lowerControlsEl.style.display = 'block'
+		}
+	}
 	handleAddedToDOM(){
 		this.updateSize()
-		this.touchMotionComponent.render()
+		this.updateOverlays()
 		this.mainVolumeVisualizer.start()
 		this.microphoneVolumeVisualizer.start()
 	}
@@ -342,14 +379,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	handleAudioRemoteUserRemoved(eventName, remoteUser){
 		this.audioControlComponent.removeRemoteUser(remoteUser)
 	}
-	handleTouchStart(ev){
-		if(this.receivedTouchEvent === false){
-			this.receivedTouchEvent = true
-			if(this.client !== null && this.inVR === false){
-				this.touchMotionComponent.el.style.display = 'block'
-			}
-		}
-	}
 	handleTouchMotion(eventName, deltaX, deltaY){
 		this.inputManager.handleTouchMotion(deltaX, deltaY)
 	}
@@ -358,22 +387,21 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	}
 	handleVRDisplays(displays){
 		if(displays.length === 0){
+			this.environment.hasWebVR = false
 			return
 		}
 		this.vrDisplay = displays[0] // TODO handle more than one display
 		this.vrButton.addEventListener('click', this.handleVRButtonClick.bind(this))
+		this.environment.hasWebVR = true
 	}
 	handleVRButtonClick(ev){
 		ev.preventDefault()
 		this.enterVR()
 	}
 	handleExitedVR(renderer){
-		this.inVR = false
-		if(this.receivedTouchEvent){
-			this.touchMotionComponent.el.style.display = 'block'
-		}
+		this.environment.inHeadset = false
+		this.environment.inWebVR = false
 		this.updateSize()
-		this.vrButton.style.display = 'inline-block'
 	}
 	enterVR() {
 		if(this.vrDisplay === null){
@@ -384,14 +412,12 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			this.vrDisplay.requestPresent([{
 				source: this.renderer.el
 			}]).then(() => {
-				this.inVR = true
-				if(this.receivedTouchEvent){
-					this.touchMotionComponent.el.style.display = 'none'
-				}
-				this.vrButton.style.display = 'none'
+				this.environment.inWebVR = true
+				this.environment.inHeadset = true
 				this.renderer.setVRDisplay(this.vrDisplay)
 			}).catch(e => {
-				this.inVR = false
+				this.environment.inWebVR = false
+				this.environment.inHeadset = false
 				console.error('Unable to init VR', e)
 			})
 		}
@@ -418,9 +444,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			doIt()
 		}
 	}
-	handleSpaceSelected(eventName, space){
-		document.location.hash = '#' + space.get('uuid')
-	}
 	showSpace(space){
 		if(this.client != null){
 			console.error("Oops, can't open a second space, yet")
@@ -430,15 +453,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.client.addListener(this.handleClientMessages.bind(this), spaciblo.events.ClientMessageReceived)
 		this.client.open().then(() => {
 			this.client.joinSpace(space)
-			if(this.vrDisplay){
-				this.vrButton.style.display = 'inline-block'
-			}
-			if(this.receivedTouchEvent){
-				this.touchMotionComponent.el.style.display = 'block'
-				this.touchMotionComponent.render()
-			}
-
-			this.lowerControlsEl.style.display = 'block'
+			this.updateOverlays()
 			this.audioManager.connectToLocalMicrophone().then(stream => {
 				this.microphoneVolumeVisualizer.handleConnected(true)
 			}).catch((...params) => {
@@ -751,6 +766,9 @@ spaciblo.components.AudioWaveVisualizer = class extends spaciblo.components.Audi
 	}
 }
 
+/*
+Shows a touchable UI for dragging to translate around the space
+*/
 spaciblo.components.TouchMotionComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
@@ -862,6 +880,9 @@ spaciblo.components.TouchMotionComponent = class extends k.Component {
 	}
 }
 
+/*
+Returns a promise that returns an array of WebVR displays
+*/
 spaciblo.getVRDisplays = function(){
 	return new Promise((resolve, reject) => {
 		if(spaciblo.hasWebVR() === false){
@@ -876,6 +897,9 @@ spaciblo.getVRDisplays = function(){
 	})
 }
 
+/*
+Returns true if the browser has the WebVR APIs, regardless of whether a VR rig is attached
+*/
 spaciblo.hasWebVR = function(){
 	return typeof VRFrameData === 'function'
 }

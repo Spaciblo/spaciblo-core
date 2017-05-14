@@ -27,7 +27,6 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 	- avatar enter
 	- avatar move within
 	- avatar exit
-	...
 	*/
 	constructor(template, manager){
 		this.template = template

@@ -178,7 +178,7 @@ be.ui.CollectionComponent = class extends k.Component {
 		this.el.addClass('be-collection-component')
 		if(dataObject instanceof k.DataCollection === false) throw 'CollectionComponent requires a DataCollection dataObject'
 		this._inGroupChange = false // True while resetting or other group change
- 		this._dataObjectComponents = new Map() // dataObject.id -> k.Component
+		this._dataObjectComponents = new Map() // dataObject.id -> k.Component
 
 		this._ul = k.el.ul().appendTo(this.el)
 
@@ -533,4 +533,23 @@ be.ui.throttle = function(func, wait, leading=true, trailing=true) {
 	}
 
 	return throttled
+}
+
+// Use feature detection where available, but sometimes you just need to know...
+be.isMobile = {
+	Windows: function() {
+		return /IEMobile/i.test(navigator.userAgent);
+	},
+	Android: function() {
+		return /Android/i.test(navigator.userAgent);
+	},
+	BlackBerry: function() {
+		return /BlackBerry/i.test(navigator.userAgent);
+	},
+	iOS: function() {
+		return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+	},
+	any: function() {
+		return (base.isMobile.Windows() || base.isMobile.Android() || base.isMobile.BlackBerry() || base.isMobile.iOS());
+	}
 }

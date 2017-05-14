@@ -676,7 +676,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						}
 
 						if(handNode === null){
-							spaciblo.input.throttledConsoleLog('Gamepad has no known hand', gamepad)
+							//spaciblo.input.throttledConsoleLog('Gamepad has no known hand', gamepad)
 							continue
 						}
 
