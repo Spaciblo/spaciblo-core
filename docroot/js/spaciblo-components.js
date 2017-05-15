@@ -306,7 +306,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		})
 
 		// The renderer manages the Three.js scene graph and WebGL canvas
-		this.renderer = new spaciblo.three.Renderer(this.inputManager, this.audioManager, this.workerManager, this.flocks)
+		this.renderer = new spaciblo.three.Renderer(this.environment, this.inputManager, this.audioManager, this.workerManager, this.flocks)
 		this.el.appendChild(this.renderer.el)
 
 		// Toggles the view into WebVR headsets

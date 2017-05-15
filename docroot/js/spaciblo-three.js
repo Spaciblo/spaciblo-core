@@ -48,7 +48,8 @@ spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
 Renderer holds a Three.js scene and is used by SpacesComponent to render spaces
 */
 spaciblo.three.Renderer = k.eventMixin(class {
-	constructor(inputManager, audioManager, workerManager, flocks){
+	constructor(environment, inputManager, audioManager, workerManager, flocks){
+		this.environment = environment
 		this.inputManager = inputManager
 		this.audioManager = audioManager
 		this.workerManager = workerManager
@@ -515,6 +516,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			// This is a non-VR frame
 			requestAnimationFrame(this._boundAnimate)
 		}
+		this.environment.updateGamepadInfo()
 		this.inputManager.updateGamepadActions()
 
 		// If there's an avatar group, handle any input rotation or translation from the inputManager

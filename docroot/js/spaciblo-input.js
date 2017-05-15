@@ -10,6 +10,16 @@ spaciblo.events = spaciblo.events || {}
 
 spaciblo.events.EnvironmentChanged = 'spaciblo-environment-changed'
 
+// Gamepad IDs for various types of gamepads
+spaciblo.input.GAMEPAD_6DOF_IDS = [
+	'Oculus Touch (Left)',
+	'Oculus Touch (Right)',
+	'OpenVR Gamepad'
+]
+spaciblo.input.GAMEPAD_3DOF_IDS = [
+	'Daydream Controller'
+]
+
 /*
 Environment exposes what we know about the hardware and current state of the browser as it relates to VR
 Do we have touch events? Do we have orientation events? Are we currently presenting in an HMD?
@@ -24,6 +34,9 @@ spaciblo.input.Environment = k.eventMixin(class {
 		this._inHeadset = false
 		this._hasTouch = false
 		this._hasOrientation = false
+		this._gamepadCount = 0
+		this._6dofControllerCount = 0
+		this._3dofControllerCount = 0
 
 		// Listen for the first orientation event and set _hasOrientation if it arrives
 		let orientationFunc = ev => {
@@ -40,9 +53,59 @@ spaciblo.input.Environment = k.eventMixin(class {
 			this.trigger(spaciblo.events.EnvironmentChanged, this)
 		}
 		window.addEventListener('touchstart', touchFunc, false)
+
+		// Track available gamepad types
+		window.addEventListener('gamepadconnected', this.updateGamepadInfo.bind(this))
+		window.addEventListener('gamepaddisconnected', this.updateGamepadInfo.bind(this))
 	}
 
-	// True if there is a WebVR display available
+	updateGamepadInfo(){
+		/*
+		Updates some general information about what gamepads are connected.
+		Triggers an EnvironmentChanged event if there is a change.
+		This is called when gamepads are connected or disconnected and at the top of every frame render.
+		*/
+		let gamepadCount = 0
+		let sixDOFControllerCount = 0
+		let threeDOFControllerCount = 0
+		for(let gamepad of navigator.getGamepads()){
+			if(gamepad === null) continue
+			gamepadCount += 1
+			if(typeof gamepad.pose === 'undefined' || gamepad.pose === null) continue
+			if(gamepad.pose.hasOrientation && gamepad.pose.hasPosition){
+				sixDOFControllerCount += 1
+			} else if(gamepad.pose.hasOrientation){
+				threeDOFControllerCount += 1
+			}
+		}
+		if(gamepadCount === this._gamepadCount && sixDOFControllerCount === this._6dofControllerCount && threeDOFControllerCount === this._3dofControllerCount){
+			// No change
+			return
+		}
+		this._gamepadCount = gamepadCount
+		this._6dofControllerCount = sixDOFControllerCount
+		this._3dofControllerCount = threeDOFControllerCount
+		this.trigger(spaciblo.events.EnvironmentChanged, this)
+	}
+
+	// True if any sort of gamepad is connected
+	get hasGamepads(){ return this._gamepadCount > 0 }
+
+	// Returns the number of gamepads that are connected
+	get gamepadCount(){ return this._gamepadCount }
+
+	// True if a gamepad with only orientation (not position) tracking is connected
+	get has3DOFControllers(){ return this._3dofControllerCount > 0 }
+	get threeDOFControllerCount(){ return this._3dofControllerCount }
+
+	// True if a gamepad with both orientation and position tracking is connected
+	get has6DOFControllers(){ return this._has6DOFControllers }
+	get sixDOFControllerCount(){ return this._6dofControllerCount }
+
+	// The number of controllers connected that are neither 6dof nor 3dof tracked controllers
+	get untrackedControllerCount(){ return this._gamepadCount - this._6dofControllerCount - this._3dofControllerCount }
+
+	// True if there is a WebVR display available (whether presenting or not)
 	get hasWebVR(){ return this._hasWebVR }
 	set hasWebVR(val){
 		if(val === this._hasWebVR) return
@@ -79,7 +142,7 @@ spaciblo.input.Environment = k.eventMixin(class {
 		this.trigger(spaciblo.events.EnvironmentChanged, this)
 	}
 
-	// True as soon as we receive at least one touch event
+	// True as soon as we receive at least one touch screen event
 	get hasTouch(){ return this._hasTouch }
 
 	// True as soon as we receive at least one orientation event
@@ -89,7 +152,7 @@ spaciblo.input.Environment = k.eventMixin(class {
 	get isMobile(){ return be.isMobile.any() }
 })
 
-// Some combination of keys (e.g. shift control z)
+// Some combination of keyboard (not gamepad) keys (e.g. shift + control + z)
 spaciblo.input.KeyChord = class {
 	constructor(keyCode, shift=false, control=false, alt=false, meta=false, action=null){
 		this.keyCode = keyCode
@@ -109,7 +172,7 @@ spaciblo.input.KeyChord = class {
 		this.alt = ev.altKey
 		this.meta = ev.metaKey
 	}
-	keysEqual(obj){
+	chordEqual(obj){
 		if(typeof obj !== 'object') return false
 		if(obj instanceof spaciblo.input.KeyChord === false) return false
 		if(obj.keyCode !== this.keyCode) return false
@@ -120,17 +183,111 @@ spaciblo.input.KeyChord = class {
 	}
 }
 
-// A high level user action, like 'translate-forward', used by InputSchema
+spaciblo.input.XBOX_ONE_CONTROLLER_ID_REGEX = /xinput/
+spaciblo.input.DAYDREAM_CONTROLLER_ID_REGEX = /Daydream Controller/
+spaciblo.input.OPENVR_CONTROLLER_ID_REGEX = /OpenVR Gamepad/
+spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX = /Oculus Touch \((Left|Right)\)/
+spaciblo.input.OCULUS_REMOTE_ID_REGEX = /Oculus Remote/
+
+spaciblo.input.CONTROLLER_ID_REGEXES = [
+	spaciblo.input.XBOX_ONE_CONTROLLER_ID_REGEX,
+	spaciblo.input.DAYDREAM_CONTROLLER_ID_REGEX,
+	spaciblo.input.OPENVR_CONTROLLER_ID_REGEX,
+	spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX,
+	spaciblo.input.OCULUS_REMOTE_ID_REGEX
+]
+
+spaciblo.input.UNKNOWN_CONTROLLER_ID_REGEX = /unknown/
+
+// Some combination of gamepad (XBox controller, Oculus Touch, Vive controller...) input
+spaciblo.input.ControllerChord = class {
+	constructor(idRegex=null, hand=null, buttons=null, axes=null, action=null){
+		this.idRegex = idRegex || spaciblo.input.UNKNOWN_CONTROLLER_ID_REGEX
+		this.hand = hand
+		this.buttons = buttons
+		this.axes = axes
+		this.action = action
+	}
+	chordEqual(obj){
+		if(this._typeIsEqual(this, obj) === false) return false
+		if(this.idRegex !== obj.idRegex) return false
+		if(this.hand !== obj.hand) return false
+		// Either party can indicate with a null that they don't care
+		if(this.buttons !== null && obj.buttons !== null){
+			if(this.buttons.length !== obj.buttons.length) return false
+			for(let i=0; i < this.buttons.length; i++){
+				// Either party can indicate with a null that they don't care
+				if(this.buttons[i].pressed !== null && obj.buttons[i].pressed !== null){
+					if(this.buttons[i].pressed !== obj.buttons[i].pressed) return false
+				}
+				// Either party can indicate with a null that they don't care
+				if(this.buttons[i].touched !== null && obj.buttons[i].touch !== null){
+					if(this.buttons[i].touched !== obj.buttons[i].touched) return false
+				}
+				// Either party can indicate with a null that they don't care
+				// value can also be a function so that it can match a range
+				if(this.buttons[i].value !== null && obj.buttons[i].value !== null){
+					if(typeof this.buttons[i].value === 'function'){
+						if(this.buttons[i].value(obj.buttons[i].value) === false) return false
+					} else if(typeof obj.buttons[i].value === 'function'){
+						if(obj.buttons[i].value(this.buttons[i].value) === false) return false
+					} else {
+						if(this.buttons[i].value !== obj.buttons[i].value) return false
+					}
+				}
+			}
+		}
+
+		// Either party can indicate with a null that they don't care
+		if(this.axes !== null && obj.axes !== null){
+			if(this.axes.length !== obj.axes.length) return false
+			for(let i=0; i < this.axes.length; i++){
+				if(this.axes[i] === null || obj.axes[i] === null) continue
+				if(typeof this.axes[i] === 'function'){
+					if(this.axes[i](obj.axes[i]) === false) return false
+				} else if(typeof obj.axes[i] === 'function'){
+					if(obj.axes[i](this.axes[i]) === false) return false
+				} else {
+					if(this.axes[i] !== obj.axes[i]) return false
+				}
+			}
+		}
+		return true
+	}
+	setFromGamepad(gamepad){
+		this.hand = gamepad.hand || ""
+		this.buttons = gamepad.buttons.map(button => {
+			return {
+				pressed: button.pressed,
+				touched: button.touched,
+				value: button.pressed ? button.value : 0
+			}
+		})
+		this.axes = [...gamepad.axes]
+		this.idRegex = spaciblo.input.CONTROLLER_ID_REGEXES.find(reg => {
+			return gamepad.id.match(reg) !== null
+		}) || spaciblo.input.UNKNOWN_CONTROLLER_ID_REGEX
+	}
+	_typeIsEqual(obj1, obj2){
+		if(typeof obj1 !== typeof obj2) return false
+		if(obj1 === null && obj2 !== null) return false
+		if(obj2 === null && obj1 !== null) return false
+		return true
+	}
+}
+
+// A high level user action, like 'translate-forward', 'point', or 'grip' used by InputSchema
 spaciblo.input.InputAction = class {
 	constructor(name){
 		this.name = name
 	}
 }
 
-// Maps KeyChords to Actions (eventually other action types)
+// Maps KeyChords and ControllerChords to Actions (eventually other action types)
 spaciblo.input.InputSchema = class {
 	constructor(){
 		this.keyChords = new Set()
+		this.controllerChords = new Set()
 		this.actions = new Map() // name to InputAction
 	}
 	addAction(action){
@@ -148,7 +305,22 @@ spaciblo.input.InputSchema = class {
 	}
 	getKeyChordAction(keyChord){
 		for(let chord of this.keyChords){
-			if(chord.keysEqual(keyChord)){
+			if(chord.chordEqual(keyChord)){
+				return chord.action
+			}
+		}
+		return null
+	}
+	addControllerChord(controllerChord){
+		if(controllerChord.action === null){
+			console.error('Cannot add a ControllerChord with a null action', controllerChord)
+			return
+		}
+		this.controllerChords.add(controllerChord)
+	}
+	getControllerChordAction(controllerChord){
+		for(let chord of this.controllerChords){
+			if(chord.chordEqual(controllerChord)){
 				return chord.action
 			}
 		}
@@ -160,7 +332,7 @@ spaciblo.input.InputSchema = class {
 spaciblo.input.DefaultInputSchema = new spaciblo.input.InputSchema()
 spaciblo.input._defaultActions = [
 	'translate-forward',
-	'translate-back',
+	'translate-backward',
 	'translate-left',
 	'translate-right',
 	'translate-up',
@@ -169,17 +341,74 @@ spaciblo.input._defaultActions = [
 	'rotate-right',
 	'left-point',
 	'right-point',
-	'toggle-flock'
+	'teleport',
+	'toggle-flock',
+	'left-point',
+	'right-point'
 ]
 spaciblo.input._defaultActions.forEach((name, index) => {
 	spaciblo.input.DefaultInputSchema.addAction(new spaciblo.input.InputAction(name))
 })
-spaciblo.input._defaultChords = [
+
+// TODO figure out a nicer way to encapsulate the chords for each type of controller (vive, daydream, etc) and each mode (flat, cardboard, WebVR)
+spaciblo.input._generateOculusTouchChord = function(hand, buttons=true, axes=false, action=null){
+	return new spaciblo.input.ControllerChord(
+		spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX,
+		hand,
+		buttons ? [
+			{ pressed: false, touched: null, value: null },
+			{ pressed: false, touched: null, value: null },
+			{ pressed: false, touched: null, value: null },
+			{ pressed: false, touched: null, value: null },
+			{ pressed: false, touched: null, value: null },
+			{ pressed: false, touched: null, value: null }
+		] : null,
+		axes ? [
+			null,
+			null
+		] : null,
+		action
+	)
+}
+
+var _tempChord = spaciblo.input._generateOculusTouchChord('left', true, true, spaciblo.input.DefaultInputSchema.getAction('translate-forward'))
+_tempChord.axes[1] = (value) => { return value < -0.3 }
+spaciblo.input.DefaultInputSchema.addControllerChord(_tempChord)
+
+_tempChord = spaciblo.input._generateOculusTouchChord('left', true, true, spaciblo.input.DefaultInputSchema.getAction('translate-backward'))
+_tempChord.axes[1] = (value) => { return value > 0.3 }
+spaciblo.input.DefaultInputSchema.addControllerChord(_tempChord)
+
+_tempChord = spaciblo.input._generateOculusTouchChord('left', true, true, spaciblo.input.DefaultInputSchema.getAction('translate-left'))
+_tempChord.axes[0] = (value) => { return value > 0.3 }
+spaciblo.input.DefaultInputSchema.addControllerChord(_tempChord)
+
+_tempChord = spaciblo.input._generateOculusTouchChord('left', true, true, spaciblo.input.DefaultInputSchema.getAction('translate-right'))
+_tempChord.axes[0] = (value) => { return value < -0.3 }
+spaciblo.input.DefaultInputSchema.addControllerChord(_tempChord)
+
+_tempChord = spaciblo.input._generateOculusTouchChord('right', true, true, spaciblo.input.DefaultInputSchema.getAction('rotate-left'))
+_tempChord.axes[0] = (value) => { return value < -0.3 }
+spaciblo.input.DefaultInputSchema.addControllerChord(_tempChord)
+
+_tempChord = spaciblo.input._generateOculusTouchChord('right', true, true, spaciblo.input.DefaultInputSchema.getAction('rotate-right'))
+_tempChord.axes[0] = (value) => { return value > 0.3 }
+spaciblo.input.DefaultInputSchema.addControllerChord(_tempChord)
+
+_tempChord = spaciblo.input._generateOculusTouchChord('left', true, false, spaciblo.input.DefaultInputSchema.getAction('left-point'))
+_tempChord.buttons[0].touched = true
+spaciblo.input.DefaultInputSchema.addControllerChord(_tempChord)
+
+_tempChord = spaciblo.input._generateOculusTouchChord('right', true, false, spaciblo.input.DefaultInputSchema.getAction('right-point'))
+_tempChord.buttons[0].touched = true
+spaciblo.input.DefaultInputSchema.addControllerChord(_tempChord)
+
+spaciblo.input._defaultKeyChords = [
 	[38, false, false, false, false, 'translate-forward'],
 	[87, false, false, false, false, 'translate-forward'],
 
-	[40, false, false, false, false, 'translate-back'],
-	[83, false, false, false, false, 'translate-back'],
+	[40, false, false, false, false, 'translate-backward'],
+	[83, false, false, false, false, 'translate-backward'],
 
 	[69, false, false, false, false, 'translate-left'],
 	[81, false, false, false, false, 'translate-right'],
@@ -195,7 +424,7 @@ spaciblo.input._defaultChords = [
 
 	[88, false, false, false, false, 'toggle-flock']
 ]
-spaciblo.input._defaultChords.forEach((chord, index) => {
+spaciblo.input._defaultKeyChords.forEach((chord, index) => {
 	chord[5] = spaciblo.input.DefaultInputSchema.getAction(chord[5])
 	spaciblo.input.DefaultInputSchema.addKeyChord(new spaciblo.input.KeyChord(...chord))
 })
@@ -211,14 +440,13 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		this.inputSchema = spaciblo.input.DefaultInputSchema
 		this.currentActions = new Set()
 		this.currentKeyChord = null
-		this.gamepadIsTriggering = false // Temporary hack to track whether the main gampad button is down
+		this.currentControllerChords = new Map() // gamepad index -> ControllerChord or null
+
 		this.keyboardTranslationDelta = 1.9 // Meters per second
 		this.keyboardRotationDelta = 1.2 // Radians per second
 
 		this.touchTranslationDelta = 2.5 // Meters per second
 		this.touchRotationDelta = 1.8 // Radians per second
-
-		this._gamepads = {} // Gamepad.index -> Gamepad object
 
 		// When the user input indicates they want to rotate or translate, these are non zero
 		this._inputRotation =    [0,0,0]
@@ -226,8 +454,6 @@ spaciblo.input.InputManager = k.eventMixin(class {
 
 		document.onkeydown = ev => { this._handleKeyDown(ev) }
 		document.onkeyup   = ev => { this._handleKeyUp(ev)   }
-		window.addEventListener('gamepadconnected', ev => { this.handleGamepadConnected(ev) })
-		window.addEventListener('gamepaddisconnected', ev => { this.handleGamepadDisconnected(ev) })
 	}
 	isActionActive(name){
 		let action = this.inputSchema.getAction(name)
@@ -241,47 +467,53 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		/*
 		Iff there is a change to the action activity, add or delete it in currentActions and trigger an InputActionStarted or InputActionEnded event.
 		*/
+		if(typeof action === 'undefined' || action === null) return
 		if(active === null){
 			active = !this.currentActions.has(action)
 		}
 		if(active === true  && this.currentActions.has(action) === false){
 			this.currentActions.add(action)
+			console.log('started action', action)
 			this.trigger(spaciblo.events.InputActionStarted, action)
 		}
 		if(active === false && this.currentActions.has(action) === true){
 			this.currentActions.delete(action)
+			console.log('ended action', action)
 			this.trigger(spaciblo.events.InputActionEnded, action)
 		}
 	}
 
-	// Gamepad input methods
-	handleGamepadConnected(ev){
-		this._gamepads[ev.gamepad.index] = ev.gamepad
-		this.trigger(spaciblo.events.GamepadAdded, ev.gamepad)
-	}
-	handleGamepadDisconnected(ev){
-		delete this._gamepads[ev.gamepad.index]
-		this.trigger(spaciblo.events.GamepadRemoved, ev.gamepad)
-	}
 	updateGamepadActions(){
 		/*
 		Called by the renderer in every frame to update actions based on gamepad(s) state
-		TODO Add controller type detection and button schemas
 		*/
-		let isTriggering = false
-		for(let gamepad of navigator.getGamepads()){
-			if(typeof gamepad === 'undefined' || gamepad === null) continue
-			let handName = gamepad.hand === 'left' ? 'left' : 'right'
-			if(Array.isArray(gamepad.buttons) && gamepad.buttons.length > 0){
-				let pointAction = handName === 'left' ? this.inputSchema.getAction('left-point') : this.inputSchema.getAction('right-point')
-				let isPointing = gamepad.buttons[0].pressed === true || gamepad.buttons[0].touched === true
-				this._toggleAction(pointAction, isPointing)
-				if(gamepad.buttons[0].pressed === true) isTriggering = true
+		// For each gamepad, update the list of current controller chords and notify for any changes
+		let gamepads = navigator.getGamepads()
+		for(let i=0; i < gamepads.length; i++){
+			let currentChord = this.currentControllerChords.get(i)
+			if(gamepads[i] === null){
+				// The gamepad disappeared, so make sure we don't have old actions for it
+				if(typeof currentChord !== 'undefined'){
+					this.currentControllerChords.delete(i)
+					this._toggleAction(currentChord.action, false)
+				}
+				continue
 			}
-		}
-		if(isTriggering !== this.gamepadIsTriggering){
-			this.gamepadIsTriggering = isTriggering
-			this._toggleAction(this.inputSchema.getAction('teleport'), isTriggering)
+			// Ok, it's a live gamepad so let's create a chord and see if it matches its existing chord (if any)
+			let newChord = new spaciblo.input.ControllerChord()
+			newChord.setFromGamepad(gamepads[i])
+			newChord.action = this.inputSchema.getControllerChordAction(newChord)
+			this.currentControllerChords.set(i, newChord)
+			if(typeof currentChord !== 'undefined'){
+				if(currentChord.action === newChord.action){
+					continue
+				}
+				this._toggleAction(currentChord.action, false)
+			}
+			this._toggleAction(newChord.action, true)
+			if(this._updateVectors()){
+				this._sendAvatarUpdate()
+			}
 		}
 	}
 
@@ -330,7 +562,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		if(keyChord.isModifier()){
 			keyChord.keyCode = this.currentKeyChord.keyCode
 		}
-		if(this.currentKeyChord.keysEqual(keyChord)){
+		if(this.currentKeyChord.chordEqual(keyChord)){
 			this._replaceKeyChord(null)
 			return
 		}
@@ -346,7 +578,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 			// Roll the old keyCode into the new chord
 			keyChord.keyCode = this.currentKeyChord.keyCode
 		}
-		if(this.currentKeyChord && this.currentKeyChord.keysEqual(keyChord)){
+		if(this.currentKeyChord && this.currentKeyChord.chordEqual(keyChord)){
 			return
 		}
 		this._replaceKeyChord(keyChord)
@@ -390,7 +622,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 			this._inputTranslation[0] = 0
 			this._inputTranslation[1] = 0
 			this._inputTranslation[2] = -1 * this.keyboardTranslationDelta
-		} else if(this.isActionActive('translate-back')){
+		} else if(this.isActionActive('translate-backward')){
 			this._inputTranslation[0] = 0
 			this._inputTranslation[1] = 0
 			this._inputTranslation[2] = this.keyboardTranslationDelta
