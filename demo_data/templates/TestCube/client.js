@@ -10,7 +10,8 @@ MyWorker = class extends spaciblo.client.TemplateWorker {
 		console.log('added', data)
 	}
 	handleGroupClicked(data){
-		this._runSpinCycle(data)
+		console.log('group clicked', data)
+		//this._runSpinCycle(data)
 	}
 	_runSpinCycle(data){
 		if(this.isAnimatingMap.get(data.id) === true) return

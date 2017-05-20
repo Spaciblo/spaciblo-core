@@ -78,6 +78,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.scene.add(this.pivotPoint)
 		this.scene.add(this.flockGroup)
 
+		// _inputRotation and _inputTranslation are used to rotate and translate the local avatar
+		// They are usually set by a client worker script based on input action events
+		this._inputRotation = [0,0,0]
+		this._inputTranslation = [0,0,0]
 		this.shouldTeleport = false // Set to true when the input manager triggers an InputEventStarted for the 'teleport' action
 
 		this.clientUUID = null	// Will be null until set in this.setClientUUID()
@@ -122,6 +126,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
 		this._animate()
 	}
+
+	set inputRotation(value){ this._inputRotation = [...value] }
+	set inputTranslation(value){ this._inputTranslation = [...value] }
+
 	get avatarPosition(){
 		if(this.avatarGroup === null) return null
 		return [this.rootGroup.position.x * -1, this.rootGroup.position.y * -1, this.rootGroup.position.z * -1]
@@ -311,10 +319,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			} else {
 				this.scene.remove(group)
 			}
-			if(group.worker){
-				group.worker.handleGroupRemoved(group)
-				group.worker = null
-			}
 			for(let childId of group.getChildrenIds()){
 				this.objectMap.delete(childId)
 			}
@@ -358,6 +362,20 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			if(group === this.rootGroup && group.settings['background-color']){
 				this.setBackgroundColor(group.settings['background-color'])
 			}
+		}
+
+		// Now that we've performed all of the graph changes, notify the client script workers
+		for(let addition of additions){
+			if(this.objectMap.has(addition.id) === false){
+				continue
+			}
+			this.workerManager.handleGroupAdded(this.objectMap.get(addition.id))
+		}
+		for(let deletion of deletions){
+			if(this.objectMap.has(deletion) === true){
+				continue
+			}
+			this.workerManager.handleGroupDeleted(deletion)
 		}
 	}
 	_createGroupFromFlockMember(flockMember){
@@ -530,16 +548,16 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 			// Apply reversed input rotation to the pivot point
 			this.rotationEuler.fromArray([
-				this.inputManager.inputRotation[0] * -delta,
-				this.inputManager.inputRotation[1] * -delta,
-				this.inputManager.inputRotation[2] * -delta
+				this._inputRotation[0] * -delta,
+				this._inputRotation[1] * -delta,
+				this._inputRotation[2] * -delta
 			])
 			this.cameraRotationQuaternion.setFromEuler(this.rotationEuler)
 			this.pivotPoint.quaternion.multiply(this.cameraRotationQuaternion)
 			this.pivotPoint.updateMatrixWorld()
 
 			// Apply input translation, where the translation vector is relative to avatar forward
-			this.translationVector.fromArray(this.inputManager.inputTranslation)
+			this.translationVector.fromArray(this._inputTranslation)
 			this.translationVector.x *= -1
 			if(this.translationVector.length() > 0){
 				// Get the avatar's orientation vector
@@ -901,6 +919,25 @@ spaciblo.three.Group = function(workerManager){
 	this.rightLine = null
 }
 spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototype), {
+	serializeForWorker: function(){
+		// returns a serializable data structure to hand to client side scripts running in web workers
+		let results = {
+			name: this.name,
+			id: this.state.id,
+			position: [this.position.x, this.position.y, this.position.z],
+			orientation: [this.quaternion.x, this.quaternion.y, this.quaternion.z, this.quaternion.w],
+			rotation: [this.rotationMotion.x, this.rotationMotion.y, this.rotationMotion.z],
+			translation: [this.translationMotion.x, this.translationMotion.y, this.translationMotion.z],
+			scale: [this.scale.x, this.scale.y, this.scale.z],
+			children: []
+		}
+		for(let child of this.children){
+			if(typeof child.serializeForWorker === 'function'){
+				results.children.push(child.serializeForWorker())
+			}
+		}
+		return results
+	},
 	getChildrenIds: function(results=[]){
 		if(this.children === null){
 			return results
@@ -919,6 +956,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		if(typeof templateUUID === 'undefined' || templateUUID.length == 0) return
 		if(this.templateNode){
 			this.remove(this.templateNode)
+			this.workerManager.handleTemplateUnset(this.state.id, this.templateNode.templateUUID)
 			this.templateNode = null
 		}
 		if(templateUUID == spaciblo.api.RemoveKeyIndicator){
@@ -927,25 +965,27 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		}
 
 		this.template = templateLoader.addTemplate(templateUUID)
+		this.worker = this.workerManager.getOrCreateTemplateWorker(this.template)
+
 		var loadIt = (loadingGroup) => {
 			const extension = loadingGroup.template.getGeometryExtension()
+			const templateUUID = loadingGroup.template.get('uuid')
 			if(extension === 'gltf'){
 				spaciblo.three.GLTFLoader.load(loadingGroup.template.geometryURL()).then(gltf => {
-					loadingGroup.setGLTF(gltf)
+					loadingGroup.setGLTF(gltf, templateUUID)
 				}).catch(err => {
 					console.error('Could not fetch gltf', err)
 				})
 			} else if(extension === 'obj'){
 				spaciblo.three.OBJLoader.load(loadingGroup.template.getBaseURL(), loadingGroup.template.get('geometry')).then(obj => {
-					loadingGroup.setOBJ(obj)
+					loadingGroup.setOBJ(obj, templateUUID)
 				}).catch(err => {
 					console.error('Could not fetch obj', err)
 				})
 			} else {
 				console.error('Unknown extension for template geometry.', extension, loadingGroup.template)
 			}
-			loadingGroup.worker = this.workerManager.getOrCreateTemplateWorker(loadingGroup.template)
-			loadingGroup.worker.handleGroupAdded(loadingGroup)
+			loadingGroup.worker.handleTemplateGroupAdded(loadingGroup)
 		}
 
 		if(this.template.loading === false){
@@ -1030,13 +1070,15 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			}
 		}
 	},
-	setGLTF: function(gltf){
+	setGLTF: function(gltf, templateUUID){
 		this.templateNode = gltf.scene
+		this.templateNode.templateUUID = templateUUID
 		this.add(gltf.scene)
 	},
-	setOBJ: function(obj){
+	setOBJ: function(obj, templateUUID){
 		//this._enableShadows(obj)
 		this.templateNode = obj
+		this.templateNode.templateUUID = templateUUID
 		this.add(this.templateNode)
 	},
 	setupParts: function(){

@@ -253,10 +253,13 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.inputManager = new spaciblo.input.InputManager(this.environment)
 
 		// The worker manager handles the scripts from each Template type that are run in web workers
-		this.workerManager = new spaciblo.workers.Manager()
+		this.workerManager = new spaciblo.workers.Manager(this.inputManager)
 		this.workerManager.addListener((...params) => {
 			this.handleWorkerRequestedPORTSChange(...params)
 		}, spaciblo.events.WorkerRequestedPORTSChange)
+		this.workerManager.addListener((...params) => {
+			this.handleWorkerRequestedAvatarChange(...params)
+		}, spaciblo.events.WorkerRequestedAvatarUpdate)
 
 		// The audio manager tracks WebRTC audio streams for each remote user
 		this.audioManager = new spaciblo.audio.SpaceManager()
@@ -309,6 +312,9 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.renderer = new spaciblo.three.Renderer(this.environment, this.inputManager, this.audioManager, this.workerManager, this.flocks)
 		this.el.appendChild(this.renderer.el)
 
+		// The worker manager needs to be able to query the scene graph, so we hand it the renderer for that purpose
+		this.workerManager.setRenderer(this.renderer)
+
 		// Toggles the view into WebVR headsets
 		this.vrButton = k.el.div({ class:'vr-button' }, 'Enter VR').appendTo(this.el)
 
@@ -322,7 +328,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 
 		window.addEventListener('resize', () => { this.updateSize() })
 		this.renderer.addListener(this.handleExitedVR.bind(this), spaciblo.events.RendererExitedVR)
-		this.inputManager.addListener(this.handleAvatarMotion.bind(this), spaciblo.events.AvatarMotionChanged)
 		spaciblo.getVRDisplays().then(this.handleVRDisplays.bind(this))
 	}
 	cleanup(){
@@ -366,6 +371,15 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		let update = Object.assign({}, data)
 		delete update['name']
 		this.client.sendUpdatesRequest([update])
+	}
+	handleWorkerRequestedAvatarChange(eventName, data){
+		if(this.client === null){
+			return
+		}
+		// Avatar translation is relative to the avatar orientation, so translation of 0,0,-1 is always forward even if the head/camera is pointed elsewhere
+		this.renderer.inputRotation = data.rotation
+		this.renderer.inputTranslation = data.translation
+		this.client.sendAvatarUpdate(this.renderer.avatarPosition, this.renderer.avatarOrientation, this.renderer.avatarBodyUpdates, data.translation, data.rotation)
 	}
 	handleLocalSDP(eventName, description, destinationClientUUID){
 		this.client.sendRelaySDP(description, destinationClientUUID)
@@ -421,13 +435,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 				console.error('Unable to init VR', e)
 			})
 		}
-	}
-	handleAvatarMotion(eventName, translation, rotation){
-		if(this.client === null){
-			return
-		}
-		// Avatar translation is relative to the avatar orientation, so translation of 0,0,-1 is always forward even if the head/camera is pointed elsewhere
-		this.client.sendAvatarUpdate(this.renderer.avatarPosition, this.renderer.avatarOrientation, this.renderer.avatarBodyUpdates, translation, rotation)
 	}
 	handleSpaceRoute(spaceUUID){
 		let doIt = () => {

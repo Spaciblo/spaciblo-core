@@ -283,7 +283,7 @@ spaciblo.input.InputAction = class {
 	}
 }
 
-// Maps KeyChords and ControllerChords to Actions (eventually other action types)
+// Maps KeyChords and ControllerChords to Actions
 spaciblo.input.InputSchema = class {
 	constructor(){
 		this.keyChords = new Set()
@@ -431,7 +431,6 @@ spaciblo.input._defaultKeyChords.forEach((chord, index) => {
 
 /*
 InputManager tracks user input (keyboard, gamepad, etc) and translates them into a list of current Actions
-It also keeps a few 3D data structures (rotation, translation) used by the renderer in each frame render
 */
 spaciblo.input.InputManager = k.eventMixin(class {
 	constructor(environment){
@@ -441,16 +440,6 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		this.currentActions = new Set()
 		this.currentKeyChord = null
 		this.currentControllerChords = new Map() // gamepad index -> ControllerChord or null
-
-		this.keyboardTranslationDelta = 1.9 // Meters per second
-		this.keyboardRotationDelta = 1.2 // Radians per second
-
-		this.touchTranslationDelta = 2.5 // Meters per second
-		this.touchRotationDelta = 1.8 // Radians per second
-
-		// When the user input indicates they want to rotate or translate, these are non zero
-		this._inputRotation =    [0,0,0]
-		this._inputTranslation = [0,0,0] // xyz translation in camera direction
 
 		document.onkeydown = ev => { this._handleKeyDown(ev) }
 		document.onkeyup   = ev => { this._handleKeyUp(ev)   }
@@ -473,20 +462,16 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		}
 		if(active === true  && this.currentActions.has(action) === false){
 			this.currentActions.add(action)
-			console.log('started action', action)
 			this.trigger(spaciblo.events.InputActionStarted, action)
 		}
 		if(active === false && this.currentActions.has(action) === true){
 			this.currentActions.delete(action)
-			console.log('ended action', action)
 			this.trigger(spaciblo.events.InputActionEnded, action)
 		}
 	}
 
+	// Called by the renderer in every frame to update actions based on gamepad(s) state
 	updateGamepadActions(){
-		/*
-		Called by the renderer in every frame to update actions based on gamepad(s) state
-		*/
 		// For each gamepad, update the list of current controller chords and notify for any changes
 		let gamepads = navigator.getGamepads()
 		for(let i=0; i < gamepads.length; i++){
@@ -511,37 +496,38 @@ spaciblo.input.InputManager = k.eventMixin(class {
 				this._toggleAction(currentChord.action, false)
 			}
 			this._toggleAction(newChord.action, true)
-			if(this._updateVectors()){
-				this._sendAvatarUpdate()
-			}
 		}
 	}
 
 	// Touch input methods
-	/*
-	deltaX and deltaY should be in range [-1,1]
-	*/
 	handleTouchMotion(deltaX, deltaY){
-		let oldRotation = [...this.inputRotation]
-		let oldTranslation = [...this.inputTranslation]
-		this._inputTranslation[0] = 0
-		this._inputTranslation[1] = 0
-		this._inputTranslation[2] = this.touchTranslationDelta * deltaY
-		this._inputRotation[0] = 0
-		this._inputRotation[1] = this.touchRotationDelta * -deltaX
-		this._inputRotation[2] = 0
-		if(oldRotation.every((val, index) => { return val === this._inputRotation[index] }) === false || oldTranslation.every((val, index) => { return val === this._inputTranslation[index] }) === false) {
-			this.throttledSendAvatarUpdate()
+		// deltaX and deltaY should be in range [-1,1]
+		if(deltaX > 0.3){
+			this._toggleAction(this.inputSchema.getAction('translate-forward'), true)
+			this._toggleAction(this.inputSchema.getAction('translate-backward'), false)
+		} else if(deltaX < 0.3) {
+			this._toggleAction(this.inputSchema.getAction('translate-forward'), false)
+			this._toggleAction(this.inputSchema.getAction('translate-backward'), true)
+		} else {
+			this._toggleAction(this.inputSchema.getAction('translate-forward'), false)
+			this._toggleAction(this.inputSchema.getAction('translate-backward'), false)
+		}
+		if(deltaY > 0.3){
+			this._toggleAction(this.inputSchema.getAction('rotate-right'), true)
+			this._toggleAction(this.inputSchema.getAction('rotate-left'), false)
+		} else if(deltaY < 0.3) {
+			this._toggleAction(this.inputSchema.getAction('rotate-right'), false)
+			this._toggleAction(this.inputSchema.getAction('rotate-left'), true)
+		} else {
+			this._toggleAction(this.inputSchema.getAction('rotate-right'), false)
+			this._toggleAction(this.inputSchema.getAction('rotate-left'), false)
 		}
 	}
 	handleTouchEnd(){
-		this._inputTranslation[0] = 0
-		this._inputTranslation[1] = 0
-		this._inputTranslation[2] = 0
-		this._inputRotation[0] = 0
-		this._inputRotation[1] = 0
-		this._inputRotation[2] = 0
-		this.throttledSendAvatarUpdate()
+		this._toggleAction(this.inputSchema.getAction('translate-forward'), false)
+		this._toggleAction(this.inputSchema.getAction('translate-backward'), false)
+		this._toggleAction(this.inputSchema.getAction('rotate-left'), false)
+		this._toggleAction(this.inputSchema.getAction('rotate-right'), false)
 	}
 
 	// Keyboard input methods
@@ -596,75 +582,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 				this._toggleAction(this.currentKeyChord.action, true)
 			}
 		}
-		if(this._updateVectors()){
-			this._sendAvatarUpdate()
-		}
 	}
-
-	// Returns true if the rotation or translation changed
-	_updateVectors(){
-		let oldRotation = [...this.inputRotation]
-		let oldTranslation = [...this.inputTranslation]
-		if(this.isActionActive('rotate-left')){
-			this._inputRotation[0] = 0
-			this._inputRotation[1] = this.keyboardRotationDelta
-			this._inputRotation[2] = 0
-		} else if(this.isActionActive('rotate-right')){
-			this._inputRotation[0] = 0
-			this._inputRotation[1] = -1 * this.keyboardRotationDelta
-			this._inputRotation[2] = 0
-		} else {
-			this._inputRotation[0] = 0
-			this._inputRotation[1] = 0
-			this._inputRotation[2] = 0
-		}
-		if(this.isActionActive('translate-forward')){
-			this._inputTranslation[0] = 0
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = -1 * this.keyboardTranslationDelta
-		} else if(this.isActionActive('translate-backward')){
-			this._inputTranslation[0] = 0
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = this.keyboardTranslationDelta
-		} else if(this.isActionActive('translate-left')){
-			this._inputTranslation[0] = this.keyboardTranslationDelta
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = 0
-		} else if(this.isActionActive('translate-right')){
-			this._inputTranslation[0] = -1 * this.keyboardTranslationDelta
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = 0
-		} else if(this.isActionActive('translate-up')){
-			this._inputTranslation[0] = 0
-			this._inputTranslation[1] = 1 * this.keyboardTranslationDelta
-			this._inputTranslation[2] = 0
-		} else if(this.isActionActive('translate-down')){
-			this._inputTranslation[0] = 0
-			this._inputTranslation[1] = -1 * this.keyboardTranslationDelta
-			this._inputTranslation[2] = 0
-		} else {
-			this._inputTranslation[0] = 0
-			this._inputTranslation[1] = 0
-			this._inputTranslation[2] = 0
-		}
-		// Return true if anything changed
-		if(oldRotation.every((val, index) => { return val === this._inputRotation[index] }) === false) {
-			return true
-		}
-		if(oldTranslation.every((val, index) => { return val === this._inputTranslation[index] }) === false) {
-			return true
-		}
-		return false
-	}
-
-	_sendAvatarUpdate() {
-		// Consider using this.throttledSendAvatarUpdate in code that's called for each frame
-		this.trigger(spaciblo.events.AvatarMotionChanged, this._inputTranslation, this._inputRotation)
-	}
-
-	// Query methods called by the renderer during frame rendering
-	get inputTranslation() { return this._inputTranslation }
-	get inputRotation() { return this._inputRotation }
 })
 
 // Map key codes to names
