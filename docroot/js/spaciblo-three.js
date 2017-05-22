@@ -127,7 +127,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this._animate()
 	}
 
+	get inputRotation() { return this._inputRotation }
 	set inputRotation(value){ this._inputRotation = [...value] }
+
+	get inputTranslation() { return this._inputTranslation }
 	set inputTranslation(value){ this._inputTranslation = [...value] }
 
 	get avatarPosition(){
@@ -421,7 +424,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		if(state.settings && state.settings.clientUUID){
 			// Only avatars have clientUUIDs, so set up this up as an avatar
 			group.isAvatar = true
-			setTimeout(() => { group.setupParts() }, 1)
+			setTimeout(() => { group.setupParts() }, 0)
 			if(this.clientUUID === state.settings.clientUUID){
 				group.isLocalAvatar = true
 				this.avatarGroup = group
@@ -523,7 +526,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					this.avatarGroup.rightHand.hasGamepadOrientation = false
 				}
 				requestAnimationFrame(this._boundAnimate)
-				this.inputManager.throttledSendAvatarUpdate()
+				this.trigger(spaciblo.events.AvatarPositionChanged)
 				this.trigger(spaciblo.events.RendererExitedVR, this)
 				return
 			} else {
@@ -535,9 +538,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			requestAnimationFrame(this._boundAnimate)
 		}
 		this.environment.updateGamepadInfo()
-		this.inputManager.updateGamepadActions()
+		this.inputManager.updateActions()
 
-		// If there's an avatar group, handle any input rotation or translation from the inputManager
+		/*
+		If there's an avatar group:
+			handle any input rotation or translation from the inputManager
+			show or hide the pointing lines
+		*/
 		if(this.avatarGroup !== null){
 			/*
 			Many of the these calculations are reversed because for moving around in the world we move 
@@ -587,6 +594,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			spaciblo.three.WORKING_QUAT.copy(this.pivotPoint.quaternion)
 			spaciblo.three.WORKING_QUAT.inverse()
 			this.avatarGroup.quaternion.copy(spaciblo.three.WORKING_QUAT)
+
+			if(this.avatarGroup.leftLine){
+				this.avatarGroup.leftLine.visible = this.inputManager.isActionActive('left-point')
+			}
+			if(this.avatarGroup.rightLine){
+				this.avatarGroup.rightLine.visible = this.inputManager.isActionActive('right-point')
+			}
 		}
 
 		if(this.shouldTeleport){
@@ -670,28 +684,18 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						if(gamepad === null || typeof gamepad.pose === 'undefined') continue
 						// Find the hand to change
 						let handNode = null
-						let lineNode = null
-						let pointingActionName = null
 						if(typeof gamepad.hand === 'string'){
 							if(gamepad.hand === 'left'){
 								handNode = this.avatarGroup.leftHand
-								lineNode = this.avatarGroup.leftLine
-								pointingActionName = 'left-point'
 							} else if(gamepad.hand === 'right'){
 								handNode = this.avatarGroup.rightHand
-								lineNode = this.avatarGroup.rightLine
-								pointingActionName = 'right-point'
 							}
 						} else if(typeof gamepad.index === 'number'){
 							// No gamepad.hand, so use index to arbitrarily assign to a hand
 							if(gamepad.index === 0){
 								handNode = this.avatarGroup.leftHand
-								lineNode = this.avatarGroup.leftLine
-								pointingActionName = 'left-point'
 							} else if(gamepad.index === 1) {
 								handNode = this.avatarGroup.rightHand
-								lineNode = this.avatarGroup.rightLine
-								pointingActionName = 'right-point'
 							}
 						}
 
@@ -700,7 +704,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 							continue
 						}
 
-						// Set the hand orientation and show or hide the pointing line based on button state
+						// Set the hand orientation
 						if(gamepad.pose.hasOrientation === true && gamepad.pose.orientation !== null){
 							// TODO figure out why Vive controller orientation is not iterable like ...gamepad.pose.orientation
 							handNode.hasGamepadOrientation = true
@@ -709,10 +713,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 								gamepad.pose.orientation[2],
 								gamepad.pose.orientation[3]
 							)
-							lineNode.visible = this.inputManager.isActionActive(pointingActionName)
 						} else {
 							handNode.hasGamepadOrientation = false
-							lineNode.visible = false
 						}
 
 						// Set the hand position
@@ -759,7 +761,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				}
 			}
 			this.vrDisplay.submitFrame()
-			this.inputManager.throttledSendAvatarUpdate()
+			this.trigger(spaciblo.events.AvatarPositionChanged)
 		} else {
 			this.renderer.autoClear = true
 			this.scene.matrixAutoUpdate = true

@@ -30,8 +30,19 @@ MyWorker = class extends spaciblo.client.TemplateWorker {
 	}
 	handleInputActionStarted(event){
 		this._activeActions.add(event.action.name)
-		if(this._updateVectors()){
-			this._sendAvatarUpdate()
+		switch(event.action.name){
+			case 'rotate-left':
+			case 'rotate-right':
+			case 'translate-forward':
+			case 'translate-backward':
+			case 'translate-left':
+			case 'translate-right':
+			case 'translate-up':
+			case 'translate-down':
+				if(this._updateVectors()){
+					this._sendAvatarUpdate()
+				}
+				break
 		}
 	}
 	handleInputActionEnded(event){

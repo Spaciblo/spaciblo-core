@@ -5,7 +5,7 @@ spaciblo.events = spaciblo.events || {}
 spaciblo.components = spaciblo.components || {}
 
 spaciblo.events.RendererExitedVR = 'spaciblo-exited-vr'
-spaciblo.events.AvatarMotionChanged = 'spaciblo-avatar-motion-changed'
+spaciblo.events.AvatarPositionChanged = 'spaciblo-avatar-position-changed'
 spaciblo.events.TouchMotion = 'spaciblo-touch-motion'
 spaciblo.events.EndTouch = 'spaciblo-end-tough'
 spaciblo.events.InputActionStarted = 'spaciblo-input-action-started'
@@ -235,6 +235,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('spaces-component')
+		this._throttledSendAvatarUpdate = be.ui.throttle(this._sendAvatarUpdate.bind(this), 100)
 
 		this.client = null // Will be a spaciblo.api.Client when a Space is selected
 		this.clientUUID = null // An ID for our client that is provided by the WebSocket service
@@ -311,6 +312,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		// The renderer manages the Three.js scene graph and WebGL canvas
 		this.renderer = new spaciblo.three.Renderer(this.environment, this.inputManager, this.audioManager, this.workerManager, this.flocks)
 		this.el.appendChild(this.renderer.el)
+		this.renderer.addListener(this._throttledSendAvatarUpdate, spaciblo.events.AvatarPositionChanged)
 
 		// The worker manager needs to be able to query the scene graph, so we hand it the renderer for that purpose
 		this.workerManager.setRenderer(this.renderer)
@@ -372,10 +374,13 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		delete update['name']
 		this.client.sendUpdatesRequest([update])
 	}
+	_sendAvatarUpdate(){
+		// You probably want to use this._throttledSendAvatarUpdate
+		if(this.client === null) return
+		this.client.sendAvatarUpdate(this.renderer.avatarPosition, this.renderer.avatarOrientation, this.renderer.avatarBodyUpdates, this.renderer.inputTranslation, this.renderer.inputRotation)
+	}
 	handleWorkerRequestedAvatarChange(eventName, data){
-		if(this.client === null){
-			return
-		}
+		if(this.client === null) return
 		// Avatar translation is relative to the avatar orientation, so translation of 0,0,-1 is always forward even if the head/camera is pointed elsewhere
 		this.renderer.inputRotation = data.rotation
 		this.renderer.inputTranslation = data.translation
