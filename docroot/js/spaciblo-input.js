@@ -2,6 +2,8 @@
 
 /*
 Input related code that handles user events from the keyboard, gamepad, etc and generates high level action events.
+
+Look in spaciblo-default-input-schema.js for the specific mapping of key presses, touch events, or gamepad inputs to actions.
 */
 
 var spaciblo = spaciblo || {}
@@ -9,16 +11,6 @@ spaciblo.input = spaciblo.input || {}
 spaciblo.events = spaciblo.events || {}
 
 spaciblo.events.EnvironmentChanged = 'spaciblo-environment-changed'
-
-// Gamepad IDs for various types of gamepads
-spaciblo.input.GAMEPAD_6DOF_IDS = [
-	'Oculus Touch (Left)',
-	'Oculus Touch (Right)',
-	'OpenVR Gamepad'
-]
-spaciblo.input.GAMEPAD_3DOF_IDS = [
-	'Daydream Controller'
-]
 
 /*
 Environment exposes what we know about the hardware and current state of the browser as it relates to VR
@@ -152,22 +144,6 @@ spaciblo.input.Environment = k.eventMixin(class {
 	get isMobile(){ return be.isMobile.any() }
 })
 
-spaciblo.input.XBOX_ONE_CONTROLLER_ID_REGEX = /xinput/
-spaciblo.input.DAYDREAM_CONTROLLER_ID_REGEX = /Daydream Controller/
-spaciblo.input.OPENVR_CONTROLLER_ID_REGEX = /OpenVR Gamepad/
-spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX = /Oculus Touch \((Left|Right)\)/
-spaciblo.input.OCULUS_REMOTE_ID_REGEX = /Oculus Remote/
-
-spaciblo.input.CONTROLLER_ID_REGEXES = [
-	spaciblo.input.XBOX_ONE_CONTROLLER_ID_REGEX,
-	spaciblo.input.DAYDREAM_CONTROLLER_ID_REGEX,
-	spaciblo.input.OPENVR_CONTROLLER_ID_REGEX,
-	spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX,
-	spaciblo.input.OCULUS_REMOTE_ID_REGEX
-]
-
-spaciblo.input.UNKNOWN_CONTROLLER_ID_REGEX = /unknown/
-
 // A single input (button, touch, axis) from a gamepad (XBox controller, Oculus Touch, Vive controller...)
 spaciblo.input.ControllerInput = class {
 	constructor(idRegex, hand=null, button=null, touch=null, axis=null, action=null){
@@ -217,16 +193,14 @@ spaciblo.input.InputSchema = class {
 		return this._actions[name]
 	}
 	addKeyCodeAction(keyCode, action){
+		if(action == false) throw 'Can not add a key code with no action'
 		this._keyCodeActions.set(keyCode, action)
 	}
 	getKeyCodeAction(keyCode){
 		return this._keyCodeActions.get(keyCode) || null
 	}
 	addControllerInput(controllerInput){
-		if(controllerInput.action === null){
-			console.error('Cannot add a ControllerInput with a null action', controllerInput)
-			return
-		}
+		if(controllerInput.action == false) throw 'Can not add a controller input with no action'
 		this._controllerInputs.add(controllerInput)
 	}
 	getControllerInputAction(controllerInput){
@@ -238,75 +212,6 @@ spaciblo.input.InputSchema = class {
 		return null
 	}
 }
-
-// Set up a default input schema.
-spaciblo.input.DefaultInputSchema = new spaciblo.input.InputSchema()
-spaciblo.input._defaultActions = [
-	'translate-forward',
-	'translate-backward',
-	'translate-left',
-	'translate-right',
-	'translate-up',
-	'translate-down',
-	'rotate-left',
-	'rotate-right',
-	'left-point',
-	'right-point',
-	'teleport',
-	'toggle-flock',
-	'left-point',
-	'right-point'
-]
-spaciblo.input._defaultActions.forEach((name, index) => {
-	spaciblo.input.DefaultInputSchema.addAction(new spaciblo.input.InputAction(name))
-})
-
-spaciblo.input._generateOculusTouchInput = function(hand, button, touch, axis, action){
-	return new spaciblo.input.ControllerInput(spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX, hand, button, touch, axis, spaciblo.input.DefaultInputSchema.getAction(action))
-}
-spaciblo.input.DefaultInputSchema.addControllerInput(spaciblo.input._generateOculusTouchInput('left', null, 0, null, 'left-point'))
-spaciblo.input.DefaultInputSchema.addControllerInput(spaciblo.input._generateOculusTouchInput('right', null, 0, null, 'right-point'))
-spaciblo.input.DefaultInputSchema.addControllerInput(spaciblo.input._generateOculusTouchInput('left', 0, null, null, 'teleport'))
-spaciblo.input.DefaultInputSchema.addControllerInput(spaciblo.input._generateOculusTouchInput('right', 0, null, null, 'teleport'))
-
-spaciblo.input._generateOpenVRInput = function(hand, button, touch, axis, action){
-	return new spaciblo.input.ControllerInput(spaciblo.input.OPENVR_CONTROLLER_ID_REGEX, hand, button, touch, axis, spaciblo.input.DefaultInputSchema.getAction(action))
-}
-spaciblo.input.DefaultInputSchema.addControllerInput(spaciblo.input._generateOpenVRInput('left', null, 0, null, 'left-point'))
-spaciblo.input.DefaultInputSchema.addControllerInput(spaciblo.input._generateOpenVRInput('right', null, 0, null, 'right-point'))
-spaciblo.input.DefaultInputSchema.addControllerInput(spaciblo.input._generateOpenVRInput('left', 0, null, null, 'teleport'))
-spaciblo.input.DefaultInputSchema.addControllerInput(spaciblo.input._generateOpenVRInput('right', 0, null, null, 'teleport'))
-
-spaciblo.input._defaultKeyCodeActions = [
-	[38, 'translate-forward'],
-	[87, 'translate-forward'],
-
-	[40, 'translate-backward'],
-	[83, 'translate-backward'],
-
-	[69, 'translate-left'],
-	[81, 'translate-right'],
-
-	[82, 'translate-up'],
-	[70, 'translate-down'],
-
-	[65, 'rotate-left'],
-	[68, 'rotate-right'],
-
-	[37, 'rotate-left'],
-	[39, 'rotate-right'],
-
-	[88, 'toggle-flock'],
-
-	[219, 'left-point'],
-	[221, 'right-point'],
-
-	[84, 'teleport']
-]
-spaciblo.input._defaultKeyCodeActions.forEach((code, index) => {
-	code[1] = spaciblo.input.DefaultInputSchema.getAction(code[1])
-	spaciblo.input.DefaultInputSchema.addKeyCodeAction(...code)
-})
 
 /*
 InputManager tracks user input (keyboard, gamepad/controller, touch UI) and translates it into a list of current Actions
@@ -354,7 +259,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		}
 	}
 
-	// Called by the renderer in every frame to update actions based on gamepad(s) and keyboard state
+	// Called by the renderer at the beginning of every frame to update actions based on gamepad(s), keyboard, and touch state
 	updateActions(){
 		let newActions = []
 
@@ -390,7 +295,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 			}
 			// Collect actions for each non-zero axis
 			for(let i=0; i < gamepad.axes.length; i++){
-				if(gamepad.axes[i] === 0) continue
+				if(gamepad.axes[i] < 0.1 && gamepad.axes[i] > -0.1) continue
 				const action = this._inputSchema.getControllerInputAction(new spaciblo.input.ControllerInput(
 					idRegex, gamepad.hand, null, null, i
 				))
@@ -444,33 +349,6 @@ spaciblo.input.InputManager = k.eventMixin(class {
 		this._touchDeltaY = 0
 	}
 })
-
-// Map key codes to names
-spaciblo.input.KeyMap = new Map()
-spaciblo.input.KeyMap.set(37, 'left-arrow')
-spaciblo.input.KeyMap.set(38, 'up-arrow')
-spaciblo.input.KeyMap.set(39, 'right-arrow')
-spaciblo.input.KeyMap.set(40, 'down-arrow')
-spaciblo.input.KeyMap.set(81, 'q')
-spaciblo.input.KeyMap.set(87, 'w')
-spaciblo.input.KeyMap.set(69, 'e')
-spaciblo.input.KeyMap.set(82, 'r')
-spaciblo.input.KeyMap.set(84, 't')
-spaciblo.input.KeyMap.set(89, 'y')
-spaciblo.input.KeyMap.set(65, 'a')
-spaciblo.input.KeyMap.set(83, 's')
-spaciblo.input.KeyMap.set(68, 'd')
-spaciblo.input.KeyMap.set(70, 'f')
-spaciblo.input.KeyMap.set(88, 'x')
-spaciblo.input.KeyMap.set(219, '[')
-spaciblo.input.KeyMap.set(221, ']')
-spaciblo.input.KeyMap.set(16, 'shift')
-spaciblo.input.KeyMap.set(17, 'control')
-spaciblo.input.KeyMap.set(18, 'alt')
-spaciblo.input.KeyMap.set(224, 'meta')
-
-// A list of modifier keys like shift, alt, control, and meta
-spaciblo.input.MODIFIER_KEYCODES = [16, 17, 18, 224]
 
 // A handy call when debugging within animation frames, logs messages at most once per second
 spaciblo.input.throttledConsoleLog = be.ui.throttle(function(...params){

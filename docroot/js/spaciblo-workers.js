@@ -8,6 +8,7 @@ spaciblo.events = spaciblo.events || {}
 
 spaciblo.events.WorkerRequestedPORTSChange = 'worker-requested-ports-change'
 spaciblo.events.WorkerRequestedAvatarUpdate = 'worker-requested-avatar-update'
+spaciblo.events.WorkerRequestedAvatarTeleport = 'worker-requested-avatar-teleport'
 
 /*
 For each template (not instance), a single web worker is created.
@@ -199,6 +200,9 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 				break
 			case 'update-avatar':
 				this.manager.trigger(spaciblo.events.WorkerRequestedAvatarUpdate, data)
+				break
+			case 'teleport-avatar':
+				this.manager.trigger(spaciblo.events.WorkerRequestedAvatarTeleport, data)
 				break
 			default:
 				console.error('Unknown message from worker', data)

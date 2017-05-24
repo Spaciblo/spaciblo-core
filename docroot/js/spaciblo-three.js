@@ -82,7 +82,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		// They are usually set by a client worker script based on input action events
 		this._inputRotation = [0,0,0]
 		this._inputTranslation = [0,0,0]
-		this.shouldTeleport = false // Set to true when the input manager triggers an InputEventStarted for the 'teleport' action
+		this.shouldTeleport = false 
 
 		this.clientUUID = null	// Will be null until set in this.setClientUUID()
 		this.avatarGroup = null	// Will be null until the avatar is created during an update addition
@@ -120,9 +120,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		this.el.addEventListener('mousemove', this._onMouseMove.bind(this), false)
 		this.el.addEventListener('click', this._onMouseClick.bind(this), false)
-		this.inputManager.addListener((...params) => {
-			this._handleInputEventStarted(...params)
-		}, spaciblo.events.InputActionStarted)
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
 		this._animate()
 	}
@@ -167,13 +164,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			'orientation': node.quaternion.toArray()
 			// TODO send motion vectors
 		})
-	}
-	_handleInputEventStarted(eventName, action){
-		if(action.name === 'teleport'){
-			this.shouldTeleport = true
-		} else if (action.name === 'toggle-flock'){
-			this._toggleFlock()
-		}
 	}
 	_toggleFlock(){
 		if(this.flockIsLoaded){
@@ -438,7 +428,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		return group
 	}
-	_getTeleportLocation(){
+	_getTeleportLocation(teleportPointer){
 		/* 
 		If the user is pointing, return the world coordinate Vector3 location they're pointing to
 		Returns null if they're not pointing at anything
@@ -447,12 +437,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			return null
 		}
 		let handGroup = null
-		if(this.inputManager.isActionActive('left-point')){
+		if(teleportPointer === 'left'){
 			handGroup = this.avatarGroup.leftHand
-		} else if(this.inputManager.isActionActive('right-point')){
+		} else if(teleportPointer === 'right'){
 			handGroup = this.avatarGroup.rightHand
 		}
 		if(handGroup === null){
+			console.error('unknown teleport pointer', teleportPointer)
 			return null
 		}
 
@@ -604,9 +595,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 
 		if(this.shouldTeleport){
+			let teleportPointer = this.shouldTeleport
 			this.shouldTeleport = false
 			if(this.avatarGroup !== null){
-				let destination = this._getTeleportLocation() // Returns a world coordinate Vector3
+				let destination = this._getTeleportLocation(teleportPointer) // Returns a world coordinate Vector3
 				if(destination !== null){
 					spaciblo.three.WORKING_VECTOR3.copy(destination)
 					this.rootGroup.worldToLocal(spaciblo.three.WORKING_VECTOR3) // Convert to rootGroup local coordinates

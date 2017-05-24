@@ -118,6 +118,17 @@ spaciblo.client.UpdateAvatarMessage = class extends spaciblo.client.Message {
 }
 
 /*
+Sent by the client worker to teleport the local avatar
+values:
+	pointer: 'left', 'right', 'gaze'
+*/
+spaciblo.client.TeleportAvatarMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('teleport-avatar', values)
+	}
+}
+
+/*
 Sent when the worker wants to change the position, orientation, rotation, translation, or scale of a group
 To change the local avatar, use UpdateAvatarMessage
 */

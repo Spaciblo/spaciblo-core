@@ -261,6 +261,9 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.workerManager.addListener((...params) => {
 			this.handleWorkerRequestedAvatarChange(...params)
 		}, spaciblo.events.WorkerRequestedAvatarUpdate)
+		this.workerManager.addListener((...params) => {
+			this.handleWorkerRequestedTeleport(...params)
+		}, spaciblo.events.WorkerRequestedAvatarTeleport)
 
 		// The audio manager tracks WebRTC audio streams for each remote user
 		this.audioManager = new spaciblo.audio.SpaceManager()
@@ -368,6 +371,10 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.updateOverlays()
 		this.mainVolumeVisualizer.start()
 		this.microphoneVolumeVisualizer.start()
+	}
+	handleWorkerRequestedTeleport(eventName, data){
+		if(!data || !data.pointer) return
+		this.renderer.shouldTeleport = data.pointer
 	}
 	handleWorkerRequestedPORTSChange(eventName, data){
 		let update = Object.assign({}, data)

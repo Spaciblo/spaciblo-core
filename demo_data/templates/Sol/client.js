@@ -1,6 +1,5 @@
 importScripts('/js/spaciblo-client.js')
 
-
 /*
 A simple input action to avatar movement client script.
 */
@@ -43,6 +42,16 @@ MyWorker = class extends spaciblo.client.TemplateWorker {
 					this._sendAvatarUpdate()
 				}
 				break
+			case 'left-press':
+				if(this._activeActions.has('left-point')){
+					this._sendTeleport('left')
+				}
+				break
+			case 'right-press':
+				if(this._activeActions.has('right-point')){
+					this._sendTeleport('right')
+				}
+				break
 		}
 	}
 	handleInputActionEnded(event){
@@ -50,6 +59,12 @@ MyWorker = class extends spaciblo.client.TemplateWorker {
 		if(this._updateVectors()){
 			this._sendAvatarUpdate()
 		}
+	}
+	_sendTeleport(pointer){
+		if(this._avatarGroup === null) return // No known local avatar group
+		postMessage(new spaciblo.client.TeleportAvatarMessage({
+			pointer: pointer
+		}))
 	}
 	_sendAvatarUpdate(){
 		if(this._avatarGroup === null) return // No known local avatar group
