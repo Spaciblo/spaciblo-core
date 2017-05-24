@@ -436,13 +436,15 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		if(this.avatarGroup === null){
 			return null
 		}
-		let handGroup = null
+		let pointGroup = null
 		if(teleportPointer === 'left'){
-			handGroup = this.avatarGroup.leftHand
+			pointGroup = this.avatarGroup.leftHand
 		} else if(teleportPointer === 'right'){
-			handGroup = this.avatarGroup.rightHand
+			pointGroup = this.avatarGroup.rightHand
+		} else if(teleportPoint === 'gaze'){
+			pointGroup = this.avatarGroup.head
 		}
-		if(handGroup === null){
+		if(pointGroup === null){
 			console.error('unknown teleport pointer', teleportPointer)
 			return null
 		}
@@ -450,8 +452,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		// Picking is all in world coordinates, 
 		// Set the raycaster origin and direction from the hand's world position and orientation
 		this.scene.updateMatrixWorld(true)
-		this.raycaster.ray.origin.setFromMatrixPosition(handGroup.matrixWorld)
-		handGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+		this.raycaster.ray.origin.setFromMatrixPosition(pointGroup.matrixWorld)
+		pointGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
 		this.raycaster.ray.direction.set(0, 0, -1).applyQuaternion(spaciblo.three.WORKING_QUAT)
 		this.raycaster.ray.direction.normalize()
 		// Turn off the avatarGroup while picking so we don't pick ourselves
@@ -501,6 +503,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				if(this.avatarGroup !== null){
 					this.avatarGroup.head.quaternion.set(0,0,0,1)
 					this.avatarGroup.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+					this.avatarGroup.headLine.quaternion.set(0,0,0,1)
+					this.avatarGroup.headLine.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+					this.avatarGroup.headLine.visible = false
 					if(this.avatarGroup.torso !== null){
 						this.avatarGroup.torso.quaternion.set(0,0,0,1)
 						this.avatarGroup.torso.position.set(...spaciblo.three.DEFAULT_TORSO_POSITION)
@@ -586,10 +591,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			spaciblo.three.WORKING_QUAT.inverse()
 			this.avatarGroup.quaternion.copy(spaciblo.three.WORKING_QUAT)
 
-			if(this.avatarGroup.leftLine){
+			if(this.avatarGroup.headLine){
+				this.avatarGroup.headLine.visible = this.inputManager.isActionActive('point')
 				this.avatarGroup.leftLine.visible = this.inputManager.isActionActive('left-point')
-			}
-			if(this.avatarGroup.rightLine){
 				this.avatarGroup.rightLine.visible = this.inputManager.isActionActive('right-point')
 			}
 		}
@@ -647,12 +651,18 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				// Update the head 
 				if(this.vrFrameData.pose.orientation !== null){
 					this.avatarGroup.head.quaternion.set(...this.vrFrameData.pose.orientation)
+					this.avatarGroup.headLine.quaternion.set(...this.vrFrameData.pose.orientation)
 				}
 				if(this.vrFrameData.pose.position !== null){
 					this.avatarGroup.head.position.set(
 						spaciblo.three.DEFAULT_HEAD_POSITION[0] + this.vrFrameData.pose.position[0],
 						spaciblo.three.DEFAULT_HEAD_POSITION[1] + this.vrFrameData.pose.position[1],
 						spaciblo.three.DEFAULT_HEAD_POSITION[2] + this.vrFrameData.pose.position[2]
+					)
+					this.avatarGroup.headLine.position.set(
+						this.avatarGroup.head.position.x,
+						this.avatarGroup.head.position.y - 0.5,
+						this.avatarGroup.head.position.z
 					)
 				}
 
@@ -1077,20 +1087,24 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 	},
 	setupParts: function(){
 		// Find the body nodes created by update additions from the simulator
+
 		this.head = spaciblo.three.findChildNodeByName(spaciblo.three.HEAD_NODE_NAME, this, true)[0]
 		if(typeof this.head === 'undefined' || this.head === null){
 			console.error('Could not set up avatar head, aborting parts setup', this)
 			return
 		}
 		this.head.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION)
+
 		this.torso = spaciblo.three.findChildNodeByName(spaciblo.three.TORSO_NODE_NAME, this, true)[0] || null
 		if(this.torso !== null){
 			this.torso.position.set(...spaciblo.three.DEFAULT_TORSO_POSITION)
 		}
+
 		this.leftHand = spaciblo.three.findChildNodeByName(spaciblo.three.LEFT_HAND_NODE_NAME, this, true)[0]
 		this.leftHand.position.set(...spaciblo.three.DEFAULT_LEFT_HAND_POSITION)
 		this.leftHand.hasGamepadPosition = false
 		this.leftHand.hasGamepadOrientation = false
+
 		this.rightHand = spaciblo.three.findChildNodeByName(spaciblo.three.RIGHT_HAND_NODE_NAME, this, true)[0]
 		this.rightHand.position.set(...spaciblo.three.DEFAULT_RIGHT_HAND_POSITION)
 		this.rightHand.hasGamepadPosition = false
@@ -1103,12 +1117,27 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			}
 		}
 
-		this.leftLine = this._makeHandLine()
+		this.headLine = new THREE.Group()
+		this.headLine.name = 'head line'
+		this.headLine.position.set(...spaciblo.three.DEFAULT_HEAD_POSITION) // Renderer will move this whenever it moves the head
+		this.headLine.visible = false // Shown when the user initiates a point gesture
+		this.add(this.headLine)
+		this.gazeCursor = new THREE.Mesh(
+			new THREE.PlaneGeometry(0.04, 0.04),
+			new THREE.MeshBasicMaterial({
+				map: THREE.ImageUtils.loadTexture( 'images/crosshairs.png' ),
+				transparent: true,
+			})
+		)
+		this.gazeCursor.position.set(0, 0, -0.51)
+		this.headLine.add(this.gazeCursor)
+
+		this.leftLine = this._makePointerLine()
 		this.leftHand.add(this.leftLine)
-		this.leftLine.visible = false // Shown when the user initiates a point gesture
-		this.rightLine = this._makeHandLine()
+		this.leftLine.visible = false // Shown when the user initiates a left-point gesture
+		this.rightLine = this._makePointerLine()
 		this.rightHand.add(this.rightLine)
-		this.rightLine.visible = false // Shown when the user initiates a point gesture
+		this.rightLine.visible = false // Shown when the user initiates a right-point gesture
 	},
 	_enableShadows: function(node){
 		if(node.type === 'Mesh'){
@@ -1121,7 +1150,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			}
 		}
 	},
-	_makeHandLine: function(){
+	_makePointerLine: function(){
 		// Return a THREE.Line to point out from leftHand or rightHand
 		let material = new THREE.LineBasicMaterial({ color: 0x0000ff })
 		let geometry = new THREE.Geometry()

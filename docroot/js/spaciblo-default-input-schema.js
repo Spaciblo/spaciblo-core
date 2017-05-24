@@ -98,6 +98,21 @@ for(let input of spaciblo.input._defaultControllerInputs){
 	spaciblo.input._generateGamepadInput(spaciblo.input.DefaultInputSchema, spaciblo.input.OPENVR_CONTROLLER_ID_REGEX, input)
 }
 
+// This is the layout for smaller controllers like the Daydream 3dof controller and the GearVR controller
+spaciblo.input._smallerControllerInputs = [
+	['left',	null, 0, null,	'left-point'],
+	['right',	null, 0, null,	'right-point'],
+	['left',	0, null, null,	'left-press'],
+	['right', 	0, null, null,	'right-press'],
+	['left',	null, null, 0,	'left-glide-x'],
+	['right', 	null, null, 0,	'right-glide-x'],
+	['left',	null, null, 1,	'left-glide-y'],
+	['right', 	null, null, 1,	'right-glide-y']
+]
+for(let input of spaciblo.input._smallerControllerInputs){
+	spaciblo.input._generateGamepadInput(spaciblo.input.DefaultInputSchema, spaciblo.input.DAYDREAM_CONTROLLER_ID_REGEX, input)
+}
+
 // For gamepad IDs that we don't recognize and for XBox controllers, this is a standard gamepad layout
 spaciblo.input._genericGamepadInputs = [
 	['',	4, null, null,	'point'],
