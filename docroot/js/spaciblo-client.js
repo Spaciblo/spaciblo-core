@@ -39,6 +39,9 @@ spaciblo.client.TemplateWorker = class {
 			case 'avatar-info':
 				this.handleAvatarInfo(ev.data)
 				break
+			case 'point-intersect':
+				this.handlePointIntersect(ev.data)
+				break
 			default:
 				console.error('TemplateWorker received unknown message name', ev.data)
 		}
@@ -50,10 +53,177 @@ spaciblo.client.TemplateWorker = class {
 	handleGroupRemoved(group){}
 	handleTemplateGroupAdded(group){} 
 	handleTemplateGroupRemoved(group){}
-	handleGroupClicked(group){}
 	handleInputActionStarted(action){}
 	handleInputActionEnded(action){}
 	handleAvatarInfo(data){}
+	handlePointIntersect(data){}
+
+	handleGroupClicked(group){}
+}
+
+/*
+A helper TemplateWorker that does all of the book keeping to track subscription information like:
+	- active actions
+	- current pointing intersects for each hand and gaze
+	- the avatar group
+	- current template
+	- added and removed groups
+	- added and remove template groups
+*/
+spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateWorker {
+	constructor(subscribeToActions=false, subscribeToPointing=false, subscribeToGroups=false, subscribeToTemplateGroups=false){
+		super()
+		this._subscribedToActions = subscribeToActions
+		this._subscribedToPointing = subscribeToPointing
+		this._subscribedToGroups = subscribeToGroups
+		this._subscribedToTemplateGroups = subscribeToTemplateGroups
+
+		this._groups = new Set()		// Groups as they are added and removed from the scene
+		this._templateGroups = new Set() // Groups that use this template worker as they are added and removed
+		this._templateUUID = null 		// The template UUID that this worker is supporting
+		this._activeActions = new Set() // Active actions like 'point', 'left-point', 'translate-forward' 
+		this._gazePoint = null			// The pointing data when the user is gazing at a group in the scene
+		this._leftPoint = null			// The pointing data when the user is left pointing at a group
+		this._rightPoint = null			// The pointing data when the user is right pointing at a group
+		this._avatarGroup = null		// The group for the local user's avatar
+	}
+	init(data){
+		this._templateUUID = data.templateUUID
+		postMessage(new spaciblo.client.QueryAvatarMessage())
+		if(this._subscribedToActions){
+			postMessage(new spaciblo.client.InputActionSubscriptionMessage({ subscribed: true }))
+		}
+		if(this._subscribedToPointing){
+			postMessage(new spaciblo.client.PointIntersectSubscriptionMessage({ subscribed: true }))
+		}
+		if(this._subscribedToGroups){
+			postMessage(new spaciblo.client.GroupExistenceSubscriptionMessage({ subscribed: true }))
+		}
+		if(this._subscribedToTemplateGroups){
+			postMessage(new spaciblo.client.TemplateGroupExistenceSubscriptionMessage({ subscribed: true }))
+		}
+	}
+
+	get subscribedToActions() { return this._subscribedToActions }
+	set subscribedToActions(value) {
+		if(value === this._subscribedToActions) return
+		this._subscribedToActions = value
+		postMessage(new spaciblo.client.InputActionSubscriptionMessage({ subscribed: this._subscribedToActions }))
+	}
+	get subscribedToPointing() { return this._subscribedToPointing }
+	set subscribedToPointing(value) {
+		if(value === this._subscribedToPointing) return
+		this._subscribedToPointing = value
+		postMessage(new spaciblo.client.PointIntersectSubscriptionMessage({ subscribed: this._subscribedToPointing }))
+	}
+	get subscribedToGroups() { return this._subscribedToGroups }
+	set subscribedToGroups(value) {
+		if(value === this._subscribedToGroups) return
+		this._subscribedToGroups = value
+		postMessage(new spaciblo.client.GroupExistenceSubscriptionMessage({ subscribed: this._subscribedToGroups }))
+	}
+	get subscribedToTemplateGroups() { return this._subscribedToTemplateGroups }
+	set subscribedToTemplateGroups(value) {
+		if(value === this._subscribedToTemplateGroups) return
+		this._subscribedToTemplateGroups = value
+		postMessage(new spaciblo.client.TemplateGroupExistenceSubscriptionMessage({ subscribed: this._subscribedToTemplateGroups }))
+	}
+
+	handleAvatarInfo(data){
+		this._avatarGroup = data.group
+	}
+	get avatarGroup() { return this._avatarGroup }
+
+	handleInputActionStarted(event){
+		this._activeActions.add(event.action.name)
+	}
+	handleInputActionEnded(event){
+		this._activeActions.delete(event.action.name)
+	}
+	actionIsActive(actionName){
+		return this._activeActions.has(actionName)
+	}
+
+	handleGroupAdded(group){
+		this._groups.add(group)
+	}
+	handleGroupRemoved(group){
+		this._groups.delete(group)
+	}
+	handleTemplateGroupAdded(group){
+		this._templateGroups.add(group)
+	}
+	handleTemplateGroupRemoved(group){
+		this._templateGroups.remove(group)
+	}
+	handlePointIntersect(data){
+		switch(data.pointer){
+			case 'gaze':
+				if(data.group === null || data.group.templateUUID !== this._templateUUID){
+					this._gazePoint = null
+				} else {
+					this._gazePoint = data
+				}
+				break
+			case 'left':
+				if(data.group === null || data.group.templateUUID !== this._templateUUID){
+					this._leftPoint = null
+				} else {
+					this._leftPoint = data
+				}
+				break
+			case 'right':
+				if(data.group === null || data.group.templateUUID !== this._templateUUID){
+					this._rightPoint = null
+				} else {
+					this._rightPoint = data
+				}
+				break
+			default:
+				return
+		}
+	}
+	get gazePoint(){ return this._gazePoint }
+	get leftPoint(){ return this._leftPoint }
+	get rightPoint(){ return this._rightPoint }
+}
+
+/*
+PressableTemplateWorker just listens for when the user points at and then presses a template group
+Extending classes should implement handlePress
+*/
+spaciblo.client.PressableTemplateWorker = class extends spaciblo.client.TrackingTemplateWorker {
+	constructor(){
+		super(true, true, false, true)
+	}
+	handleInputActionStarted(event){
+		super.handleInputActionStarted(event)
+		let group = null
+		switch(event.action.name){
+			case 'press':
+				if(this.actionIsActive('point') && this.gazePoint !== null){
+					group = this.gazePoint.group
+				}
+				break
+			case 'left-press':
+				if(this.actionIsActive('left-point') && this.leftPoint !== null){
+					group = this.leftPoint.group
+				}
+				break
+			case 'right-press':
+				if(this.actionIsActive('right-point') && this.rightPoint !== null){
+					group = this.rightPoint.group
+				}
+				break
+		}
+		if(group != null){
+			this.handlePress(group)
+		}
+	}
+	handlePress(group){
+		// This is the method extending classes should implement to handle presses
+		throw 'Not implemented'
+	}
 }
 
 /*
@@ -173,6 +343,16 @@ spaciblo.client.InputActionSubscriptionMessage = class extends spaciblo.client.M
 
 /*
 Values:
+	subscribed: bool // if true, listen for PointIntersection messages
+*/
+spaciblo.client.PointIntersectSubscriptionMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('point-intersect-subscription', values)
+	}
+}
+
+/*
+Values:
 	subscribed: bool // if true, listen for the creation and deletion of all groups messages
 */
 spaciblo.client.GroupExistenceSubscriptionMessage = class extends spaciblo.client.Message {
@@ -188,6 +368,19 @@ Values:
 spaciblo.client.TemplateGroupExistenceSubscriptionMessage = class extends spaciblo.client.Message {
 	constructor(values={}){
 		super('template-group-existence-subscription', values)
+	}
+}
+
+/*
+Fired when what the user is pointing at is set or unset
+values:
+	pointer: 'left', 'right', 'gaze'
+	group: the template group's scene graph
+	target: the group within the template group that was intersected by the point
+*/
+spaciblo.client.PointIntersectMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('point-intersect', values)
 	}
 }
 

@@ -17,12 +17,9 @@ Each instance of the template in the scene uses the same web worker for its clie
 spaciblo.workers.TemplateWorker = k.eventMixin(class {
 	/*
 	TODO Add more input events for workers:
-	- start pointing at
+	- start 'left-point', 'right-point', 'point' == gaze
 	- pointer motion
 	- stop pointing at
-	- start gazing at
-	- gaze motion
-	- stop gazing at
 	- controller enter
 	- controller move within
 	- controller exit
@@ -41,6 +38,7 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 		// Filter flags for events that the script wants to receive
 		this.subscribedToInputAction = false
 		this.subscribedToGroupExistence = false
+		this.subscribedToPointIntersects = false
 		this.subscribedToTemplateGroupExistence = false
 
 		if(this.template.isNew){
@@ -77,6 +75,15 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 			return
 		}
 		this.worker.postMessage(message)
+	}
+	handlePointIntersectChanged(pointerName, intersect, templateGroup){
+		if(this.worker === null) return
+		if(this.subscribedToPointIntersects === false) return
+		let groupInfo = templateGroup === null ? null : templateGroup.serializeForWorker()
+		this._postMessage(new spaciblo.client.PointIntersectMessage({
+			pointer: pointerName,
+			group: groupInfo
+		}))
 	}
 	handleInputActionStarted(action){
 		if(this.subscribedToInputAction === false) return
@@ -182,6 +189,9 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 			case 'input-action-subscription':
 				this.subscribedToInputAction = data.subscribed === true
 				break
+			case 'point-intersect-subscription':
+				this.subscribedToPointIntersects = data.subscribed === true
+				break
 			case 'group-existence-subscription':
 				this.subscribedToGroupExistence = data.subscribed === true
 				break
@@ -241,6 +251,25 @@ spaciblo.workers.Manager = k.eventMixin(class {
 	handleGroupDeleted(groupID){
 		for(let [uuid, worker] of this.templateWorkers){
 			worker.handleGroupDeleted(groupID)
+		}
+	}
+	handlePointIntersectChanged(pointerName, intersect){
+		if(intersect !== null){
+			// Find the group in the intersect.object's lineage that has a template
+			let obj = intersect.object
+			var templatObj = null
+			while(typeof obj.template == 'undefined'){
+				obj = obj.parent
+				if(obj === null) break
+			}
+			if(typeof obj.template !== 'undefined'){
+				templateObj = obj
+			}
+		} else {
+			var templateObj = null
+		}
+		for(let [uuid, worker] of this.templateWorkers){
+			worker.handlePointIntersectChanged(pointerName, intersect, templateObj)
 		}
 	}
 	getTemplateWorker(templateUUID){

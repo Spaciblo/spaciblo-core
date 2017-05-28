@@ -131,8 +131,9 @@ for(let input of spaciblo.input._genericGamepadInputs){
 
 // Keyboard inputs in the form [keyCode, action name]
 spaciblo.input._defaultKeyCodeActions = [
-	[219, 'point'],
-	[80, 'press'],
+	[219, 'point'],		// [
+	[80, 'press'],		// p
+	[84, 'trigger'],	// t
 
 	[38, 'translate-forward'],
 	[87, 'translate-forward'],

@@ -110,6 +110,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.raycaster = new THREE.Raycaster()
 		this.mouse = new THREE.Vector2(-10000, -10000)
 
+		// When the user is pointing at something, this will be set to its first intersect
+		this.leftPointIntersect = null
+		this.rightPointIntersect = null
+		this.gazePointIntersect = null
+
 		this.renderer = new THREE.WebGLRenderer({
 			antialias: true
 		})
@@ -215,6 +220,79 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		let intersects = this.raycaster.intersectObjects(this.scene.children, true)
 		if(intersects.length === 0) return null
 		return intersects[0]
+	}
+	_getPointIntersect(pointerName){
+		if(this.avatarGroup === null){
+			return null
+		}
+		let pointGroup = null
+		if(pointerName === 'left'){
+			pointGroup = this.avatarGroup.leftHand
+		} else if(pointerName === 'right'){
+			pointGroup = this.avatarGroup.rightHand
+		} else if(pointerName === 'gaze'){
+			pointGroup = this.avatarGroup.headLine
+		}
+		if(pointGroup === null){
+			console.error('unknown pointer name', pointerName)
+			return null
+		}
+
+		this.scene.updateMatrixWorld(true)
+		this.raycaster.ray.origin.setFromMatrixPosition(pointGroup.matrixWorld)
+		pointGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+		this.raycaster.ray.direction.set(0, 0, -1).applyQuaternion(spaciblo.three.WORKING_QUAT)
+		this.raycaster.ray.direction.normalize()
+		// Turn off the avatarGroup while picking so we don't pick ourselves
+		this.avatarGroup.visible = false
+		let intersects = this.raycaster.intersectObjects([this.pivotPoint], true)
+		this.avatarGroup.visible = true
+		if(intersects.length == 0) return null
+		return intersects[0]
+	}
+	/*
+	updates this.*PointInterest and notifies the worker manager if there is a change
+	*/
+	_updatePointIntersect(pointerName, pointing){
+		let currentIntersect = null
+		if(pointing){
+			var intersect = this._getPointIntersect(pointerName)
+		} else {
+			var intersect = null
+		}
+		switch(pointerName){
+			case 'gaze':
+				currentIntersect = this.gazePointIntersect
+				this.gazePointIntersect = intersect
+				break
+			case 'left':
+				currentIntersect = this.leftPointIntersect
+				this.leftPointIntersect = intersect
+				break
+			case 'right':
+				currentIntersect = this.rightPointIntersect
+				this.rightPointIntersect = intersect
+				break
+			default:
+				spaciblo.input.throttledConsoleLog('error: unknown pointer name', pointerName)
+				return
+		}
+		if(pointing){
+			if(intersect === null){
+				if(currentIntersect !== null){
+					this.workerManager.handlePointIntersectChanged(pointerName, null)
+				}
+			} else {
+				if(currentIntersect === null || intersect.object !== currentIntersect.object){
+					this.workerManager.handlePointIntersectChanged(pointerName, intersect)
+				}
+			}
+		} else {
+			if(currentIntersect !== null){
+				this.workerManager.handlePointIntersectChanged(pointerName, null)
+			}
+		}
+
 	}
 	_createDefaultSky(){
 		let vertexShader = document.getElementById('skyVertexShader').textContent
@@ -428,42 +506,16 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}
 		return group
 	}
-	_getTeleportLocation(teleportPointer){
+	_getTeleportLocation(pointerName){
 		/* 
 		If the user is pointing, return the world coordinate Vector3 location they're pointing to
 		Returns null if they're not pointing at anything
 		*/
-		if(this.avatarGroup === null){
+		let intersect = this._getPointIntersect(pointerName)
+		if(intersect === null){
 			return null
 		}
-		let pointGroup = null
-		if(teleportPointer === 'left'){
-			pointGroup = this.avatarGroup.leftHand
-		} else if(teleportPointer === 'right'){
-			pointGroup = this.avatarGroup.rightHand
-		} else if(teleportPoint === 'gaze'){
-			pointGroup = this.avatarGroup.head
-		}
-		if(pointGroup === null){
-			console.error('unknown teleport pointer', teleportPointer)
-			return null
-		}
-
-		// Picking is all in world coordinates, 
-		// Set the raycaster origin and direction from the hand's world position and orientation
-		this.scene.updateMatrixWorld(true)
-		this.raycaster.ray.origin.setFromMatrixPosition(pointGroup.matrixWorld)
-		pointGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
-		this.raycaster.ray.direction.set(0, 0, -1).applyQuaternion(spaciblo.three.WORKING_QUAT)
-		this.raycaster.ray.direction.normalize()
-		// Turn off the avatarGroup while picking so we don't pick ourselves
-		this.avatarGroup.visible = false
-		let intersects = this.raycaster.intersectObjects([this.pivotPoint], true)
-		this.avatarGroup.visible = true
-		if(intersects.length === 0){
-			return null
-		}
-		return intersects[0].point // This is a world coordinate Vector3
+		return intersect.point // This is a world coordinate Vector3
 	}
 	_findGroundIntersection(){
 		/*
@@ -595,6 +647,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				this.avatarGroup.headLine.visible = this.inputManager.isActionActive('point')
 				this.avatarGroup.leftLine.visible = this.inputManager.isActionActive('left-point')
 				this.avatarGroup.rightLine.visible = this.inputManager.isActionActive('right-point')
+				this._updatePointIntersect('gaze', this.avatarGroup.headLine.visible)
+				this._updatePointIntersect('left', this.avatarGroup.leftLine.visible)
+				this._updatePointIntersect('right', this.avatarGroup.rightLine.visible)
 			}
 		}
 
@@ -928,6 +983,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		let results = {
 			name: this.name,
 			id: this.state.id,
+			templateUUID: this.template ? this.template.get('uuid') : null,
 			position: [this.position.x, this.position.y, this.position.z],
 			orientation: [this.quaternion.x, this.quaternion.y, this.quaternion.z, this.quaternion.w],
 			rotation: [this.rotationMotion.x, this.rotationMotion.y, this.rotationMotion.z],
@@ -1123,7 +1179,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.headLine.visible = false // Shown when the user initiates a point gesture
 		this.add(this.headLine)
 		this.gazeCursor = new THREE.Mesh(
-			new THREE.PlaneGeometry(0.04, 0.04),
+			new THREE.PlaneGeometry(0.02, 0.02),
 			new THREE.MeshBasicMaterial({
 				map: THREE.ImageUtils.loadTexture( 'images/crosshairs.png' ),
 				transparent: true,

@@ -1,19 +1,13 @@
-// This is run in a web worker on each client, once for each template type
+"use strict";
+
 importScripts('/js/spaciblo-client.js')
 
-MyWorker = class extends spaciblo.client.TemplateWorker {
+let MyWorker = class extends spaciblo.client.PressableTemplateWorker {
 	constructor(){
 		super()
 		this.isAnimatingMap = new Map() // group id -> bool
 	}
-	handleGroupAdded(data){
-		console.log('added', data)
-	}
-	handleGroupClicked(data){
-		console.log('group clicked', data)
-		//this._runSpinCycle(data)
-	}
-	_runSpinCycle(data){
+	handlePress(data){
 		if(this.isAnimatingMap.get(data.id) === true) return
 		this.isAnimatingMap.set(data.id, true)
 
@@ -46,4 +40,4 @@ MyWorker = class extends spaciblo.client.TemplateWorker {
 		}, halfLife * 2)
 	}
 }
-worker = new MyWorker()
+let worker = new MyWorker()
