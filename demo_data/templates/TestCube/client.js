@@ -7,7 +7,7 @@ let MyWorker = class extends spaciblo.client.PressableTemplateWorker {
 		super()
 		this.isAnimatingMap = new Map() // group id -> bool
 	}
-	handlePress(data){
+	handlePressStarted(data){
 		if(this.isAnimatingMap.get(data.id) === true) return
 		this.isAnimatingMap.set(data.id, true)
 

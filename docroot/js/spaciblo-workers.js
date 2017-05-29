@@ -9,7 +9,7 @@ spaciblo.events = spaciblo.events || {}
 spaciblo.events.WorkerRequestedPORTSChange = 'worker-requested-ports-change'
 spaciblo.events.WorkerRequestedAvatarUpdate = 'worker-requested-avatar-update'
 spaciblo.events.WorkerRequestedAvatarTeleport = 'worker-requested-avatar-teleport'
-
+spaciblo.events.WorkerRequestedFollowGroup = 'worker-requested-follow-group'
 /*
 For each template (not instance), a single web worker is created.
 Each instance of the template in the scene uses the same web worker for its client side logic.
@@ -181,7 +181,7 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 						this.worker.postMessage(message)
 					}
 					this.preloadMessageQueue = []
-				}, 500)
+				}, 0)
 				break
 			case 'change-ports':
 				this.manager.trigger(spaciblo.events.WorkerRequestedPORTSChange, data)
@@ -213,6 +213,9 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 				break
 			case 'teleport-avatar':
 				this.manager.trigger(spaciblo.events.WorkerRequestedAvatarTeleport, data)
+				break
+			case 'follow-group':
+				this.manager.trigger(spaciblo.events.WorkerRequestedFollowGroup, data)
 				break
 			default:
 				console.error('Unknown message from worker', data)

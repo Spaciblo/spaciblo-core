@@ -58,7 +58,21 @@ spaciblo.client.TemplateWorker = class {
 	handleAvatarInfo(data){}
 	handlePointIntersect(data){}
 
+	// TODO remove me because mouse clicks should be coming through the input manager
 	handleGroupClicked(group){}
+
+	// use a breadth first search for a group with a matching name
+	findChildByName(name, group=null){
+		if(group === null) return null
+		for(let child of group.children){
+			if(child.name === name) return child
+		}
+		for(let child of group.children){
+			let match = this.findChildByName(name, child)
+			if(match !== null) return match
+		}
+		return null
+	}
 }
 
 /*
@@ -134,6 +148,14 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 	}
 	get avatarGroup() { return this._avatarGroup }
 
+	get leftHandGroup(){ return this.findChildByName('left_hand', this._avatarGroup) }
+
+	get rightHandGroup(){ return this.findChildByName('right_hand', this._avatarGroup) }
+
+	get headGroup(){ return this.findChildByName('head', this._avatarGroup) }
+
+	get torsoGroup(){ return this.findChildByName('torso', this._avatarGroup) }
+
 	handleInputActionStarted(event){
 		this._activeActions.add(event.action.name)
 	}
@@ -196,33 +218,85 @@ spaciblo.client.PressableTemplateWorker = class extends spaciblo.client.Tracking
 	constructor(){
 		super(true, true, false, true)
 	}
+	handleTriggerStarted(group, pointer){
+		// This is the method extending classes should implement to handle presses when the user is pointing at this worker's group
+		// pointer is 'left', 'right', or 'gaze'tending classes should implement to handle triggers
+	}
+	handleTriggerEnded(pointer){
+		// This is the method extending classes should implement to handle triggers ending
+		// Unlike handleTrigger, this is called when any trigger ends, regardless of whether the press started pointing at this worker's group
+		// pointer is 'left', 'right', or 'gaze'
+	}
+	handlePressStarted(group, pointer){
+		// This is the method extending classes should implement to handle presses when the user is pointing at this worker's group
+		// pointer is 'left', 'right', or 'gaze'
+	}
+	handlePressEnded(pointer){
+		// This is the method extending classes should implement to handle presses ending
+		// Unlike handlePress, this is called when any press ends, regardless of whether the press started pointing at this worker's group
+		// pointer is 'left', 'right', or 'gaze'
+	}
 	handleInputActionStarted(event){
 		super.handleInputActionStarted(event)
-		let group = null
 		switch(event.action.name){
 			case 'press':
 				if(this.actionIsActive('point') && this.gazePoint !== null){
-					group = this.gazePoint.group
+					this.handlePressStarted(this.gazePoint.group, 'gaze')
 				}
 				break
 			case 'left-press':
 				if(this.actionIsActive('left-point') && this.leftPoint !== null){
-					group = this.leftPoint.group
+					this.handlePressStarted(this.leftPoint.group, 'left')
 				}
 				break
 			case 'right-press':
 				if(this.actionIsActive('right-point') && this.rightPoint !== null){
-					group = this.rightPoint.group
+					this.handlePressStarted(this.rightPoint.group, 'right')
 				}
 				break
 		}
-		if(group != null){
-			this.handlePress(group)
+		switch(event.action.name){
+			case 'trigger':
+				if(this.actionIsActive('point') && this.gazePoint !== null){
+					this.handleTriggerStarted(this.gazePoint.group, 'gaze')
+				}
+				break
+			case 'left-trigger':
+				if(this.actionIsActive('left-point') && this.leftPoint !== null){
+					this.handleTriggerStarted(this.leftPoint.group, 'left')
+				}
+				break
+			case 'right-trigger':
+				if(this.actionIsActive('right-point') && this.rightPoint !== null){
+					this.handleTriggerStarted(this.rightPoint.group, 'right')
+				}
+				break
 		}
 	}
-	handlePress(group){
-		// This is the method extending classes should implement to handle presses
-		throw 'Not implemented'
+	handleInputActionEnded(event){
+		super.handleInputActionEnded(event)
+		switch(event.action.name){
+			case 'press':
+				this.handlePressEnded('gaze')
+				break
+			case 'left-press':
+				this.handlePressEnded('left')
+				break
+			case 'right-press':
+				this.handlePressEnded('right')
+				break
+		}
+		switch(event.action.name){
+			case 'trigger':
+				this.handleTriggerEnded('gaze')
+				break
+			case 'left-trigger':
+				this.handleTriggerEnded('left')
+				break
+			case 'right-trigger':
+				this.handleTriggerEnded('right')
+				break
+		}
 	}
 }
 
@@ -306,6 +380,20 @@ spaciblo.client.ChangePORTSMessage = class extends spaciblo.client.Message {
 	constructor(id, values={}){
 		super('change-ports', values)
 		this.id = id // The group id
+	}
+}
+
+/*
+Sent when the worker wants one group (the follower) to maintain its PORTS relative to another group (the leader).
+If the leader id is null, following is stopped and the follower remains at the new PORTS.
+Can be used for grabbing and moving actions when the leader is a hand or gaze group.
+values:
+	followerId: group id int
+	leaderId: group id int or null to stop following
+*/
+spaciblo.client.FollowGroupMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('follow-group', values)
 	}
 }
 

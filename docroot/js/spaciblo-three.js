@@ -18,6 +18,8 @@ spaciblo.three.ZERO_VECTOR3 = new THREE.Vector3(0,0,0) // Do no set this to anyt
 
 // Handy data structures for use in animation frames
 spaciblo.three.WORKING_QUAT = new THREE.Quaternion()
+spaciblo.three.WORKING_QUAT_2 = new THREE.Quaternion()
+spaciblo.three.WORKING_QUAT_3 = new THREE.Quaternion()
 spaciblo.three.WORKING_VECTOR3 = new THREE.Vector3()
 spaciblo.three.WORKING_VECTOR3_2 = new THREE.Vector3()
 spaciblo.three.WORKING_VECTOR3_3 = new THREE.Vector3()
@@ -193,6 +195,67 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		}).catch(err => {
 			console.error('Error fetching flock members', err)
 		})
+	}
+	setFollowGroup(followerId, leaderId=null){
+		let followerGroup = spaciblo.three.findChildNodeByStateId(followerId, this.rootGroup, true)
+		if(leaderId === null){
+			if(followerGroup === null){
+				console.error('Tried to unfollow an unknown follower group with id', followerId)
+				return
+			}
+			followerGroup.leaderGroup = null
+			followerGroup.followerOffsetPosition = null
+			followerGroup.followerOffsetOrientation = null
+			return
+		}
+		if(followerGroup === null){
+			console.error('Tried to follow an unknown follower group', followerId, leaderId)
+			return
+		}
+		let leaderGroup = spaciblo.three.findChildNodeByStateId(leaderId, this.rootGroup, true)
+		if(leaderGroup === null){
+			console.error('Tried to follow an unknown leader group', followerId, leaderId)
+			return
+		}
+		this.rootGroup.updateMatrixWorld(true)
+
+		followerGroup.leaderGroup = leaderGroup
+
+		// Save the follower's world position and orientation relative to the leader
+		// We'll use this info in _animate to move the follower relative to the leader
+
+		// Follower position offset
+		followerGroup.followerOffsetPosition = new THREE.Vector3()
+		followerGroup.followerOffsetPosition.subVectors(followerGroup.getWorldPosition(), leaderGroup.getWorldPosition())
+
+		// Follower orientation offset
+		leaderGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+		spaciblo.three.WORKING_QUAT.inverse()
+		followerGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT_2)
+		followerGroup.followerOffsetOrientation = new THREE.Quaternion()
+		followerGroup.followerOffsetOrientation.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT)
+	}
+	_updateFollowingGroups(group=this.rootGroup){
+		if(group === null) return
+		if(group.leaderGroup){
+			// Get the world orientation relative to the leader group using the offset orientation
+			group.leaderGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+			spaciblo.three.WORKING_QUAT_2.multiplyQuaternions(group.followerOffsetOrientation, spaciblo.three.WORKING_QUAT)
+
+			// Apply the world orientation times the parent parent world orientation matrix, inverted to keep it relative to the leader group
+			spaciblo.three.WORKING_QUAT_3.setFromRotationMatrix(group.parent.matrixWorld)
+			group.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT_3)
+			group.quaternion.inverse()
+
+			// Now update the position using the follower's offset position from the leader
+			group.leaderGroup.getWorldPosition(spaciblo.three.WORKING_VECTOR3)
+			spaciblo.three.WORKING_VECTOR3.add(group.followerOffsetPosition)
+			group.parent.worldToLocal(spaciblo.three.WORKING_VECTOR3)
+			group.position.copy(spaciblo.three.WORKING_VECTOR3)
+		}
+		for(let child of group.children){
+			this._updateFollowingGroups(child)
+		}
 	}
 	_onMouseMove(ev){
 		ev.preventDefault()
@@ -679,28 +742,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		if(this.vrDisplay){
 			this.vrDisplay.getFrameData(this.vrFrameData)
-			this.renderer.autoClear = false
-			this.scene.matrixAutoUpdate = false
-
-			// The view is assumed to be full-window in VR because the canvas element fills the entire HMD screen[s]
-			this.renderer.clear()
-			this.renderer.setViewport(0, 0, this.width * 0.5, this.height)
-
-			// Render left eye
-			this.camera.projectionMatrix.fromArray(this.vrFrameData.leftProjectionMatrix)
-			this.scene.matrix.fromArray(this.vrFrameData.leftViewMatrix)
-			this.scene.updateMatrixWorld(true)
-			this.renderer.render(this.scene, this.camera)
-
-			// Prep for right eye
-			this.renderer.clearDepth()
-			this.renderer.setViewport(this.width * 0.5, 0, this.width * 0.5, this.height)
-
-			// Render right eye
-			this.camera.projectionMatrix.fromArray(this.vrFrameData.rightProjectionMatrix)
-			this.scene.matrix.fromArray(this.vrFrameData.rightViewMatrix)
-			this.scene.updateMatrixWorld(true)
-			this.renderer.render(this.scene, this.camera)
 
 			if(this.avatarGroup !== null && this.avatarGroup.head !== null){
 				// Update the head 
@@ -817,9 +858,36 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					}
 				}
 			}
+
+			this._updateFollowingGroups()
+
+			this.renderer.autoClear = false
+			this.scene.matrixAutoUpdate = false
+
+			// The view is assumed to be full-window in VR because the canvas element fills the entire HMD screen[s]
+			this.renderer.clear()
+			this.renderer.setViewport(0, 0, this.width * 0.5, this.height)
+
+			// Render left eye
+			this.camera.projectionMatrix.fromArray(this.vrFrameData.leftProjectionMatrix)
+			this.scene.matrix.fromArray(this.vrFrameData.leftViewMatrix)
+			this.scene.updateMatrixWorld(true)
+			this.renderer.render(this.scene, this.camera)
+
+			// Prep for right eye
+			this.renderer.clearDepth()
+			this.renderer.setViewport(this.width * 0.5, 0, this.width * 0.5, this.height)
+
+			// Render right eye
+			this.camera.projectionMatrix.fromArray(this.vrFrameData.rightProjectionMatrix)
+			this.scene.matrix.fromArray(this.vrFrameData.rightViewMatrix)
+			this.scene.updateMatrixWorld(true)
+			this.renderer.render(this.scene, this.camera)
+
 			this.vrDisplay.submitFrame()
 			this.trigger(spaciblo.events.AvatarPositionChanged)
 		} else {
+			this._updateFollowingGroups()
 			this.renderer.autoClear = true
 			this.scene.matrixAutoUpdate = true
 			THREE.GLTFLoader.Shaders.update(this.scene, this.camera)
@@ -965,6 +1033,12 @@ spaciblo.three.Group = function(workerManager){
 	this.updateQuaternion = new THREE.Quaternion(0,0,0,1) 	// the orientation receive from the sim
 	this.rotationMotion = new THREE.Vector3(0,0,0)			// the rotation motion received from the sim
 	this.translationMotion = new THREE.Vector3(0,0,0)		// the translation motion received from the sim
+
+	this.leaderGroup = null
+	this.leaderStartWorldPosition = null
+	this.leaderStartWorldOrientation = null
+	this.followerStartWorldPosition = null
+	this.followerStartWorldOrientation = null
 
 	this.isAvatar = false 		// True if the group represents any user's avatar
 	this.isLocalAvatar = false	// True if the group represents the local user's avatar
@@ -1270,6 +1344,22 @@ spaciblo.three.findChildNodeByName = function(name, node, deepSearch=true, resul
 		}
 	}
 	return results
+}
+
+spaciblo.three.findChildNodeByStateId = function(id, node, deepSearch=true){
+	if(typeof node.children === 'undefined'){
+		return null
+	}
+	for(let child of node.children){
+		if(child.state && child.state.id === id){
+			return child
+		}
+		if(deepSearch){
+			let result = spaciblo.three.findChildNodeByStateId(id, child, true)
+			if(result !== null) return result
+		}
+	}
+	return null
 }
 
 spaciblo.three.OBJLoader = class {

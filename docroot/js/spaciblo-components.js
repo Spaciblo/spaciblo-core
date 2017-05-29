@@ -264,6 +264,9 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.workerManager.addListener((...params) => {
 			this.handleWorkerRequestedTeleport(...params)
 		}, spaciblo.events.WorkerRequestedAvatarTeleport)
+		this.workerManager.addListener((...params) => {
+			this.handleWorkerRequestedFollowGroup(...params)
+		}, spaciblo.events.WorkerRequestedFollowGroup)
 
 		// The audio manager tracks WebRTC audio streams for each remote user
 		this.audioManager = new spaciblo.audio.SpaceManager()
@@ -380,6 +383,9 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		let update = Object.assign({}, data)
 		delete update['name']
 		this.client.sendUpdatesRequest([update])
+	}
+	handleWorkerRequestedFollowGroup(eventName, data){
+		this.renderer.setFollowGroup(data.followerId, data.leaderId)
 	}
 	_sendAvatarUpdate(){
 		// You probably want to use this._throttledSendAvatarUpdate
