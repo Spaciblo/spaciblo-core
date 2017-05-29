@@ -203,9 +203,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				console.error('Tried to unfollow an unknown follower group with id', followerId)
 				return
 			}
-			followerGroup.leaderGroup = null
-			followerGroup.followerOffsetPosition = null
-			followerGroup.followerOffsetOrientation = null
+			if(followerGroup.leaderGroup){
+				followerGroup.leaderGroup.remove(followerGroup.leaderGroupShadow)
+				followerGroup.leaderGroup = null
+				followerGroup.leaderGroupShadow = null
+			}
 			return
 		}
 		if(followerGroup === null){
@@ -224,32 +226,29 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		// Save the follower's world position and orientation relative to the leader
 		// We'll use this info in _animate to move the follower relative to the leader
 
-		// Follower position offset
-		followerGroup.followerOffsetPosition = new THREE.Vector3()
-		followerGroup.followerOffsetPosition.subVectors(followerGroup.getWorldPosition(), leaderGroup.getWorldPosition())
+		// Create a group in the leader group that is in the same current orientation and position as the follower group
+		followerGroup.leaderGroupShadow = new THREE.Group()
+		followerGroup.leaderGroupShadow.name = 'leader group shadow'
+		leaderGroup.add(followerGroup.leaderGroupShadow)
 
-		// Follower orientation offset
-		leaderGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
-		spaciblo.three.WORKING_QUAT.inverse()
-		followerGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT_2)
-		followerGroup.followerOffsetOrientation = new THREE.Quaternion()
-		followerGroup.followerOffsetOrientation.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT)
+		followerGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+		spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(leaderGroup.matrixWorld)
+		followerGroup.leaderGroupShadow.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_QUAT_2)
+
+		spaciblo.three.WORKING_VECTOR3.copy(followerGroup.position)
+		followerGroup.parent.localToWorld(spaciblo.three.WORKING_VECTOR3)
+		leaderGroup.worldToLocal(spaciblo.three.WORKING_VECTOR3)
+		followerGroup.leaderGroupShadow.position.copy(spaciblo.three.WORKING_VECTOR3)
 	}
 	_updateFollowingGroups(group=this.rootGroup){
 		if(group === null) return
 		if(group.leaderGroup){
-			// Get the world orientation relative to the leader group using the offset orientation
-			group.leaderGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
-			spaciblo.three.WORKING_QUAT_2.multiplyQuaternions(group.followerOffsetOrientation, spaciblo.three.WORKING_QUAT)
-
-			// Apply the world orientation times the parent parent world orientation matrix, inverted to keep it relative to the leader group
-			spaciblo.three.WORKING_QUAT_3.setFromRotationMatrix(group.parent.matrixWorld)
-			group.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT_3)
+			group.leaderGroupShadow.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+			spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(group.parent.matrixWorld)
+			group.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_QUAT_2)
 			group.quaternion.inverse()
 
-			// Now update the position using the follower's offset position from the leader
-			group.leaderGroup.getWorldPosition(spaciblo.three.WORKING_VECTOR3)
-			spaciblo.three.WORKING_VECTOR3.add(group.followerOffsetPosition)
+			group.leaderGroupShadow.getWorldPosition(spaciblo.three.WORKING_VECTOR3)
 			group.parent.worldToLocal(spaciblo.three.WORKING_VECTOR3)
 			group.position.copy(spaciblo.three.WORKING_VECTOR3)
 		}
@@ -859,6 +858,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				}
 			}
 
+			if(this.rootGroup){
+				this.rootGroup.updateMatrixWorld(true)
+			}
 			this._updateFollowingGroups()
 
 			this.renderer.autoClear = false
@@ -887,6 +889,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			this.vrDisplay.submitFrame()
 			this.trigger(spaciblo.events.AvatarPositionChanged)
 		} else {
+			if(this.rootGroup){
+				this.rootGroup.updateMatrixWorld(true)
+			}
 			this._updateFollowingGroups()
 			this.renderer.autoClear = true
 			this.scene.matrixAutoUpdate = true
