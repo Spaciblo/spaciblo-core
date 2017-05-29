@@ -255,18 +255,10 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 
 		// The worker manager handles the scripts from each Template type that are run in web workers
 		this.workerManager = new spaciblo.workers.Manager(this.inputManager)
-		this.workerManager.addListener((...params) => {
-			this.handleWorkerRequestedPORTSChange(...params)
-		}, spaciblo.events.WorkerRequestedPORTSChange)
-		this.workerManager.addListener((...params) => {
-			this.handleWorkerRequestedAvatarChange(...params)
-		}, spaciblo.events.WorkerRequestedAvatarUpdate)
-		this.workerManager.addListener((...params) => {
-			this.handleWorkerRequestedTeleport(...params)
-		}, spaciblo.events.WorkerRequestedAvatarTeleport)
-		this.workerManager.addListener((...params) => {
-			this.handleWorkerRequestedFollowGroup(...params)
-		}, spaciblo.events.WorkerRequestedFollowGroup)
+		this.workerManager.addListener(this.handleWorkerRequestedPORTSChange.bind(this), spaciblo.events.WorkerRequestedPORTSChange)
+		this.workerManager.addListener(this.handleWorkerRequestedAvatarChange.bind(this), spaciblo.events.WorkerRequestedAvatarUpdate)
+		this.workerManager.addListener(this.handleWorkerRequestedTeleport.bind(this), spaciblo.events.WorkerRequestedAvatarTeleport)
+		this.workerManager.addListener(this.handleWorkerRequestedFollowGroup.bind(this), spaciblo.events.WorkerRequestedFollowGroup)
 
 		// The audio manager tracks WebRTC audio streams for each remote user
 		this.audioManager = new spaciblo.audio.SpaceManager()
@@ -385,7 +377,8 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.client.sendUpdatesRequest([update])
 	}
 	handleWorkerRequestedFollowGroup(eventName, data){
-		this.renderer.setFollowGroup(data.followerId, data.leaderId)
+		let updateData = this.renderer.setFollowGroup(data.followerId, data.leaderId, true)
+		this.client.sendUpdatesRequest([updateData])
 	}
 	_sendAvatarUpdate(){
 		// You probably want to use this._throttledSendAvatarUpdate

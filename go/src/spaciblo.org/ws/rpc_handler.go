@@ -40,6 +40,7 @@ func (server *RPCHostServer) SendSpaceUpdate(ctx context.Context, spaceUpdate *w
 			Scale:        addition.Scale,
 			Parent:       addition.Parent,
 			TemplateUUID: addition.TemplateUUID,
+			Leader:       addition.Leader,
 		}
 		for _, setting := range addition.Settings {
 			wsAddition.Settings[setting.Key] = setting.Value
@@ -58,6 +59,7 @@ func (server *RPCHostServer) SendSpaceUpdate(ctx context.Context, spaceUpdate *w
 			Translation:  update.Translation,
 			Rotation:     update.Rotation,
 			Scale:        update.Scale,
+			Leader:       update.Leader,
 		}
 		for _, setting := range update.Settings {
 			updateMessage.Settings[setting.Key] = setting.Value

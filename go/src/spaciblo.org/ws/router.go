@@ -85,6 +85,7 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 			TemplateUUID: addNodeRequest.TemplateUUID,
 			Position:     addNodeRequest.Position,
 			Orientation:  addNodeRequest.Orientation,
+			Leader:       addNodeRequest.Leader,
 		}
 		_, err := simHostClient.HandleAddNodeRequest(context.Background(), requestRPM)
 		return nil, nil, err
@@ -121,6 +122,7 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 				Translation:  nodeUpdate.Translation,
 				Rotation:     nodeUpdate.Rotation,
 				Scale:        nodeUpdate.Scale,
+				Leader:       nodeUpdate.Leader,
 			})
 		}
 		_, err := simHostClient.HandleUpdateRequest(context.Background(), updateRPM)

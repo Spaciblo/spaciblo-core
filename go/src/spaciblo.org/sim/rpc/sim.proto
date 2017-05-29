@@ -88,6 +88,7 @@ message NodeUpdate {
 	repeated double rotation = 6;
 	repeated double scale = 7;
 	string templateUUID = 8;
+	int64 leader = 9;
 }
 
 message UpdateRequest {
@@ -105,6 +106,8 @@ message AddNodeRequest {
 	repeated double orientation = 6;
 	repeated double translation = 7;
 	repeated double rotation = 8;
+	repeated double scale = 9;
+	int64 leader = 10;
 }
 
 message RemoveNodeRequest {

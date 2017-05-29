@@ -196,9 +196,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			console.error('Error fetching flock members', err)
 		})
 	}
-	setFollowGroup(followerId, leaderId=null){
-		let followerGroup = spaciblo.three.findChildNodeByStateId(followerId, this.rootGroup, true)
-		if(leaderId === null){
+	setFollowGroup(followerId, leaderId=-1, local=false){
+		let followerGroup = this.objectMap.get(followerId) || null
+		spaciblo.input.throttledConsoleLog('followerGroup', followerId, leaderId, followerGroup)
+		if(leaderId === -1 || leaderId === null){
 			if(followerGroup === null){
 				console.error('Tried to unfollow an unknown follower group with id', followerId)
 				return
@@ -208,20 +209,37 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				followerGroup.leaderGroup = null
 				followerGroup.leaderGroupShadow = null
 			}
-			return
+			return {
+				id: followerId,
+				leader: -1,
+				position: [followerGroup.position.x, followerGroup.position.y, followerGroup.position.z],
+				orientation: [followerGroup.quaternion.x, followerGroup.quaternion.y, followerGroup.quaternion.z, followerGroup.quaternion.w],
+				rotation: [followerGroup.rotationMotion.x, followerGroup.rotationMotion.y, followerGroup.rotationMotion.z],
+				translation: [followerGroup.translationMotion.x, followerGroup.translationMotion.y, followerGroup.translationMotion.z],
+				scale: [followerGroup.scale.x, followerGroup.scale.y, followerGroup.scale.z],
+			}
 		}
 		if(followerGroup === null){
 			console.error('Tried to follow an unknown follower group', followerId, leaderId)
 			return
 		}
-		let leaderGroup = spaciblo.three.findChildNodeByStateId(leaderId, this.rootGroup, true)
+		let leaderGroup = this.objectMap.get(leaderId) || null
 		if(leaderGroup === null){
 			console.error('Tried to follow an unknown leader group', followerId, leaderId)
 			return
 		}
+		if(followerGroup.leaderGroup){
+			if(followerGroup.leaderGroup === leaderGroup){
+				// duplicate follow command, nothing to do
+				return
+			}
+			followerGroup.leaderGroup.remove(followerGroup.leaderGroupShadow)
+		}
 		this.rootGroup.updateMatrixWorld(true)
 
 		followerGroup.leaderGroup = leaderGroup
+		followerGroup.rotationMotion.set(0,0,0)
+		followerGroup.translationMotion.set(0,0,0)
 
 		// Save the follower's world position and orientation relative to the leader
 		// We'll use this info in _animate to move the follower relative to the leader
@@ -229,25 +247,40 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		// Create a group in the leader group that is in the same current orientation and position as the follower group
 		followerGroup.leaderGroupShadow = new THREE.Group()
 		followerGroup.leaderGroupShadow.name = 'leader group shadow'
+		followerGroup.leaderGroupShadow.local = local
 		leaderGroup.add(followerGroup.leaderGroupShadow)
 
 		followerGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
 		spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(leaderGroup.matrixWorld)
-		followerGroup.leaderGroupShadow.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_QUAT_2)
+		followerGroup.leaderGroupShadow.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT)
+		if(local){
+			followerGroup.leaderGroupShadow.quaternion.inverse()
+		}
 
 		spaciblo.three.WORKING_VECTOR3.copy(followerGroup.position)
 		followerGroup.parent.localToWorld(spaciblo.three.WORKING_VECTOR3)
 		leaderGroup.worldToLocal(spaciblo.three.WORKING_VECTOR3)
 		followerGroup.leaderGroupShadow.position.copy(spaciblo.three.WORKING_VECTOR3)
+
+		return {
+			id: followerId,
+			leader: leaderId,
+			position: [followerGroup.position.x, followerGroup.position.y, followerGroup.position.z],
+			orientation: [followerGroup.quaternion.x, followerGroup.quaternion.y, followerGroup.quaternion.z, followerGroup.quaternion.w],
+			rotation: [followerGroup.rotationMotion.x, followerGroup.rotationMotion.y, followerGroup.rotationMotion.z],
+			translation: [followerGroup.translationMotion.x, followerGroup.translationMotion.y, followerGroup.translationMotion.z],
+			scale: [followerGroup.scale.x, followerGroup.scale.y, followerGroup.scale.z],
+		}
 	}
 	_updateFollowingGroups(group=this.rootGroup){
 		if(group === null) return
 		if(group.leaderGroup){
 			group.leaderGroupShadow.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
 			spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(group.parent.matrixWorld)
-			group.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_QUAT_2)
-			group.quaternion.inverse()
-
+			group.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT)
+			if(group.leaderGroupShadow.local){
+				group.quaternion.inverse()
+			}
 			group.leaderGroupShadow.getWorldPosition(spaciblo.three.WORKING_VECTOR3)
 			group.parent.worldToLocal(spaciblo.three.WORKING_VECTOR3)
 			group.position.copy(spaciblo.three.WORKING_VECTOR3)
@@ -488,6 +521,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 			if(update.scale){
 				group.scale.set(...update.scale)
+			}
+			if(typeof update.leader !== 'undefined'){
+				this.setFollowGroup(update.id, update.leader)
 			}
 			group.updateSettings(update.settings)
 			group.updateTemplate(update.templateUUID, this.templateLoader)
@@ -1349,22 +1385,6 @@ spaciblo.three.findChildNodeByName = function(name, node, deepSearch=true, resul
 		}
 	}
 	return results
-}
-
-spaciblo.three.findChildNodeByStateId = function(id, node, deepSearch=true){
-	if(typeof node.children === 'undefined'){
-		return null
-	}
-	for(let child of node.children){
-		if(child.state && child.state.id === id){
-			return child
-		}
-		if(deepSearch){
-			let result = spaciblo.three.findChildNodeByStateId(id, child, true)
-			if(result !== null) return result
-		}
-	}
-	return null
 }
 
 spaciblo.three.OBJLoader = class {

@@ -77,6 +77,7 @@ func (server *SimHostServer) SendClientUpdate(spaceUUID string, frame int64, cli
 			Scale:        addition.Node.Scale.Data,
 			Parent:       addition.ParentId,
 			TemplateUUID: addition.Node.TemplateUUID.Value,
+			Leader:       addition.Node.Leader.Value,
 		}
 		for _, setting := range addition.Node.Settings {
 			wsAddition.Settings = append(wsAddition.Settings, &wsRPC.Setting{
@@ -97,6 +98,7 @@ func (server *SimHostServer) SendClientUpdate(spaceUUID string, frame int64, cli
 			Translation:  update.Translation,
 			Rotation:     update.Rotation,
 			Scale:        update.Scale,
+			Leader:       update.Leader,
 		}
 		for _, setting := range update.Settings {
 			wsUpdate.Settings = append(wsUpdate.Settings, &wsRPC.Setting{
@@ -170,6 +172,7 @@ func (server *SimHostServer) HandleAddNodeRequest(ctx context.Context, addNodeRe
 		addNodeRequest.Orientation,
 		addNodeRequest.Translation,
 		addNodeRequest.Rotation,
+		addNodeRequest.Leader,
 	)
 	return &simRPC.Ack{Message: "OK"}, nil
 }
@@ -206,6 +209,7 @@ func (server *SimHostServer) HandleUpdateRequest(ctx context.Context, updateRequ
 			nodeUpdate.Rotation,
 			nodeUpdate.Scale,
 			nodeUpdate.TemplateUUID,
+			nodeUpdate.Leader,
 		)
 	}
 	return &simRPC.Ack{Message: "OK"}, nil

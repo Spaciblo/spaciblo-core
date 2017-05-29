@@ -150,6 +150,7 @@ type NodeUpdateMessage struct {
 	Translation  []float64         `json:"translation"`
 	Rotation     []float64         `json:"rotation"`
 	Scale        []float64         `json:"scale"`
+	Leader       int64             `json:"leader"`
 }
 
 // Sent by a client to request changes to nodes
@@ -168,6 +169,7 @@ type AddNodeRequestMessage struct {
 	TemplateUUID string    `json:"templateUUID"`
 	Position     []float64 `json:"position"`
 	Orientation  []float64 `json:"orientation"`
+	Leader       int64     `json:"leader"`
 }
 
 // Sent by a client to request that a scene graph node be removed
@@ -189,6 +191,7 @@ type AdditionMessage struct {
 	Scale        []float64         `json:"scale"`
 	Parent       int64             `json:"parent"`
 	TemplateUUID string            `json:"templateUUID"`
+	Leader       int64             `json:"leader"`
 }
 
 type ClientDisconnectedMessage struct {

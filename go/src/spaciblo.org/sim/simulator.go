@@ -206,6 +206,7 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 			node.TemplateUUID.Value = notice.TemplateUUID // May be REMOVE_KEY_INDICATOR
 			node.TemplateUUID.Dirty = true
 		}
+		node.Leader.Set(notice.Leader)
 	}
 
 	addNodeNotices := spaceSim.collectAddNodeNotices()
@@ -229,7 +230,7 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 			continue
 		}
 		state := apiDB.NewSpaceStateNode(notice.Position, notice.Orientation, notice.Translation, notice.Rotation, []float64{0, 0, 0}, notice.TemplateUUID)
-		childNode, err := NewSceneNode(state, spaceSim.DBInfo)
+		childNode, err := NewSceneNode(state, notice.Leader, spaceSim.DBInfo)
 		if err != nil {
 			logger.Println("Could not create a new node", err)
 			continue
@@ -435,7 +436,7 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 	}
 }
 
-func (spaceSim *SpaceSimulator) HandleAddNode(clientUUID string, parentId int64, templateUUID string, position []float64, orientation []float64, translation []float64, rotation []float64) {
+func (spaceSim *SpaceSimulator) HandleAddNode(clientUUID string, parentId int64, templateUUID string, position []float64, orientation []float64, translation []float64, rotation []float64, leader int64) {
 	spaceSim.AddNodeChannel <- &AddNodeNotice{
 		ClientUUID:   clientUUID,
 		Parent:       parentId,
@@ -444,6 +445,7 @@ func (spaceSim *SpaceSimulator) HandleAddNode(clientUUID string, parentId int64,
 		Orientation:  orientation,
 		Translation:  translation,
 		Rotation:     rotation,
+		Leader:       leader,
 	}
 }
 
@@ -457,7 +459,7 @@ func (spaceSim *SpaceSimulator) HandleRemoveNode(clientUUID string, id int64) {
 /*
 HandleNodeUpdate is called by the sim host when it receives an update request message from a client via the WS service
 */
-func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, clientUUID string, settings map[string]string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64, templateUUID string) {
+func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, clientUUID string, settings map[string]string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64, templateUUID string, leader int64) {
 	spaceSim.NodeUpdateChannel <- &NodeUpdateNotice{
 		Id:           nodeId,
 		ClientUUID:   clientUUID,
@@ -468,6 +470,7 @@ func (spaceSim *SpaceSimulator) HandleNodeUpdate(nodeId int64, clientUUID string
 		Rotation:     rotation,
 		Scale:        scale,
 		TemplateUUID: templateUUID,
+		Leader:       leader,
 	}
 }
 
@@ -525,7 +528,7 @@ func (spaceSim *SpaceSimulator) createClientInfo(clientUUID string, userUUID str
 
 		// Create the base avatar node
 		state := apiDB.NewSpaceStateNode(position, orientation, []float64{0, 0, 0}, []float64{0, 0, 0}, []float64{0, 0, 0}, "")
-		node, err := NewSceneNode(state, spaceSim.DBInfo)
+		node, err := NewSceneNode(state, -1, spaceSim.DBInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -610,12 +613,13 @@ func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneN
 		Translation:  NewVector3([]float64{0, 0, 0}),
 		Rotation:     NewVector3([]float64{0, 0, 0}),
 		Scale:        NewVector3([]float64{1, 1, 1}),
+		Leader:       NewInt64Field(-1),
 	}
 	for key, value := range initialState.Settings {
 		rootNode.Settings[key] = NewStringTuple(key, value)
 	}
 	for _, stateNode := range initialState.Nodes {
-		childNode, err := NewSceneNode(&stateNode, dbInfo)
+		childNode, err := NewSceneNode(&stateNode, -1, dbInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -650,6 +654,7 @@ type SceneNode struct {
 	Rotation     *Vector3
 	Scale        *Vector3
 	TemplateUUID *StringField
+	Leader       *Int64Field
 	Nodes        []*SceneNode
 	Transient    bool // True if ignored when serializing to a SpaceStateNode (e.g. this is an Avatar node)
 }
@@ -664,13 +669,14 @@ func NewBodyPartSceneNode(name string, templateUUID string, position []float64, 
 		Translation:  NewVector3([]float64{0, 0, 0}),
 		Rotation:     NewVector3([]float64{0, 0, 0}),
 		Scale:        NewVector3(scale),
+		Leader:       NewInt64Field(-1),
 		Nodes:        []*SceneNode{},
 	}
 	sceneNode.Settings["name"] = NewStringTuple("name", name)
 	return sceneNode
 }
 
-func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNode, error) {
+func NewSceneNode(stateNode *apiDB.SpaceStateNode, leader int64, dbInfo *be.DBInfo) (*SceneNode, error) {
 	var templateRecord *apiDB.TemplateRecord
 	var err error
 	// We'd rather find a template by UUID, but use the (possibly non-unique) Name in a pinch
@@ -694,6 +700,7 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 		Translation:  NewVector3(stateNode.Translation),
 		Rotation:     NewVector3(stateNode.Rotation),
 		Scale:        NewVector3(stateNode.Scale),
+		Leader:       NewInt64Field(leader),
 		Nodes:        []*SceneNode{},
 	}
 	for key, value := range stateNode.Settings {
@@ -710,7 +717,7 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneNod
 		sceneNode.TemplateUUID.Dirty = true
 	}
 	for _, childStateNode := range stateNode.Nodes {
-		childNode, err := NewSceneNode(&childStateNode, dbInfo)
+		childNode, err := NewSceneNode(&childStateNode, -1, dbInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -764,6 +771,7 @@ func (node *SceneNode) getNodeUpdates() []*NodeUpdate {
 			Translation:  node.Translation.ReadAndClean(),
 			Rotation:     node.Rotation.ReadAndClean(),
 			Scale:        node.Scale.ReadAndClean(),
+			Leader:       node.Leader.ReadAndClean(),
 			TemplateUUID: node.TemplateUUID.ReadAndClean(), // May be REMOVE_KEY_INDICATOR
 		}
 		for key, tuple := range node.Settings {
@@ -834,7 +842,7 @@ func (node *SceneNode) findById(id int64) *SceneNode {
 }
 
 func (node *SceneNode) isDirty() bool {
-	if node.Position.Dirty || node.Orientation.Dirty || node.Rotation.Dirty || node.Translation.Dirty || node.Scale.Dirty || node.TemplateUUID.Dirty {
+	if node.Position.Dirty || node.Orientation.Dirty || node.Rotation.Dirty || node.Translation.Dirty || node.Scale.Dirty || node.TemplateUUID.Dirty || node.Leader.Dirty {
 		return true
 	}
 	for _, stringTuple := range node.Settings {
@@ -854,6 +862,7 @@ func (node *SceneNode) SetClean(includeChildren bool) {
 	node.Rotation.Dirty = false
 	node.Translation.Dirty = false
 	node.Scale.Dirty = false
+	node.Leader.Dirty = false
 	if includeChildren {
 		for _, node := range node.Nodes {
 			node.SetClean(includeChildren)
@@ -920,6 +929,7 @@ type AddNodeNotice struct {
 	Orientation  []float64
 	Translation  []float64
 	Rotation     []float64
+	Leader       int64
 }
 
 type RemoveNodeNotice struct {
@@ -947,6 +957,7 @@ type NodeUpdateNotice struct {
 	Rotation     []float64
 	Scale        []float64
 	TemplateUUID string
+	Leader       int64
 }
 
 type ClientMembershipNotice struct {
@@ -965,6 +976,7 @@ type NodeUpdate struct {
 	Rotation     []float64
 	Scale        []float64
 	TemplateUUID string
+	Leader       int64
 }
 
 type StringField struct {
@@ -990,6 +1002,31 @@ func (field *StringField) ReadAndClean() string {
 	}
 	field.Value = ""
 	return REMOVE_KEY_INDICATOR
+}
+
+type Int64Field struct {
+	Dirty bool  `json:"-"`
+	Value int64 `json:"value"`
+}
+
+func NewInt64Field(value int64) *Int64Field {
+	return &Int64Field{
+		Dirty: false,
+		Value: value,
+	}
+}
+
+func (field *Int64Field) Set(value int64) {
+	if field.Value == value {
+		return
+	}
+	field.Value = value
+	field.Dirty = true
+}
+
+func (field *Int64Field) ReadAndClean() int64 {
+	field.Dirty = false
+	return field.Value
 }
 
 type StringTuple struct {
