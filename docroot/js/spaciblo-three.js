@@ -198,7 +198,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	setFollowGroup(followerId, leaderId=-1, local=false){
 		let followerGroup = this.objectMap.get(followerId) || null
-		spaciblo.input.throttledConsoleLog('followerGroup', followerId, leaderId, followerGroup)
 		if(leaderId === -1 || leaderId === null){
 			if(followerGroup === null){
 				console.error('Tried to unfollow an unknown follower group with id', followerId)
