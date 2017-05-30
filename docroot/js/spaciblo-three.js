@@ -244,13 +244,12 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		followerGroup.leaderGroupShadow.local = local
 		leaderGroup.add(followerGroup.leaderGroupShadow)
 
-		followerGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
-		spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(leaderGroup.matrixWorld)
-		followerGroup.leaderGroupShadow.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_QUAT_2)
-		if(local) followerGroup.leaderGroupShadow.quaternion.inverse()
+		followerGroup.matrixWorld.decompose(spaciblo.three.WORKING_VECTOR3, spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_VECTOR3_2)
 
-		spaciblo.three.WORKING_VECTOR3.copy(followerGroup.position)
-		followerGroup.parent.localToWorld(spaciblo.three.WORKING_VECTOR3)
+		spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(followerGroup.leaderGroup.matrixWorld)
+		spaciblo.three.WORKING_QUAT_2.inverse()
+		followerGroup.leaderGroupShadow.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT)
+
 		leaderGroup.worldToLocal(spaciblo.three.WORKING_VECTOR3)
 		followerGroup.leaderGroupShadow.position.copy(spaciblo.three.WORKING_VECTOR3)
 
@@ -264,11 +263,12 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	_updateFollowingGroups(group=this.rootGroup){
 		if(group === null) return
 		if(group.leaderGroup){
-			group.leaderGroupShadow.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+			group.leaderGroupShadow.matrixWorld.decompose(spaciblo.three.WORKING_VECTOR3, spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_VECTOR3_2)
+ 
 			spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(group.parent.matrixWorld)
-			group.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_QUAT_2)
-			if(group.leaderGroupShadow.local) group.quaternion.inverse()
-			group.leaderGroupShadow.getWorldPosition(spaciblo.three.WORKING_VECTOR3)
+			spaciblo.three.WORKING_QUAT_2.inverse()
+			group.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT)
+
 			group.parent.worldToLocal(spaciblo.three.WORKING_VECTOR3)
 			group.position.copy(spaciblo.three.WORKING_VECTOR3)
 		}
