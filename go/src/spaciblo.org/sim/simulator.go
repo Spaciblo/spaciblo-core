@@ -528,7 +528,7 @@ func (spaceSim *SpaceSimulator) createClientInfo(clientUUID string, userUUID str
 
 		// Create the base avatar node
 		state := apiDB.NewSpaceStateNode(position, orientation, []float64{0, 0, 0}, []float64{0, 0, 0}, []float64{0, 0, 0}, "")
-		node, err := NewSceneNode(state, -1, spaceSim.DBInfo)
+		node, err := NewSceneNode(state, 0, spaceSim.DBInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -613,13 +613,13 @@ func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneN
 		Translation:  NewVector3([]float64{0, 0, 0}),
 		Rotation:     NewVector3([]float64{0, 0, 0}),
 		Scale:        NewVector3([]float64{1, 1, 1}),
-		Leader:       NewInt64Field(-1),
+		Leader:       NewInt64Field(0),
 	}
 	for key, value := range initialState.Settings {
 		rootNode.Settings[key] = NewStringTuple(key, value)
 	}
 	for _, stateNode := range initialState.Nodes {
-		childNode, err := NewSceneNode(&stateNode, -1, dbInfo)
+		childNode, err := NewSceneNode(&stateNode, 0, dbInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -669,7 +669,7 @@ func NewBodyPartSceneNode(name string, templateUUID string, position []float64, 
 		Translation:  NewVector3([]float64{0, 0, 0}),
 		Rotation:     NewVector3([]float64{0, 0, 0}),
 		Scale:        NewVector3(scale),
-		Leader:       NewInt64Field(-1),
+		Leader:       NewInt64Field(0),
 		Nodes:        []*SceneNode{},
 	}
 	sceneNode.Settings["name"] = NewStringTuple("name", name)
@@ -717,7 +717,7 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, leader int64, dbInfo *be.DBIn
 		sceneNode.TemplateUUID.Dirty = true
 	}
 	for _, childStateNode := range stateNode.Nodes {
-		childNode, err := NewSceneNode(&childStateNode, -1, dbInfo)
+		childNode, err := NewSceneNode(&childStateNode, 0, dbInfo)
 		if err != nil {
 			return nil, err
 		}

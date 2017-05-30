@@ -196,9 +196,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			console.error('Error fetching flock members', err)
 		})
 	}
-	setFollowGroup(followerId, leaderId=-1, local=false){
+	setFollowGroup(followerId, leaderId=0, local=false){
 		let followerGroup = this.objectMap.get(followerId) || null
-		if(leaderId === -1 || leaderId === null){
+		if(leaderId === 0 || leaderId === null){
 			if(followerGroup === null){
 				console.error('Tried to unfollow an unknown follower group with id', followerId)
 				return
@@ -210,12 +210,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			}
 			return {
 				id: followerId,
-				leader: -1,
+				leader: 0,
 				position: [followerGroup.position.x, followerGroup.position.y, followerGroup.position.z],
 				orientation: [followerGroup.quaternion.x, followerGroup.quaternion.y, followerGroup.quaternion.z, followerGroup.quaternion.w],
-				rotation: [followerGroup.rotationMotion.x, followerGroup.rotationMotion.y, followerGroup.rotationMotion.z],
-				translation: [followerGroup.translationMotion.x, followerGroup.translationMotion.y, followerGroup.translationMotion.z],
-				scale: [followerGroup.scale.x, followerGroup.scale.y, followerGroup.scale.z],
 			}
 		}
 		if(followerGroup === null){
@@ -237,8 +234,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.rootGroup.updateMatrixWorld(true)
 
 		followerGroup.leaderGroup = leaderGroup
-		followerGroup.rotationMotion.set(0,0,0)
-		followerGroup.translationMotion.set(0,0,0)
 
 		// Save the follower's world position and orientation relative to the leader
 		// We'll use this info in _animate to move the follower relative to the leader
@@ -251,10 +246,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		followerGroup.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
 		spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(leaderGroup.matrixWorld)
-		followerGroup.leaderGroupShadow.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT)
-		if(local){
-			followerGroup.leaderGroupShadow.quaternion.inverse()
-		}
+		followerGroup.leaderGroupShadow.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_QUAT_2)
+		if(local) followerGroup.leaderGroupShadow.quaternion.inverse()
 
 		spaciblo.three.WORKING_VECTOR3.copy(followerGroup.position)
 		followerGroup.parent.localToWorld(spaciblo.three.WORKING_VECTOR3)
@@ -266,9 +259,6 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			leader: leaderId,
 			position: [followerGroup.position.x, followerGroup.position.y, followerGroup.position.z],
 			orientation: [followerGroup.quaternion.x, followerGroup.quaternion.y, followerGroup.quaternion.z, followerGroup.quaternion.w],
-			rotation: [followerGroup.rotationMotion.x, followerGroup.rotationMotion.y, followerGroup.rotationMotion.z],
-			translation: [followerGroup.translationMotion.x, followerGroup.translationMotion.y, followerGroup.translationMotion.z],
-			scale: [followerGroup.scale.x, followerGroup.scale.y, followerGroup.scale.z],
 		}
 	}
 	_updateFollowingGroups(group=this.rootGroup){
@@ -276,10 +266,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		if(group.leaderGroup){
 			group.leaderGroupShadow.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
 			spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(group.parent.matrixWorld)
-			group.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT)
-			if(group.leaderGroupShadow.local){
-				group.quaternion.inverse()
-			}
+			group.quaternion.multiplyQuaternions(spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_QUAT_2)
+			if(group.leaderGroupShadow.local) group.quaternion.inverse()
 			group.leaderGroupShadow.getWorldPosition(spaciblo.three.WORKING_VECTOR3)
 			group.parent.worldToLocal(spaciblo.three.WORKING_VECTOR3)
 			group.position.copy(spaciblo.three.WORKING_VECTOR3)

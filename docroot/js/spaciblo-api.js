@@ -109,7 +109,8 @@ spaciblo.api.Client = k.eventMixin(class {
 			spaceUUID: this.space.get('uuid'),
 			templateUUID: templateUUID,
 			position: position,
-			orientation: orientation
+			orientation: orientation,
+			leader: 0
 		}))
 	}
 	sendUpdateRequest(nodeId, name, value){
