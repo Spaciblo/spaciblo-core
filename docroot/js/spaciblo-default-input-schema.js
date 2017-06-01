@@ -46,7 +46,7 @@ spaciblo.input._defaultActions = [
 	'rotate-right', // clockwise rotation around the Y axis, equiv to rotate-y at 1.0
 	'rotate-x',		// [-1,1] rotation around the X axis 
 	'rotate-y',		// [-1,1] rotation around the Y axis
-	'rotate-z',		// [-1,1] rotation around the Z axis
+	'rotate-z'		// [-1,1] rotation around the Z axis
 ]
 // Load the actions into the DefaultInputSchema
 spaciblo.input._defaultActions.forEach((name, index) => {
@@ -58,6 +58,7 @@ spaciblo.input.XBOX_ONE_CONTROLLER_ID_REGEX = /xinput/
 spaciblo.input.DAYDREAM_CONTROLLER_ID_REGEX = /Daydream Controller/
 spaciblo.input.OPENVR_CONTROLLER_ID_REGEX = /OpenVR Gamepad/
 spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX = /Oculus Touch \((Left|Right)\)/
+spaciblo.input.GEAR_VR_CONTROLLER_ID_REGEX = /Gear VR Controller/
 spaciblo.input.OCULUS_REMOTE_ID_REGEX = /Oculus Remote/
 spaciblo.input.UNKNOWN_CONTROLLER_ID_REGEX = /unknown/
 
@@ -65,12 +66,13 @@ spaciblo.input.UNKNOWN_CONTROLLER_ID_REGEX = /unknown/
 spaciblo.input.CONTROLLER_ID_REGEXES = [
 	spaciblo.input.XBOX_ONE_CONTROLLER_ID_REGEX,
 	spaciblo.input.DAYDREAM_CONTROLLER_ID_REGEX,
+	spaciblo.input.GEAR_VR_CONTROLLER_ID_REGEX,
 	spaciblo.input.OPENVR_CONTROLLER_ID_REGEX,
 	spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX,
 	spaciblo.input.OCULUS_REMOTE_ID_REGEX
 ]
 
-// In this schema, we treat the same all known tracked controllers like Oculus Touch and OpenVR/Vive
+// In this schema, we treat the same all larger tracked controllers like Oculus Touch and OpenVR/Vive
 spaciblo.input._defaultControllerInputs = [
 	['left',	null, 0, null,	'left-point'],
 	['right',	null, 0, null,	'right-point'],
@@ -83,7 +85,7 @@ spaciblo.input._defaultControllerInputs = [
 	['left',	null, null, 0,	'left-glide-x'],
 	['right', 	null, null, 0,	'right-glide-x'],
 	['left',	null, null, 1,	'left-glide-y'],
-	['right', 	null, null, 1,	'right-glide-y'],
+	['right', 	null, null, 1,	'right-glide-y']
 ]
 // Load the inputs for each tracked controller type that we treat the same
 spaciblo.input._generateGamepadInput = function(schema, idRegex, input){
@@ -98,12 +100,14 @@ for(let input of spaciblo.input._defaultControllerInputs){
 	spaciblo.input._generateGamepadInput(spaciblo.input.DefaultInputSchema, spaciblo.input.OPENVR_CONTROLLER_ID_REGEX, input)
 }
 
-// This is the layout for smaller controllers like the Daydream 3dof controller and the GearVR controller
+// This is the layout for smaller controllers like the Daydream 3dof controller and the Gear VR controller
 spaciblo.input._smallerControllerInputs = [
 	['left',	null, 0, null,	'left-point'],
 	['right',	null, 0, null,	'right-point'],
 	['left',	0, null, null,	'left-press'],
 	['right', 	0, null, null,	'right-press'],
+	['left',	1, null, null,	'left-trigger'], // Daydream doesn't have button 1, but Gear VR Controller does
+	['right', 	1, null, null,	'right-trigger'],
 	['left',	null, null, 0,	'left-glide-x'],
 	['right', 	null, null, 0,	'right-glide-x'],
 	['left',	null, null, 1,	'left-glide-y'],
@@ -111,6 +115,9 @@ spaciblo.input._smallerControllerInputs = [
 ]
 for(let input of spaciblo.input._smallerControllerInputs){
 	spaciblo.input._generateGamepadInput(spaciblo.input.DefaultInputSchema, spaciblo.input.DAYDREAM_CONTROLLER_ID_REGEX, input)
+}
+for(let input of spaciblo.input._smallerControllerInputs){
+	spaciblo.input._generateGamepadInput(spaciblo.input.DefaultInputSchema, spaciblo.input.GEAR_VR_CONTROLLER_ID_REGEX, input)
 }
 
 // For gamepad IDs that we don't recognize and for XBox controllers, this is a standard gamepad layout

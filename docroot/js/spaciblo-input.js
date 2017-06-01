@@ -350,6 +350,55 @@ spaciblo.input.InputManager = k.eventMixin(class {
 	}
 })
 
+/*
+Handy serializable gamepad info
+*/
+spaciblo.input.getGamepadInfo = function(){
+	let data = []
+	for(let gamepad of navigator.getGamepads()){
+		if(gamepad === null){
+			var gpInfo = null
+		} else {
+			var gpInfo = {
+				id: gamepad.id,
+				hand: gamepad.hand,
+				buttons: [],
+				axes: []
+			}
+			for(let i=0; i < gamepad.buttons.length; i++){
+				gpInfo.buttons.push({
+					index: i,
+					pressed: gamepad.buttons[i].pressed,
+					touched: gamepad.buttons[i].touched,
+					value: gamepad.buttons[i].value,
+				})
+			}
+			for(let i=0; i < gamepad.axes.length; i++){
+				gpInfo.axes.push({
+					index: i,
+					value: gamepad.axes[i]
+				})
+			}
+			if(gamepad.pose){
+				gpInfo.pose = {
+					'hand': gamepad.pose.hand,
+					'hasPosition': gamepad.pose.hasPosition,
+					'hasOrientation': gamepad.pose.hasOrientation,
+					'hasLinearVelocity': Array.isArray(gamepad.pose.linearVelocity),
+					'hasLinearAcceleration': Array.isArray(gamepad.pose.linearAcceleration),
+					'hasAngularVelocity': Array.isArray(gamepad.pose.angularVelocity),
+					'hasAngularAcceleration': Array.isArray(gamepad.pose.angularAcceleration),
+				}
+			}
+			if(gamepad.hapticActuators){
+				gpInfo.hapticActuators = gamepad.hapticActuators.length
+			}
+		}
+		data[data.length] = gpInfo
+	}
+	return data
+}
+
 // A handy call when debugging within animation frames, logs messages at most once per second
 spaciblo.input.throttledConsoleLog = be.ui.throttle(function(...params){
 	console.log(...params)
