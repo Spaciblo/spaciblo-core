@@ -58,6 +58,8 @@ spaciblo.api.Client = k.eventMixin(class {
 
 			this.socket.onopen = () => {
 				this.socket.onopen = this._onOpen.bind(this)
+				// Uncomment this only during debugging a new controller type, never in production.
+				// this._startGamepadInfoMessages()
 				resolve()
 			}
 			this.socket.onerror = () => {
@@ -65,6 +67,18 @@ spaciblo.api.Client = k.eventMixin(class {
 				reject()
 			}
 		})
+	}
+	/*
+	This is used during development when adding a new controller type.
+	It sends a Debug-Log message to the backend with information about the current gamepad state.
+	*/
+	_startGamepadInfoMessages(){
+		setInterval(() => {
+			this.socket.send(JSON.stringify({
+				type: 'Debug-Log',
+				gamepads: spaciblo.input.getGamepadInfo()
+			}))
+		}, 1000)
 	}
 	joinSpace(space, avatar=true){
 		if(this.socket === null){
@@ -81,12 +95,16 @@ spaciblo.api.Client = k.eventMixin(class {
 		}))
 	}
 	sendSettingRequest(nodeId, name, value){
+		let settings = {}
+		settings[name] = value
+		this.sendSettingsRequest(nodeId, settings)
+	}
+	sendSettingsRequest(nodeId, settings){
 		if(this.space === null) return
 		let nodeUpdate = {
 			id: nodeId,
-			settings: {}
+			settings: settings
 		}
-		nodeUpdate.settings[name] = value
 		this.socket.send(JSON.stringify({
 			type: 'Update-Request',
 			spaceUUID: this.space.get('uuid'),

@@ -166,12 +166,20 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		if err != nil {
 			break
 		}
+
 		// Parse
 		typedMessage, err := ParseMessageJson(string(rawMessage))
 		if err != nil {
 			logger.Println("Could not parse ClientMessage", err, rawMessage)
 			continue
 		}
+
+		// Debug log messages we just log and then ignore
+		if typedMessage.MessageType() == DebugLogType {
+			logger.Println("DEBUG LOG", string(rawMessage))
+			continue
+		}
+
 		// Route
 		clientUUIDs, responseMessage, err := RouteClientMessage(typedMessage, wsConnection.ClientUUID, wsConnection.UserUUID, wsConnection.SpaceUUID, simHostClient)
 		if err != nil {

@@ -16,28 +16,40 @@ spaciblo.client.TemplateWorker = class {
 				postMessage(new spaciblo.client.WorkerReadyMessage())
 				break
 			case 'group-added':
-				this.handleGroupAdded(ev.data)
+				this.handleGroupAdded(ev.data.group)
 				break
-			case 'group-deleted':
-				this.handleGroupDeleted(ev.data)
+			case 'group-removed':
+				this.handleGroupRemoved(ev.data.groupId)
+				break
+			case 'group-settings-changed':
+				this.handleGroupSettingsChanged(ev.data.groupId, ev.data.changedKeys, ev.data.settings)
 				break
 			case 'template-group-added':
-				this.handleTemplateGroupAdded(ev.data)
+				this.handleTemplateGroupAdded(ev.data.group)
 				break
-			case 'template-group-deleted':
-				this.handleTemplateGroupDeleted(ev.data)
+			case 'template-group-removed':
+				this.handleTemplateGroupRemoved(ev.data.groupId)
+				break
+			case 'template-group-settings-changed':
+				this.handleTemplateGroupSettingsChanged(ev.data.groupId, ev.data.changedKeys, ev.data.settings)
+				break
+			case 'template-geometry-loaded':
+				this.handleTemplateGeometryLoaded(ev.data.group)
 				break
 			case 'group-clicked':
-				this.handleGroupClicked(ev.data)
+				this.handleGroupClicked(ev.data.group)
 				break
 			case 'input-action-started':
-				this.handleInputActionStarted(ev.data)
+				this.handleInputActionStarted(ev.data.action)
 				break
 			case 'input-action-ended':
-				this.handleInputActionEnded(ev.data)
+				this.handleInputActionEnded(ev.data.action)
 				break
 			case 'avatar-info':
-				this.handleAvatarInfo(ev.data)
+				this.handleAvatarInfo(ev.data.group)
+				break
+			case 'group-info':
+				this.handleGroupInfo(ev.data.group)
 				break
 			case 'point-intersect':
 				this.handlePointIntersect(ev.data)
@@ -49,14 +61,18 @@ spaciblo.client.TemplateWorker = class {
 
 	// Extending classes override these to handle each message type
 	init(data){}
+	handleGroupInfo(group){}
 	handleGroupAdded(group){} 
-	handleGroupRemoved(group){}
+	handleGroupRemoved(groupId){}
 	handleTemplateGroupAdded(group){} 
-	handleTemplateGroupRemoved(group){}
+	handleTemplateGroupRemoved(groupId){}
+	handleTemplateGeometryLoaded(group){}
+	handleGroupSettingsChanged(groupId, changedKeys, settings) {}
+	handleTemplateGroupSettingsChanged(groupId, changedKeys, settings) {}
 	handleInputActionStarted(action){}
 	handleInputActionEnded(action){}
-	handleAvatarInfo(data){}
 	handlePointIntersect(data){}
+	handleAvatarInfo(group){}
 
 	// TODO remove me because mouse clicks should be coming through the input manager
 	handleGroupClicked(group){}
@@ -92,8 +108,8 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 		this._subscribedToGroups = subscribeToGroups
 		this._subscribedToTemplateGroups = subscribeToTemplateGroups
 
-		this._groups = new Set()		// Groups as they are added and removed from the scene
-		this._templateGroups = new Set() // Groups that use this template worker as they are added and removed
+		this._groups = new Map()		// id -> groups as they are added and removed from the scene
+		this._templateGroups = new Map() // id -> groups that use this template worker as they are added and removed
 		this._templateUUID = null 		// The template UUID that this worker is supporting
 		this._activeActions = new Set() // Active actions like 'point', 'left-point', 'translate-forward' 
 		this._gazePoint = null			// The pointing data when the user is gazing at a group in the scene
@@ -143,8 +159,8 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 		postMessage(new spaciblo.client.TemplateGroupExistenceSubscriptionMessage({ subscribed: this._subscribedToTemplateGroups }))
 	}
 
-	handleAvatarInfo(data){
-		this._avatarGroup = data.group
+	handleAvatarInfo(group){
+		this._avatarGroup = group
 	}
 	get avatarGroup() { return this._avatarGroup }
 
@@ -156,28 +172,53 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 
 	get torsoGroup(){ return this.findChildByName('torso', this._avatarGroup) }
 
-	handleInputActionStarted(event){
-		this._activeActions.add(event.action.name)
+	handleInputActionStarted(action){
+		this._activeActions.add(action.name)
 	}
-	handleInputActionEnded(event){
-		this._activeActions.delete(event.action.name)
+	handleInputActionEnded(action){
+		this._activeActions.delete(action.name)
 	}
 	actionIsActive(actionName){
 		return this._activeActions.has(actionName)
 	}
 
+	handleGroupInfo(group){
+		this._groups.set(group.id, group) // Update with the newer info
+	}
 	handleGroupAdded(group){
-		this._groups.add(group)
+		this._groups.set(group.id, group)
 	}
-	handleGroupRemoved(group){
-		this._groups.delete(group)
+	handleGroupRemoved(groupId){
+		this._groups.delete(groupId)
 	}
+	handleGroupSettingsChanged(groupId, changedKeys, settings){
+		if(this._groups.has(groupId) === false) return
+		this._groups.get(groupId).settings = settings
+	}
+	getGroup(groupId){
+		return this._groups.get(groupId) || null
+	}
+
 	handleTemplateGroupAdded(group){
-		this._templateGroups.add(group)
+		this._templateGroups.set(group.id, group)
 	}
-	handleTemplateGroupRemoved(group){
-		this._templateGroups.remove(group)
+	handleTemplateGroupRemoved(groupId){
+		this._templateGroups.remove(groupId)
 	}
+	handleTemplateGroupSettingsChanged(groupId, changedKeys, settings){
+		if(this._templateGroups.has(groupId) === false){
+			console.error('tried to update settings for an unknown template group', groupId, changedKeys, settings)
+			return
+		}
+		this._templateGroups.get(groupId).settings = settings
+	}
+	handleTemplateGeometryLoaded(group){
+		this._templateGroups.set(group.id, group) // Since this is the newest value, update _templateGroups
+	}
+	getTemplateGroup(groupId){
+		return this._templateGroups.get(groupId) || null
+	}
+
 	handlePointIntersect(data){
 		switch(data.pointer){
 			case 'gaze':
@@ -216,7 +257,10 @@ Extending classes should implement handlePress
 */
 spaciblo.client.PressableTemplateWorker = class extends spaciblo.client.TrackingTemplateWorker {
 	constructor(){
-		super(true, true, false, true)
+		super(true, true, true, true)
+		this._pressedGaze = null
+		this._pressedLeft = null
+		this._pressedRight = null
 	}
 	handleTriggerStarted(group, pointer){
 		// This is the method extending classes should implement to handle presses when the user is pointing at this worker's group
@@ -228,17 +272,51 @@ spaciblo.client.PressableTemplateWorker = class extends spaciblo.client.Tracking
 		// pointer is 'left', 'right', or 'gaze'
 	}
 	handlePressStarted(group, pointer){
-		// This is the method extending classes should implement to handle presses when the user is pointing at this worker's group
-		// pointer is 'left', 'right', or 'gaze'
+		switch(pointer){
+			case 'gaze':
+				this._pressedGaze = group
+				break
+			case 'left':
+				this._pressedLeft = group
+				break
+			case 'right':
+				this._pressedRight = group
+				break
+		}
+		postMessage(new spaciblo.client.RequestGroupSettingsChangeMessage({
+			groupId: group.id,
+			settings: {
+				pressed: 'true'
+			}
+		}))
 	}
 	handlePressEnded(pointer){
-		// This is the method extending classes should implement to handle presses ending
-		// Unlike handlePress, this is called when any press ends, regardless of whether the press started pointing at this worker's group
-		// pointer is 'left', 'right', or 'gaze'
+		let pressedGroup = null
+		switch(pointer){
+			case 'gaze':
+				pressedGroup = this._pressedGaze
+				this._pressedGaze = null
+				break
+			case 'left':
+				pressedGroup = this._pressedLeft
+				this._pressedLeft = null
+				break
+			case 'right':
+				pressedGroup = this._pressedRight
+				this._pressedRight = null
+				break
+		}
+		if(pressedGroup === null) return
+		postMessage(new spaciblo.client.RequestGroupSettingsChangeMessage({
+			groupId: pressedGroup.id,
+			settings: {
+				pressed: 'false'
+			}
+		}))
 	}
-	handleInputActionStarted(event){
-		super.handleInputActionStarted(event)
-		switch(event.action.name){
+	handleInputActionStarted(action){
+		super.handleInputActionStarted(action)
+		switch(action.name){
 			case 'press':
 				if(this.actionIsActive('point') && this.gazePoint !== null){
 					this.handlePressStarted(this.gazePoint.group, 'gaze')
@@ -255,7 +333,7 @@ spaciblo.client.PressableTemplateWorker = class extends spaciblo.client.Tracking
 				}
 				break
 		}
-		switch(event.action.name){
+		switch(action.name){
 			case 'trigger':
 				if(this.actionIsActive('point') && this.gazePoint !== null){
 					this.handleTriggerStarted(this.gazePoint.group, 'gaze')
@@ -273,9 +351,9 @@ spaciblo.client.PressableTemplateWorker = class extends spaciblo.client.Tracking
 				break
 		}
 	}
-	handleInputActionEnded(event){
-		super.handleInputActionEnded(event)
-		switch(event.action.name){
+	handleInputActionEnded(action){
+		super.handleInputActionEnded(action)
+		switch(action.name){
 			case 'press':
 				this.handlePressEnded('gaze')
 				break
@@ -286,7 +364,7 @@ spaciblo.client.PressableTemplateWorker = class extends spaciblo.client.Tracking
 				this.handlePressEnded('right')
 				break
 		}
-		switch(event.action.name){
+		switch(action.name){
 			case 'trigger':
 				this.handleTriggerEnded('gaze')
 				break
@@ -331,6 +409,33 @@ spaciblo.client.WorkerReadyMessage = class extends spaciblo.client.Message {
 }
 
 /*
+Sent by the client worker to modify selected groups using vms (see spaciblo-vms.js)
+values:
+	selectors: an array of vms.Selector representations
+	modifiers: an array of vms.Modifier representations
+*/
+spaciblo.client.GroupModificationMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('group-modification', values)
+		// Assume that the values passed in are unmarshalled vms values, so marshal them for transport 
+		if(this.selectors) this.selectors = values.selectors.map(selector => { return selector.marshal() })
+		if(this.modifiers) this.modifiers = values.modifiers.map(modifier => { return modifier.marshal() })
+	}
+}
+
+/*
+Sent by the client worker to request that a group's settings be changed
+values:
+	groupId: int
+	settings: { keyName: string }
+*/
+spaciblo.client.RequestGroupSettingsChangeMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('request-group-settings-change', values)
+	}
+}
+
+/*
 Sent by the client worker to fetch the group information for the local avatar
 */
 spaciblo.client.QueryAvatarMessage = class extends spaciblo.client.Message {
@@ -347,6 +452,28 @@ values:
 spaciblo.client.AvatarInfoMessage = class extends spaciblo.client.Message {
 	constructor(values={}){
 		super('avatar-info', values)
+	}
+}
+
+/*
+Sent by the client worker to fetch a group's information
+values:
+	id: the target group's id 
+*/
+spaciblo.client.QueryGroupMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('query-group', values)
+	}
+}
+
+/*
+A response to a QueryGroupMessage
+values:
+	group: a dict representing the scene graph of the group
+*/
+spaciblo.client.GroupInfoMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('group-info', values)
 	}
 }
 
@@ -484,13 +611,61 @@ spaciblo.client.GroupAddedMessage = class extends spaciblo.client.Message {
 }
 
 /*
+Sent to the client when any group is removed from the scene, regardless of its template
+values:
+	groupId: int
+*/
+spaciblo.client.GroupRemovedMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('group-removed', values)
+	}
+}
+
+/*
+Sent to the client when any group's settings change, not including when they are first set
+values:
+	changedKeys: [keyName, ...]
+	settings: { keyName: string, ...}
+*/
+spaciblo.client.GroupSettingsChangedMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('group-settings-changed', values)
+	}
+}
+
+/*
+Sent to the client when a group using this worker's template has settings change, not including when they are first set
+values:
+	changedKeys: [keyName, ...]
+	settings: { keyName: string, ...}
+*/
+spaciblo.client.TemplateGroupSettingsChangedMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('template-group-settings-changed', values)
+	}
+}
+
+
+/*
 Fired when any group is removed from the scene, regardless of its template
 values:
-	groupID: int
+	groupId: int
 */
-spaciblo.client.GroupDeletedMessage = class extends spaciblo.client.Message {
+spaciblo.client.GroupRemovedMessage = class extends spaciblo.client.Message {
 	constructor(values={}){
-		super('group-deleted', values)
+		super('group-removed', values)
+	}
+}
+
+/*
+Fired when a group using this worker's template has loaded their geometry.
+This is useful because then the group is first added (and send via a GroupAddedMessage) it has no geometry.
+values:
+	group: the group's scene graph
+*/
+spaciblo.client.TemplateGeometryLoadedMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('template-geometry-loaded', values)
 	}
 }
 
@@ -508,11 +683,11 @@ spaciblo.client.TemplateGroupAddedMessage = class extends spaciblo.client.Messag
 /*
 Fired when a group with the worker's template is removed from the scene
 values:
-	groupID: int
+	groupId: int
 */
-spaciblo.client.TemplateGroupDeletedMessage = class extends spaciblo.client.Message {
+spaciblo.client.TemplateGroupRemovedMessage = class extends spaciblo.client.Message {
 	constructor(values={}){
-		super('template-group-deleted', values)
+		super('template-group-removed', values)
 	}
 }
 

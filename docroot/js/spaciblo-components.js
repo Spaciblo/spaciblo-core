@@ -83,6 +83,71 @@ spaciblo.components.AccountPageComponent = class extends k.Component {
 }
 
 /*
+UtilsPageComponent wraps all of the logic for u/index.html
+*/
+spaciblo.components.UtilsPageComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('utils-page-component')
+
+		this.topNav = new be.ui.TopNavComponent()
+		this.el.appendChild(this.topNav.el)
+
+		this.row = k.el.div({
+			class: 'row'
+		}).appendTo(this.el)
+		this.col = k.el.div({
+			class: 'col-12'
+		}).appendTo(this.row)
+
+		this.col.appendChild(k.el.h2('Gamepads info'))
+
+		this.gamepadsInfoComponent = new spaciblo.components.GamepadsInfoComponent()
+		this.col.appendChild(this.gamepadsInfoComponent.el)
+	}
+}
+
+spaciblo.components.GamepadsInfoComponent = class extends k.Component {
+	constructor(dataObject=null, options={}){
+		super(dataObject, options)
+		this.el.addClass('gamepads-info-component')
+		this.subHeader = k.el.div({ class: 'sub-header' }).appendTo(this.el)
+		this.gamepadList = k.el.ul({ class: 'gamepad-list' }).appendTo(this.el)
+		this.intervalId = setInterval(this.updateGamepadInfo.bind(this), 500)
+	}
+	cleanup(){
+		clearInterval(this.intervalId)
+	}
+	updateGamepadInfo(){
+		this.gamepadList.innerHTML = ''
+		let gamepads = navigator.getGamepads()
+		this.subHeader.innerText = 'Count: ' + gamepads.length
+		for(let i=0; i < gamepads.length; i++){
+			let gamepad = gamepads[i]
+			let li = k.el.li({ class: 'gamepad-info' }).appendTo(this.gamepadList)
+			if(gamepad === null){
+				li.appendChild(k.el.h3(i + ': null'))
+			} else {
+				li.appendChild(k.el.h3(i + ': ' + gamepad.id))
+				for(let b=0; b < gamepad.buttons.length; b++){
+					li.appendChild(k.el.div(
+						'button ' + b,
+						k.el.span(gamepad.buttons[b].pressed ? 'dn' : 'up'),
+						k.el.span('' + gamepad.buttons[b].value)
+					))
+				}
+				for(let a=0; a < gamepad.axes.length; a++){
+					li.appendChild(k.el.div(
+						'axis ' + a,
+						k.el.span('' + gamepad.axes[a])
+					))
+				}
+			}
+		}
+	}
+}
+
+/*
 UserAvatarSelectionComponent allows users to pick their avatar
 */
 spaciblo.components.UserAvatarSelectionComponent = class extends k.Component {
@@ -259,7 +324,8 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.workerManager.addListener(this.handleWorkerRequestedAvatarChange.bind(this), spaciblo.events.WorkerRequestedAvatarUpdate)
 		this.workerManager.addListener(this.handleWorkerRequestedTeleport.bind(this), spaciblo.events.WorkerRequestedAvatarTeleport)
 		this.workerManager.addListener(this.handleWorkerRequestedFollowGroup.bind(this), spaciblo.events.WorkerRequestedFollowGroup)
-
+		this.workerManager.addListener(this.handleWorkerRequestedGroupModifications.bind(this), spaciblo.events.WorkerRequestedGroupModifications)
+		this.workerManager.addListener(this.handleWorkerRequestedGroupSettingsChange.bind(this), spaciblo.events.WorkerRequestedGroupSettingsChange)
 		// The audio manager tracks WebRTC audio streams for each remote user
 		this.audioManager = new spaciblo.audio.SpaceManager()
 		this.audioManager.addListener(this.handleLocalSDP.bind(this), spaciblo.events.GeneratedSDPLocalDescription)
@@ -311,6 +377,12 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.renderer = new spaciblo.three.Renderer(this.environment, this.inputManager, this.audioManager, this.workerManager, this.flocks)
 		this.el.appendChild(this.renderer.el)
 		this.renderer.addListener(this._throttledSendAvatarUpdate, spaciblo.events.AvatarPositionChanged)
+		this.renderer.addListener((eventName, group) => {
+			this.workerManager.handleTemplateGeometryLoaded(group)
+		}, spaciblo.three.events.TemplateGeometryLoaded)
+		this.renderer.addListener((eventName, changedKeys, group) => {
+			this.workerManager.handleGroupSettingsChanged(changedKeys, group)
+		}, spaciblo.three.events.GroupSettingsChanged)
 
 		// The worker manager needs to be able to query the scene graph, so we hand it the renderer for that purpose
 		this.workerManager.setRenderer(this.renderer)
@@ -376,9 +448,16 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		delete update['name']
 		this.client.sendUpdatesRequest([update])
 	}
+	handleWorkerRequestedGroupSettingsChange(eventName, data){
+		this.client.sendSettingsRequest(data.groupId, data.settings)
+	}
 	handleWorkerRequestedFollowGroup(eventName, data){
 		let updateData = this.renderer.setFollowGroup(data.followerId, data.leaderId, true)
 		this.client.sendUpdatesRequest([updateData])
+	}
+	handleWorkerRequestedGroupModifications(eventName, data){
+		// TODO figure out replication. In the mean time, just apply it to the renderer
+		this.renderer.handleGroupModifications(data)
 	}
 	_sendAvatarUpdate(){
 		// You probably want to use this._throttledSendAvatarUpdate

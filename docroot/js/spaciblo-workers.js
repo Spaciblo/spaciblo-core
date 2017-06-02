@@ -10,6 +10,9 @@ spaciblo.events.WorkerRequestedPORTSChange = 'worker-requested-ports-change'
 spaciblo.events.WorkerRequestedAvatarUpdate = 'worker-requested-avatar-update'
 spaciblo.events.WorkerRequestedAvatarTeleport = 'worker-requested-avatar-teleport'
 spaciblo.events.WorkerRequestedFollowGroup = 'worker-requested-follow-group'
+spaciblo.events.WorkerRequestedGroupModifications = 'worker-requested-group-modifications'
+spaciblo.events.WorkerRequestedGroupSettingsChange = 'worker-requested-group-settings-change'
+
 /*
 For each template (not instance), a single web worker is created.
 Each instance of the template in the scene uses the same web worker for its client side logic.
@@ -114,16 +117,16 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 			group: group.serializeForWorker()
 		}))
 	}
-	handleGroupDeleted(groupID){
+	handleGroupRemoved(groupId){
 		// This is called when a group is removed from the scene graph
 		if(this.worker === null) return
 		if(this.subscribedToGroupExistence){
-			this._postMessage(new spaciblo.client.GroupDeletedMessage({
-				groupID: groupID
+			this._postMessage(new spaciblo.client.GroupRemovedMessage({
+				groupId: groupId
 			}))
 		}
-		const isTemplateGroup = this.templateGroups.has(groupID)
-		if(isTemplateGroup) this.templateGroups.delete(groupID)
+		const isTemplateGroup = this.templateGroups.has(groupId)
+		if(isTemplateGroup) this.templateGroups.delete(groupId)
 
 		// If that was the last group using this template, terminate the worker
 		if(this.templateGroups.size === 0){
@@ -132,15 +135,37 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 		}
 
 		if(isTemplateGroup && this.subscribedToTemplateGroupExistence){
-			this._postMessage(new spaciblo.client.TemplateGroupDeletedMessage({
-				groupID: groupID
+			this._postMessage(new spaciblo.client.TemplateGroupRemovedMessage({
+				groupId: groupId
 			}))
 		}
 	}
-	handleTemplateUnset(groupID, templateUUID){
+	handleGroupSettingsChanged(changedKeys, group){
+		if(this.subscribedToGroupExistence){
+			this._postMessage(new spaciblo.client.GroupSettingsChangedMessage({
+				groupId: group.state.id,
+				changedKeys: changedKeys,
+				settings: group.settings
+			}))
+		}
+		if(this.templateGroups.has(group.state.id) && this.subscribedToTemplateGroupExistence){
+			this._postMessage(new spaciblo.client.TemplateGroupSettingsChangedMessage({
+				groupId: group.state.id,
+				changedKeys: changedKeys,
+				settings: group.settings
+			}))
+		}
+	}
+	handleTemplateGeometryLoaded(serializableGroup){
+		if(this.templateGroups.has(serializableGroup.id) === false) return
+		this._postMessage(new spaciblo.client.TemplateGeometryLoadedMessage({
+			group: serializableGroup
+		}))
+	}
+	handleTemplateUnset(groupId, templateUUID){
 		// This is called when a group in the scene graph is no longer associated with a template
-		if(this.templateGroups.has(groupID) === false) return
-		this.templateGroups.delete(groupID)
+		if(this.templateGroups.has(groupId) === false) return
+		this.templateGroups.delete(groupId)
 
 		// If that was the last group using this template, terminate the worker
 		if(this.templateGroups.size === 0){
@@ -149,8 +174,8 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 		}
 
 		if(this.subscribedToTemplateGroupExistence){
-			this._postMessage(new spaciblo.client.TemplateGroupDeletedMessage({
-				groupID: groupID
+			this._postMessage(new spaciblo.client.TemplateGroupRemovedMessage({
+				groupId: groupId
 			}))
 		}
 	}
@@ -183,6 +208,11 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 					this.preloadMessageQueue = []
 				}, 0)
 				break
+			case 'group-modification':
+				data.selectors = data.selectors.map(data => { return vms.unmarshal(data) })
+				data.modifiers = data.modifiers.map(data => { return vms.unmarshal(data) })
+				this.manager.trigger(spaciblo.events.WorkerRequestedGroupModifications, data)
+				break
 			case 'change-ports':
 				this.manager.trigger(spaciblo.events.WorkerRequestedPORTSChange, data)
 				break
@@ -198,6 +228,9 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 			case 'template-group-existence-subscription':
 				this.subscribedToTemplateGroupExistence = data.subscribed === true
 				break
+			case 'request-group-settings-change':
+				this.manager.trigger(spaciblo.events.WorkerRequestedGroupSettingsChange, data)
+				break
 			case 'query-avatar':
 				const avatarGroup = this.manager.getAvatarGroup()
 				if(avatarGroup === null){
@@ -205,6 +238,16 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 				} else {
 					this.worker.postMessage(new spaciblo.client.AvatarInfoMessage({
 						group: avatarGroup.serializeForWorker()
+					}))
+				}
+				break
+			case 'query-group':
+				const group = this.manager.getGroup(data.id)
+				if(group === null){
+					console.error('null group', data)
+				} else {
+					this.worker.postMessage(new spaciblo.client.GroupInfoMessage({
+						group: group.serializeForWorker()
 					}))
 				}
 				break
@@ -251,9 +294,20 @@ spaciblo.workers.Manager = k.eventMixin(class {
 			worker.handleGroupAdded(group)
 		}
 	}
-	handleGroupDeleted(groupID){
+	handleGroupRemoved(groupId){
 		for(let [uuid, worker] of this.templateWorkers){
-			worker.handleGroupDeleted(groupID)
+			worker.handleGroupRemoved(groupId)
+		}
+	}
+	handleGroupSettingsChanged(changedKeys, group){
+		for(let [uuid, worker] of this.templateWorkers){
+			worker.handleGroupSettingsChanged(changedKeys, group)
+		}
+	}
+	handleTemplateGeometryLoaded(group){
+		let serializedGroup = group.serializeForWorker()
+		for(let [uuid, worker] of this.templateWorkers){
+			worker.handleTemplateGeometryLoaded(serializedGroup)
 		}
 	}
 	handlePointIntersectChanged(pointerName, intersect){
@@ -278,10 +332,15 @@ spaciblo.workers.Manager = k.eventMixin(class {
 	getTemplateWorker(templateUUID){
 		return this.templateWorkers.get(templateUUID)
 	}
+	getGroup(id){
+		// id is the group's state id, not three.js id
+		if(this.renderer === null) return null
+		return this.renderer.getGroup(id)
+	}
 	getAvatarGroup(){
 		if(this.renderer === null){
 			console.error('queries for avatar info before the renderer is set')
-			return
+			return null
 		}
 		return this.renderer.avatarGroup
 	}
@@ -292,9 +351,9 @@ spaciblo.workers.Manager = k.eventMixin(class {
 		this.templateWorkers.set(template.get('uuid'), worker)
 		return worker
 	}
-	handleTemplateUnset(groupID, templateUUID){
+	handleTemplateUnset(groupId, templateUUID){
 		for(let [uuid, worker] of this.templateWorkers){
-			worker.handleTemplateUnset(groupID, templateUUID)
+			worker.handleTemplateUnset(groupId, templateUUID)
 		}
 	}
 	terminateTemplateWorker(worker){

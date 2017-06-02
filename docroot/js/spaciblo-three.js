@@ -33,6 +33,8 @@ spaciblo.three.DEFAULT_LIGHT_SKY_COLOR  = '#0077FF'
 spaciblo.three.DEFAULT_LIGHT_GROUND_COLOR  = '#FFFFFF'
 
 spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
+spaciblo.three.events.TemplateGeometryLoaded = 'three-template-geometry-loaded'
+spaciblo.three.events.GroupSettingsChanged = 'three-group-settings-changed'
 
 spaciblo.three.DEFAULT_HEAD_POSITION = [0, 0.6, 0]
 spaciblo.three.DEFAULT_TORSO_POSITION = [0, 0, 0]
@@ -131,11 +133,41 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this._animate()
 	}
 
+	handleGroupModifications(data){
+		if(Array.isArray(data.selectors) === false || Array.isArray(data.modifiers) === false){
+			console.error('bad data', data)
+			return
+		}
+		// for each selector, find its matched groups and then apply each modifer
+		for(let selector of data.selectors){
+			let matchedGroups = this.selectGroups(selector)
+			for(let modifier of data.modifiers){
+				for(let matchedGroup of matchedGroups){
+					modifier.apply(matchedGroup)
+				}
+			}
+		}
+	}
+
+	selectGroups(selector, group=this.rootGroup, results=[]){
+		if(selector.matches(group, this.objectMap)){
+			results.push(group)
+		}
+		for(let child of group.children){
+			this.selectGroups(selector, child, results)
+		}
+		return results
+	}
+
 	get inputRotation() { return this._inputRotation }
 	set inputRotation(value){ this._inputRotation = [...value] }
 
 	get inputTranslation() { return this._inputTranslation }
 	set inputTranslation(value){ this._inputTranslation = [...value] }
+
+	getGroup(id){ // Note, this is the group's state id
+		return this.objectMap.get(id) || null
+	}
 
 	get avatarPosition(){
 		if(this.avatarGroup === null) return null
@@ -531,7 +563,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			if(this.objectMap.has(deletion) === true){
 				continue
 			}
-			this.workerManager.handleGroupDeleted(deletion)
+			this.workerManager.handleGroupRemoved(deletion)
 		}
 	}
 	_createGroupFromFlockMember(flockMember){
@@ -1056,6 +1088,7 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 spaciblo.three.Group = function(workerManager){
 	THREE.Group.call(this)
 	this.workerManager = workerManager
+	this.renderer = null // Set by creator
 	this.lastUpdate = null									// time in milliseconds of last update
 	this.updatePosition = new THREE.Vector3(0,0,0) 			// The position recieved from the sim
 	this.updateQuaternion = new THREE.Quaternion(0,0,0,1) 	// the orientation receive from the sim
@@ -1081,24 +1114,7 @@ spaciblo.three.Group = function(workerManager){
 }
 spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototype), {
 	serializeForWorker: function(){
-		// returns a serializable data structure to hand to client side scripts running in web workers
-		let results = {
-			name: this.name,
-			id: this.state.id,
-			templateUUID: this.template ? this.template.get('uuid') : null,
-			position: [this.position.x, this.position.y, this.position.z],
-			orientation: [this.quaternion.x, this.quaternion.y, this.quaternion.z, this.quaternion.w],
-			rotation: [this.rotationMotion.x, this.rotationMotion.y, this.rotationMotion.z],
-			translation: [this.translationMotion.x, this.translationMotion.y, this.translationMotion.z],
-			scale: [this.scale.x, this.scale.y, this.scale.z],
-			children: []
-		}
-		for(let child of this.children){
-			if(typeof child.serializeForWorker === 'function'){
-				results.children.push(child.serializeForWorker())
-			}
-		}
-		return results
+		return spaciblo.three.serializeGroup(this)
 	},
 	getChildrenIds: function(results=[]){
 		if(this.children === null){
@@ -1159,16 +1175,25 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		}
 	},
 	updateSettings: function(settings){
-		if(typeof settings !== 'object') return
-		this.settings = Object.assign(this.settings || {}, settings)
+		if(typeof this.settings === 'object') {
+			// Save the key names of changes so we can fire an event at the end
+			var changedKeys = Object.keys(settings).filter(key => { return this.settings[key] !== settings[key] })
+			this.settings = Object.assign(this.settings, settings)
+		} else {
+			var changedKeys = [] // Newly created groups do not fire a settings change event
+			this.settings = settings
+		}
+		// Delete any settings with the magic removal indicator
 		for(let setting in this.settings){
 			if(this.settings[setting] == spaciblo.api.RemoveKeyIndicator){
 				delete this.settings[setting]
 			}
 		}
+		// Set name on the group itself for easier debugging
 		if(this.settings.name){
 			this.name = this.settings.name
 		}
+		// Update the light
 		if(typeof this.settings['light-type'] === 'string'){
 			if(this.settingsLight){
 				this.remove(this.settingsLight)
@@ -1231,17 +1256,23 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 				this.add(this.settingsLight)
 			}
 		}
+		// Fire a change event if necessary
+		if(changedKeys.length > 0){
+			this.renderer.trigger(spaciblo.three.events.GroupSettingsChanged, changedKeys, this)
+		}
 	},
 	setGLTF: function(gltf, templateUUID){
 		this.templateNode = gltf.scene
 		this.templateNode.templateUUID = templateUUID
 		this.add(gltf.scene)
+		this.renderer.trigger(spaciblo.three.events.TemplateGeometryLoaded, this)
 	},
 	setOBJ: function(obj, templateUUID){
 		//this._enableShadows(obj)
 		this.templateNode = obj
 		this.templateNode.templateUUID = templateUUID
 		this.add(this.templateNode)
+		this.renderer.trigger(spaciblo.three.events.TemplateGeometryLoaded, this)
 	},
 	setupParts: function(){
 		// Find the body nodes created by update additions from the simulator
@@ -1358,6 +1389,33 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		}
 	}
 })
+
+spaciblo.three.serializeGroup = function(group){
+	let results = {
+		name: group.name,
+		id: group.state ? group.state.id : null,
+		settings: group.settings || null,
+		templateUUID: group.template ? group.template.get('uuid') : null,
+		position: [group.position.x, group.position.y, group.position.z],
+		orientation: [group.quaternion.x, group.quaternion.y, group.quaternion.z, group.quaternion.w],
+		rotation: group.rotationMotion ? [group.rotationMotion.x, group.rotationMotion.y, group.rotationMotion.z] : [0,0,0],
+		translation: group.translationMotion ? [group.translationMotion.x, group.translationMotion.y, group.translationMotion.z] : [0,0,0],
+		scale: [group.scale.x, group.scale.y, group.scale.z],
+		children: []
+	}
+	if(group.material){
+		results.material = {
+			name: group.material.name
+		}
+		if(group.material.specular) results.material.specular = group.material.specular.toArray()
+		if(group.material.color) results.material.color = group.material.color.toArray()
+	}
+	for(let child of group.children){
+		results.children.push(spaciblo.three.serializeGroup(child))
+	}
+	return results
+}
+
 
 spaciblo.three.findChildNodeByName = function(name, node, deepSearch=true, results=[]){
 	if(typeof node.children === 'undefined'){

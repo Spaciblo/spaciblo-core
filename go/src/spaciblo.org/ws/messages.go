@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+const DebugLogType = "Debug-Log" // Used during debugging when the client wants something logged on the back end
 const PingType = "Ping"
 const AckType = "Ack"
 const UnknownMessageType = "Unknown-Message-Type"

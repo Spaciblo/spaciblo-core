@@ -18,9 +18,9 @@ let MyWorker = class extends spaciblo.client.TrackingTemplateWorker {
 		this._inputRotation =    [0,0,0]
 		this._inputTranslation = [0,0,0] // xyz translation in camera direction
 	}
-	handleInputActionStarted(event){
-		super.handleInputActionStarted(event)
-		switch(event.action.name){
+	handleInputActionStarted(action){
+		super.handleInputActionStarted(action)
+		switch(action.name){
 			case 'rotate-left':
 			case 'rotate-right':
 			case 'translate-forward':
@@ -51,8 +51,8 @@ let MyWorker = class extends spaciblo.client.TrackingTemplateWorker {
 				break
 		}
 	}
-	handleInputActionEnded(event){
-		super.handleInputActionEnded(event)
+	handleInputActionEnded(action){
+		super.handleInputActionEnded(action)
 		if(this._updateVectors()){
 			this._sendAvatarUpdate()
 		}

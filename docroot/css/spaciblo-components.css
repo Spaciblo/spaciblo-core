@@ -149,3 +149,15 @@
 	display: inline-block;
 }
 
+.gamepads-info-component .sub-header {
+	margin: 5px 0 10px 0;
+
+}
+.gamepads-info-component .gamepad-info {
+	display: inline-block;
+	vertical-align: top;
+	margin-bottom: 15px;
+}
+.gamepads-info-component .gamepad-info span {
+	padding-left: 10px;
+}
