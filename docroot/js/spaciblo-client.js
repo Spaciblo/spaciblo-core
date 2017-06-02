@@ -252,25 +252,90 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 }
 
 /*
-PressableTemplateWorker just listens for when the user points at and then presses a template group
-Extending classes should implement handlePress
+InteractiveTemplateWorker listens for when the user points and presses or triggers.
+
+If the user points and presses, then the group's setting 'pressed' is set to 'true'. 
+On press end, the setting 'pressed' is set to 'false'. Override handleGroupSettingsChanged
+to receive notice of when the settings change.
+
+If draggable=true is passed to the constructor, when the group is pointed and triggered
+it will follow the pointing group, which will be the user's head (via gaze), left hand, or right hand.
+
+constructor params:
+	draggable: if true, which this group is pointed and and triggered it will follow the appropriate gaze, left hand, or right hand. 
 */
-spaciblo.client.PressableTemplateWorker = class extends spaciblo.client.TrackingTemplateWorker {
-	constructor(){
+spaciblo.client.InteractiveTemplateWorker = class extends spaciblo.client.TrackingTemplateWorker {
+	constructor(draggable=true){
 		super(true, true, true, true)
+		this._draggable = draggable
+
+		// These track which groups are being pointed at when a press begins
 		this._pressedGaze = null
 		this._pressedLeft = null
 		this._pressedRight = null
+
+		// These track which groups are being pointed at when a trigger (and thus a follow) begin
+		this._followingGaze = null
+		this._followingLeft = null
+		this._followingRight = null
 	}
+
 	handleTriggerStarted(group, pointer){
-		// This is the method extending classes should implement to handle presses when the user is pointing at this worker's group
-		// pointer is 'left', 'right', or 'gaze'tending classes should implement to handle triggers
+		// Start following the gazing group
+		switch(pointer){
+			case 'gaze':
+				this._followingGaze = group
+				postMessage(new spaciblo.client.FollowGroupMessage({
+					followerId: group.id,
+					leaderId: this.headGroup.id
+				}))
+				break
+			case 'left':
+				this._followingLeft = group
+				postMessage(new spaciblo.client.FollowGroupMessage({
+					followerId: group.id,
+					leaderId: this.leftHandGroup.id
+				}))
+				break
+			case 'right':
+				this._followingRight = group
+				postMessage(new spaciblo.client.FollowGroupMessage({
+					followerId: group.id,
+					leaderId: this.rightHandGroup.id
+				}))
+				break
+		}
 	}
 	handleTriggerEnded(pointer){
-		// This is the method extending classes should implement to handle triggers ending
-		// Unlike handleTrigger, this is called when any trigger ends, regardless of whether the press started pointing at this worker's group
-		// pointer is 'left', 'right', or 'gaze'
+		// Stop following the gazing group
+		switch(pointer){
+			case 'gaze':
+				if(this._followingGaze === null) return
+				postMessage(new spaciblo.client.FollowGroupMessage({
+					followerId: this._followingGaze.id,
+					leaderId: null
+				}))
+				this._followingGaze = null
+				break
+			case 'left':
+				if(this._followingLeft === null) return
+				postMessage(new spaciblo.client.FollowGroupMessage({
+					followerId: this._followingLeft.id,
+					leaderId: null
+				}))
+				this._followingLeft = null
+				break
+			case 'right':
+				if(this._followingRight === null) return
+				postMessage(new spaciblo.client.FollowGroupMessage({
+					followerId: this._followingRight.id,
+					leaderId: null
+				}))
+				this._followingRight = null
+				break
+		}
 	}
+
 	handlePressStarted(group, pointer){
 		switch(pointer){
 			case 'gaze':

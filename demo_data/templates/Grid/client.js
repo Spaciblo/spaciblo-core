@@ -40,7 +40,6 @@ let MyWorker = class extends spaciblo.client.TrackingTemplateWorker {
 				break
 			case 'left-press':
 				if(this.leftPoint && this.actionIsActive('left-point') && this.actionIsActive('trigger') === false){
-					console.log('left point', this.leftPoint)
 					this._sendTeleport('left')
 				}
 				break

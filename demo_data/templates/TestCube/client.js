@@ -2,42 +2,51 @@
 
 importScripts('/js/spaciblo-client.js')
 
-let MyWorker = class extends spaciblo.client.PressableTemplateWorker {
+let MyWorker = class extends spaciblo.client.InteractiveTemplateWorker {
 	constructor(){
 		super()
-		this.isAnimatingMap = new Map() // group id -> bool
+		this._isAnimatingMap = new Map() // group id -> bool
+		this._halfLife = 500
+		this._translationPerSecond = 0.8
+		this._positionChange = (this._halfLife / 1000) * this._translationPerSecond
+		this._rotationPerSecond = 12
 	}
-	handlePressStarted(data){
-		if(this.isAnimatingMap.get(data.id) === true) return
-		this.isAnimatingMap.set(data.id, true)
 
-		const halfLife = 500
-		const translationPerSecond = 0.8
-		const positionChange = (halfLife / 1000) * translationPerSecond
-		const rotationPerSecond = 12
+	handleTemplateGroupSettingsChanged(groupId, changedKeys, settings){
+		super.handleTemplateGroupSettingsChanged(groupId, changedKeys, settings)
+		if(changedKeys.includes('pressed') === false) return
+		if(settings['pressed'] !== 'true') return
+		this._animateGroup(groupId)
+	}
 
-		postMessage(new spaciblo.client.ChangePORTSMessage(data.id, {
-			translation: [0, translationPerSecond, 0],
-			rotation: [0, rotationPerSecond, 0]
+	_animateGroup(groupId){
+		if(this._isAnimatingMap.get(groupId) === true) return
+		this._isAnimatingMap.set(groupId, true)
+
+		var group = this.getTemplateGroup(groupId)
+
+		postMessage(new spaciblo.client.ChangePORTSMessage(groupId, {
+			translation: [0, this._translationPerSecond, 0],
+			rotation: [0, this._rotationPerSecond, 0]
 		}))
 
 		setTimeout(() => {
-			postMessage(new spaciblo.client.ChangePORTSMessage(data.id, {
-				position: [data.position[0], data.position[1] + positionChange, data.position[2]],
-				translation: [0, -translationPerSecond, 0],
-				rotation: [0, -rotationPerSecond, 0]
+			postMessage(new spaciblo.client.ChangePORTSMessage(groupId, {
+				position: [group.position[0], group.position[1] + this._positionChange, group.position[2]],
+				translation: [0, -this._translationPerSecond, 0],
+				rotation: [0, -this._rotationPerSecond, 0]
 			}))
-		}, halfLife)
+		}, this._halfLife)
 
 		setTimeout(() => {
-			postMessage(new spaciblo.client.ChangePORTSMessage(data.id, {
-				position: data.position,
+			postMessage(new spaciblo.client.ChangePORTSMessage(groupId, {
+				position: group.position,
 				orientation: [0,0,0,1],
 				rotation: [0,0,0],
 				translation: [0,0,0],
 			}))
-			this.isAnimatingMap.set(data.id, false)
-		}, halfLife * 2)
+			this._isAnimatingMap.set(groupId, false)
+		}, this._halfLife * 2)
 	}
 }
 let worker = new MyWorker()
