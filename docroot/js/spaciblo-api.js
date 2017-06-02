@@ -119,16 +119,19 @@ spaciblo.api.Client = k.eventMixin(class {
 			id: nodeId
 		}))
 	}
-	sendAddNode(parentId, templateUUID, position, orientation){
+	sendAddNode(parentId, settings={}, position=[0,0,0], orientation=[0,0,0,1], rotation=[0,0,0], translation=[0,0,0], scale=[1,1,1], leader=0){
 		if(this.space === null) return
 		this.socket.send(JSON.stringify({
 			type: 'Add-Node-Request',
 			parent: parentId,
 			spaceUUID: this.space.get('uuid'),
-			templateUUID: templateUUID,
+			settings: settings,
 			position: position,
 			orientation: orientation,
-			leader: 0
+			rotation: rotation,
+			translation: translation,
+			scale: scale,
+			leader: leader
 		}))
 	}
 	sendUpdateRequest(nodeId, name, value){

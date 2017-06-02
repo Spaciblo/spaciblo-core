@@ -112,9 +112,9 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 		this._templateGroups = new Map() // id -> groups that use this template worker as they are added and removed
 		this._templateUUID = null 		// The template UUID that this worker is supporting
 		this._activeActions = new Set() // Active actions like 'point', 'left-point', 'translate-forward' 
-		this._gazePoint = null			// The pointing data when the user is gazing at a group in the scene
-		this._leftPoint = null			// The pointing data when the user is left pointing at a group
-		this._rightPoint = null			// The pointing data when the user is right pointing at a group
+		this._gazePointInfo = null			// The pointing data when the user is gazing at a group in the scene
+		this._leftPointInfo = null			// The pointing data when the user is left pointing at a group
+		this._rightPointInfo = null			// The pointing data when the user is right pointing at a group
 		this._avatarGroup = null		// The group for the local user's avatar
 	}
 	init(data){
@@ -133,6 +133,8 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 			postMessage(new spaciblo.client.TemplateGroupExistenceSubscriptionMessage({ subscribed: true }))
 		}
 	}
+
+	get templateUUID() { return this._templateUUID }
 
 	get subscribedToActions() { return this._subscribedToActions }
 	set subscribedToActions(value) {
@@ -203,7 +205,7 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 		this._templateGroups.set(group.id, group)
 	}
 	handleTemplateGroupRemoved(groupId){
-		this._templateGroups.remove(groupId)
+		this._templateGroups.delete(groupId)
 	}
 	handleTemplateGroupSettingsChanged(groupId, changedKeys, settings){
 		if(this._templateGroups.has(groupId) === false){
@@ -222,33 +224,33 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 	handlePointIntersect(data){
 		switch(data.pointer){
 			case 'gaze':
-				if(data.group === null || data.group.templateUUID !== this._templateUUID){
-					this._gazePoint = null
+				if(typeof data.group === 'undefined' || data.group === null || data.group.templateUUID !== this._templateUUID){
+					this._gazePointInfo = null
 				} else {
-					this._gazePoint = data
+					this._gazePointInfo = data
 				}
 				break
 			case 'left':
-				if(data.group === null || data.group.templateUUID !== this._templateUUID){
-					this._leftPoint = null
+				if(typeof data.group === 'undefined' || data.group === null || data.group.templateUUID !== this._templateUUID){
+					this._leftPointInfo = null
 				} else {
-					this._leftPoint = data
+					this._leftPointInfo = data
 				}
 				break
 			case 'right':
-				if(data.group === null || data.group.templateUUID !== this._templateUUID){
-					this._rightPoint = null
+				if(typeof data.group === 'undefined' || data.group === null || data.group.templateUUID !== this._templateUUID){
+					this._rightPointInfo = null
 				} else {
-					this._rightPoint = data
+					this._rightPointInfo = data
 				}
 				break
 			default:
 				return
 		}
 	}
-	get gazePoint(){ return this._gazePoint }
-	get leftPoint(){ return this._leftPoint }
-	get rightPoint(){ return this._rightPoint }
+	get gazePointInfo(){ return this._gazePointInfo }
+	get leftPointInfo(){ return this._leftPointInfo }
+	get rightPointInfo(){ return this._rightPointInfo }
 }
 
 /*
@@ -269,10 +271,10 @@ spaciblo.client.InteractiveTemplateWorker = class extends spaciblo.client.Tracki
 		super(true, true, true, true)
 		this._draggable = draggable
 
-		// These track which groups are being pointed at when a press begins
-		this._pressedGaze = null
-		this._pressedLeft = null
-		this._pressedRight = null
+		// These track which groups are being pointed at when a press begins: { group, intersect }
+		this._pressedGazeInfo = null
+		this._pressedLeftInfo = null
+		this._pressedRightInfo = null
 
 		// These track which groups are being pointed at when a trigger (and thus a follow) begin
 		this._followingGaze = null
@@ -336,16 +338,16 @@ spaciblo.client.InteractiveTemplateWorker = class extends spaciblo.client.Tracki
 		}
 	}
 
-	handlePressStarted(group, pointer){
+	handlePressStarted(group, pointer, intersect){
 		switch(pointer){
 			case 'gaze':
-				this._pressedGaze = group
+				this._pressedGazeInfo = { group: group, intersect: intersect }
 				break
 			case 'left':
-				this._pressedLeft = group
+				this._pressedLeftInfo = { group: group, intersect: intersect }
 				break
 			case 'right':
-				this._pressedRight = group
+				this._pressedRightInfo = { group: group, intersect: intersect }
 				break
 		}
 		postMessage(new spaciblo.client.RequestGroupSettingsChangeMessage({
@@ -356,24 +358,24 @@ spaciblo.client.InteractiveTemplateWorker = class extends spaciblo.client.Tracki
 		}))
 	}
 	handlePressEnded(pointer){
-		let pressedGroup = null
+		let pressedGroupInfo = null
 		switch(pointer){
 			case 'gaze':
-				pressedGroup = this._pressedGaze
+				pressedGroupInfo = this._pressedGazeInfo
 				this._pressedGaze = null
 				break
 			case 'left':
-				pressedGroup = this._pressedLeft
+				pressedGroupInfo = this._pressedLeftInfo
 				this._pressedLeft = null
 				break
 			case 'right':
-				pressedGroup = this._pressedRight
+				pressedGroupInfo = this._pressedRightInfo
 				this._pressedRight = null
 				break
 		}
-		if(pressedGroup === null) return
+		if(pressedGroupInfo === null) return
 		postMessage(new spaciblo.client.RequestGroupSettingsChangeMessage({
-			groupId: pressedGroup.id,
+			groupId: pressedGroupInfo.group.id,
 			settings: {
 				pressed: 'false'
 			}
@@ -383,35 +385,35 @@ spaciblo.client.InteractiveTemplateWorker = class extends spaciblo.client.Tracki
 		super.handleInputActionStarted(action)
 		switch(action.name){
 			case 'press':
-				if(this.actionIsActive('point') && this.gazePoint !== null){
-					this.handlePressStarted(this.gazePoint.group, 'gaze')
+				if(this.actionIsActive('point') && this.gazePointInfo !== null){
+					this.handlePressStarted(this.gazePointInfo.group, 'gaze', this.gazePointInfo.intersect)
 				}
 				break
 			case 'left-press':
-				if(this.actionIsActive('left-point') && this.leftPoint !== null){
-					this.handlePressStarted(this.leftPoint.group, 'left')
+				if(this.actionIsActive('left-point') && this.leftPointInfo !== null){
+					this.handlePressStarted(this.leftPoint.group, 'left', this.leftPointInfo.intersect)
 				}
 				break
 			case 'right-press':
-				if(this.actionIsActive('right-point') && this.rightPoint !== null){
-					this.handlePressStarted(this.rightPoint.group, 'right')
+				if(this.actionIsActive('right-point') && this.rightPointInfo !== null){
+					this.handlePressStarted(this.rightPoint.group, 'right', this.rightPointInfo.intersect)
 				}
 				break
 		}
 		switch(action.name){
 			case 'trigger':
-				if(this.actionIsActive('point') && this.gazePoint !== null){
-					this.handleTriggerStarted(this.gazePoint.group, 'gaze')
+				if(this.actionIsActive('point') && this.gazePointInfo !== null){
+					this.handleTriggerStarted(this.gazePointInfo.group, 'gaze', this.gazePointInfo.intersect)
 				}
 				break
 			case 'left-trigger':
-				if(this.actionIsActive('left-point') && this.leftPoint !== null){
-					this.handleTriggerStarted(this.leftPoint.group, 'left')
+				if(this.actionIsActive('left-point') && this.leftPointInfo !== null){
+					this.handleTriggerStarted(this.leftPoint.group, 'left', this.leftPointInfo.intersect)
 				}
 				break
 			case 'right-trigger':
-				if(this.actionIsActive('right-point') && this.rightPoint !== null){
-					this.handleTriggerStarted(this.rightPoint.group, 'right')
+				if(this.actionIsActive('right-point') && this.rightPointInfo !== null){
+					this.handleTriggerStarted(this.rightPoint.group, 'right', this.rightPointInfo.intersect)
 				}
 				break
 		}
@@ -485,6 +487,37 @@ spaciblo.client.GroupModificationMessage = class extends spaciblo.client.Message
 		// Assume that the values passed in are unmarshalled vms values, so marshal them for transport 
 		if(this.selectors) this.selectors = values.selectors.map(selector => { return selector.marshal() })
 		if(this.modifiers) this.modifiers = values.modifiers.map(modifier => { return modifier.marshal() })
+	}
+}
+
+/*
+Sent by the client worker to create a group in the scene graph
+values:
+	parentId: int
+optional values with defaults:
+	settings: {} string:string pairs
+	position: [0,0,0] 
+	orientation: [0,0,0,1]
+	rotation: [0,0,0]
+	translation: [0,0,0]
+	scale: [1,1,1]
+*/
+spaciblo.client.CreateGroupMessage = class extends spaciblo.client.Message {
+	constructor(values={}){
+		super('create-group', values)
+		if(!this.position) this.position = [0,0,0]
+		if(!this.orientation) this.orientation = [0,0,0,1]
+		if(!this.rotation) this.rotation = [0,0,0]
+		if(!this.translation) this.translation = [0,0,0]
+		if(!this.scale) this.scale = [1,1,1]
+		if(typeof this.settings !== 'object'){
+			this.settings = {}
+		} else {
+			// ensure that all settings have string values because that is the only supported setting type
+			for(let key of Object.keys(this.settings)){
+				this.settings[key] = String(this.settings[key])
+			}
+		}
 	}
 }
 
@@ -656,7 +689,17 @@ Fired when what the user is pointing at is set or unset
 values:
 	pointer: 'left', 'right', 'gaze'
 	group: the template group's scene graph
-	target: the group within the template group that was intersected by the point
+	intersect: {
+		distance: float,
+		point: [x, y, z],
+		object: group that the ray cast hit (usually different than the template group),
+		face: {
+			a: float,
+			b: float,
+			c: float,
+			normal: [x, y, z]
+		}
+	}
 */
 spaciblo.client.PointIntersectMessage = class extends spaciblo.client.Message {
 	constructor(values={}){

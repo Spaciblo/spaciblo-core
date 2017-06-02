@@ -164,14 +164,19 @@ func (server *SimHostServer) HandleAddNodeRequest(ctx context.Context, addNodeRe
 	if ok == false {
 		return nil, errors.New("Unknown space UUID: " + addNodeRequest.SpaceUUID)
 	}
+	settings := make(map[string]string)
+	for _, setting := range addNodeRequest.Settings {
+		settings[setting.Name] = setting.Value
+	}
 	spaceSim.HandleAddNode(
 		addNodeRequest.ClientUUID,
 		addNodeRequest.Parent,
-		addNodeRequest.TemplateUUID,
+		settings,
 		addNodeRequest.Position,
 		addNodeRequest.Orientation,
-		addNodeRequest.Translation,
 		addNodeRequest.Rotation,
+		addNodeRequest.Translation,
+		addNodeRequest.Scale,
 		addNodeRequest.Leader,
 	)
 	return &simRPC.Ack{Message: "OK"}, nil

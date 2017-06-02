@@ -27,9 +27,10 @@ let ButtonWorker = class extends spaciblo.client.InteractiveTemplateWorker {
 
 	// Here is where we set the button to green or white, depending on whether or not it is pressed
 	_setPressed(groupId, pressed){
+		// Turn the button green or white
 		postMessage(new spaciblo.client.GroupModificationMessage({
 			selectors: [
-				vms.selectProperty('name', 'Button_Cube.001').childOf(vms.selectId(groupId))
+				vms.selectProperty('name', 'Button_Cube.001').childOf(vms.selectId(groupId), 2)
 			],
 			modifiers: [
 				vms.modifyProperty('material.color', pressed ? this._pressedColor : this._initialColor)

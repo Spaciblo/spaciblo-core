@@ -336,13 +336,12 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 	}
 	_handleAddNodeClick(eventName, node){
 		this._addedToParent = node.dataObject.get('id')
-		this.client.sendAddNode(node.dataObject.get('id'), '', [0,0,0], [0,0,0,1])
+		this.client.sendAddNode(node.dataObject.get('id'))
 	}
 	_handleNodeClick(eventName, node){
 		if(this.selectedNode === node){
 			return
 		}
-
 		if(this.selectedNode !== null){
 			this.selectedNode.el.removeClass('selected')
 		}

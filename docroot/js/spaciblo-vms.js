@@ -42,18 +42,23 @@ vms.Selector = class extends vms.Marshalled {
 	constructor(){
 		super()
 		this._childOf = null
+		this._childDepth = 20 // how many generations of the child's parents should we consider when checking childOf? 
 	}
 	matches(group, objectMap){
 		if(this._childOf === null) return true
+		let depth = 1
 		let parent = group.parent
 		while(parent !== null){
 			if(this._childOf.matches(parent, objectMap)) return true
+			if(depth >= this._childDepth) break
 			parent = parent.parent
+			depth += 1
 		}
 		return false
 	}
-	childOf(selector){
+	childOf(selector, childDepth=20){
 		this._childOf = selector
+		this._childDepth = childDepth
 		return this
 	}
 }

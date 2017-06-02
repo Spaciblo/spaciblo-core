@@ -229,13 +229,23 @@ func (spaceSim *SpaceSimulator) Tick(delta time.Duration) {
 			logger.Println("Received an add node request for an unknown parent node", notice)
 			continue
 		}
-		state := apiDB.NewSpaceStateNode(notice.Position, notice.Orientation, notice.Translation, notice.Rotation, []float64{0, 0, 0}, notice.TemplateUUID)
+		templateUUID, ok := notice.Settings["templateUUID"]
+		if ok == false {
+			templateUUID = ""
+		}
+		state := apiDB.NewSpaceStateNode(notice.Position, notice.Orientation, notice.Translation, notice.Rotation, notice.Scale, templateUUID)
+		for key, val := range notice.Settings {
+			state.Settings[key] = val
+		}
+		_, ok = state.Settings["name"]
+		if ok == false {
+			state.Settings["name"] = ""
+		}
 		childNode, err := NewSceneNode(state, notice.Leader, spaceSim.DBInfo)
 		if err != nil {
 			logger.Println("Could not create a new node", err)
 			continue
 		}
-		childNode.SetOrCreateSetting("name", "")
 		parentNode.Add(childNode)
 		spaceSim.Additions = append(spaceSim.Additions, &SceneAddition{childNode, parentNode.Id})
 	}
@@ -436,16 +446,17 @@ func (spaceSim *SpaceSimulator) HandleAvatarMotion(clientUUID string, position [
 	}
 }
 
-func (spaceSim *SpaceSimulator) HandleAddNode(clientUUID string, parentId int64, templateUUID string, position []float64, orientation []float64, translation []float64, rotation []float64, leader int64) {
+func (spaceSim *SpaceSimulator) HandleAddNode(clientUUID string, parentId int64, settings map[string]string, position []float64, orientation []float64, translation []float64, rotation []float64, scale []float64, leader int64) {
 	spaceSim.AddNodeChannel <- &AddNodeNotice{
-		ClientUUID:   clientUUID,
-		Parent:       parentId,
-		TemplateUUID: templateUUID,
-		Position:     position,
-		Orientation:  orientation,
-		Translation:  translation,
-		Rotation:     rotation,
-		Leader:       leader,
+		ClientUUID:  clientUUID,
+		Parent:      parentId,
+		Settings:    settings,
+		Position:    position,
+		Orientation: orientation,
+		Translation: translation,
+		Rotation:    rotation,
+		Scale:       scale,
+		Leader:      leader,
 	}
 }
 
@@ -922,14 +933,15 @@ type SceneAddition struct {
 }
 
 type AddNodeNotice struct {
-	ClientUUID   string
-	Parent       int64
-	TemplateUUID string
-	Position     []float64
-	Orientation  []float64
-	Translation  []float64
-	Rotation     []float64
-	Leader       int64
+	ClientUUID  string
+	Parent      int64
+	Settings    map[string]string
+	Position    []float64
+	Orientation []float64
+	Translation []float64
+	Rotation    []float64
+	Scale       []float64
+	Leader      int64
 }
 
 type RemoveNodeNotice struct {

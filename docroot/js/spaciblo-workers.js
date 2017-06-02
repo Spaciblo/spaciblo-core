@@ -11,6 +11,7 @@ spaciblo.events.WorkerRequestedAvatarUpdate = 'worker-requested-avatar-update'
 spaciblo.events.WorkerRequestedAvatarTeleport = 'worker-requested-avatar-teleport'
 spaciblo.events.WorkerRequestedFollowGroup = 'worker-requested-follow-group'
 spaciblo.events.WorkerRequestedGroupModifications = 'worker-requested-group-modifications'
+spaciblo.events.WorkerRequestedCreateGroup = 'worker-requested-create-group'
 spaciblo.events.WorkerRequestedGroupSettingsChange = 'worker-requested-group-settings-change'
 
 /*
@@ -79,13 +80,13 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 		}
 		this.worker.postMessage(message)
 	}
-	handlePointIntersectChanged(pointerName, intersect, templateGroup){
+	handlePointIntersectChanged(pointerName, serializableIntersect, serializedTemplateGroup){
 		if(this.worker === null) return
 		if(this.subscribedToPointIntersects === false) return
-		let groupInfo = templateGroup === null ? null : templateGroup.serializeForWorker()
 		this._postMessage(new spaciblo.client.PointIntersectMessage({
 			pointer: pointerName,
-			group: groupInfo
+			group: serializedTemplateGroup,
+			intersect: serializableIntersect
 		}))
 	}
 	handleInputActionStarted(action){
@@ -209,9 +210,13 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 				}, 0)
 				break
 			case 'group-modification':
+				// selectors and modifiers come through as serializable JSON, so turn them back into classes
 				data.selectors = data.selectors.map(data => { return vms.unmarshal(data) })
 				data.modifiers = data.modifiers.map(data => { return vms.unmarshal(data) })
 				this.manager.trigger(spaciblo.events.WorkerRequestedGroupModifications, data)
+				break
+			case 'create-group':
+				this.manager.trigger(spaciblo.events.WorkerRequestedCreateGroup, data)
 				break
 			case 'change-ports':
 				this.manager.trigger(spaciblo.events.WorkerRequestedPORTSChange, data)
@@ -312,21 +317,23 @@ spaciblo.workers.Manager = k.eventMixin(class {
 	}
 	handlePointIntersectChanged(pointerName, intersect){
 		if(intersect !== null){
+			var serializableIntersect = spaciblo.three.serializeIntersect(intersect)
 			// Find the group in the intersect.object's lineage that has a template
 			let obj = intersect.object
-			var templatObj = null
+			var serializedTemplateGroup = null
 			while(typeof obj.template == 'undefined'){
 				obj = obj.parent
 				if(obj === null) break
 			}
 			if(typeof obj.template !== 'undefined'){
-				templateObj = obj
+				serializedTemplateGroup = spaciblo.three.serializeGroup(obj)
 			}
 		} else {
-			var templateObj = null
+			var serializableIntersect = null
+			var serializableTemplateObj = null
 		}
 		for(let [uuid, worker] of this.templateWorkers){
-			worker.handlePointIntersectChanged(pointerName, intersect, templateObj)
+			worker.handlePointIntersectChanged(pointerName, serializableIntersect, serializedTemplateGroup)
 		}
 	}
 	getTemplateWorker(templateUUID){

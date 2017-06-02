@@ -1390,6 +1390,23 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 	}
 })
 
+// returns a serializeable data structure representing an intersect received from a ray caster
+spaciblo.three.serializeIntersect = function(intersect){
+	let results = {
+		distance: intersect.distance,
+		point: [intersect.point.x, intersect.point.y, intersect.point.z],
+		object: spaciblo.three.serializeGroup(intersect.object),
+		face: {
+			a: intersect.face.a,
+			b: intersect.face.b,
+			c: intersect.face.c,
+			normal: [intersect.face.normal.x, intersect.face.normal.y, intersect.face.normal.z]
+		}
+	}
+	return results
+}
+
+// returns a serializable data structure representing a Three.Group or spaciblo.three.Group
 spaciblo.three.serializeGroup = function(group){
 	let results = {
 		name: group.name,

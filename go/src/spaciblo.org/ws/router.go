@@ -66,8 +66,8 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 				Name:        bodyUpdate.Name,
 				Position:    bodyUpdate.Position,
 				Orientation: bodyUpdate.Orientation,
-				Translation: bodyUpdate.Translation,
 				Rotation:    bodyUpdate.Rotation,
+				Translation: bodyUpdate.Translation,
 			})
 		}
 		_, err := simHostClient.HandleAvatarMotion(context.Background(), avatarMotionRPM)
@@ -78,14 +78,24 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 		return nil, nil, nil
 	case AddNodeRequestType:
 		addNodeRequest := clientMessage.(*AddNodeRequestMessage)
+		settings := []*simRPC.Setting{}
+		for settingName, settingValue := range addNodeRequest.Settings {
+			settings = append(settings, &simRPC.Setting{
+				Name:  settingName,
+				Value: settingValue,
+			})
+		}
 		requestRPM := &simRPC.AddNodeRequest{
-			ClientUUID:   clientUUID,
-			SpaceUUID:    addNodeRequest.SpaceUUID,
-			Parent:       addNodeRequest.Parent,
-			TemplateUUID: addNodeRequest.TemplateUUID,
-			Position:     addNodeRequest.Position,
-			Orientation:  addNodeRequest.Orientation,
-			Leader:       addNodeRequest.Leader,
+			ClientUUID:  clientUUID,
+			SpaceUUID:   addNodeRequest.SpaceUUID,
+			Parent:      addNodeRequest.Parent,
+			Settings:    settings,
+			Position:    addNodeRequest.Position,
+			Orientation: addNodeRequest.Orientation,
+			Rotation:    addNodeRequest.Rotation,
+			Translation: addNodeRequest.Translation,
+			Scale:       addNodeRequest.Scale,
+			Leader:      addNodeRequest.Leader,
 		}
 		_, err := simHostClient.HandleAddNodeRequest(context.Background(), requestRPM)
 		return nil, nil, err

@@ -325,6 +325,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.workerManager.addListener(this.handleWorkerRequestedTeleport.bind(this), spaciblo.events.WorkerRequestedAvatarTeleport)
 		this.workerManager.addListener(this.handleWorkerRequestedFollowGroup.bind(this), spaciblo.events.WorkerRequestedFollowGroup)
 		this.workerManager.addListener(this.handleWorkerRequestedGroupModifications.bind(this), spaciblo.events.WorkerRequestedGroupModifications)
+		this.workerManager.addListener(this.handleWorkerRequestedCreateGroup.bind(this), spaciblo.events.WorkerRequestedCreateGroup)
 		this.workerManager.addListener(this.handleWorkerRequestedGroupSettingsChange.bind(this), spaciblo.events.WorkerRequestedGroupSettingsChange)
 		// The audio manager tracks WebRTC audio streams for each remote user
 		this.audioManager = new spaciblo.audio.SpaceManager()
@@ -456,8 +457,13 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.client.sendUpdatesRequest([updateData])
 	}
 	handleWorkerRequestedGroupModifications(eventName, data){
-		// TODO figure out replication. In the mean time, just apply it to the renderer
+		// Group modifications aren't replicated, they are caused locally by client workers based on settings changes and other replicated state.
 		this.renderer.handleGroupModifications(data)
+	}
+	handleWorkerRequestedCreateGroup(eventName, data){
+		// Three.js (and thus the front end) calls them groups and the back-end calls them nodes.
+		// TODO make this consistent by changing the back-end to use groups.
+		this.client.sendAddNode(data.parentId, data.settings, data.position, data.orientation, data.rotation, data.translation, data.scale, data.leader)
 	}
 	_sendAvatarUpdate(){
 		// You probably want to use this._throttledSendAvatarUpdate

@@ -100,8 +100,8 @@ message UpdateRequest {
 message AddNodeRequest {
 	string spaceUUID = 1;
 	string clientUUID = 2;
-	string templateUUID = 3;
-	int64 parent = 4;
+	int64 parent = 3;
+	repeated Setting settings = 4;
 	repeated double position = 5;
 	repeated double orientation = 6;
 	repeated double translation = 7;
