@@ -34,17 +34,17 @@ let MyWorker = class extends spaciblo.client.TrackingTemplateWorker {
 				}
 				break
 			case 'press':
-				if(this.gazePoint && this.actionIsActive('point') && this.actionIsActive('trigger') === false){
+				if(this.gazePointInfo && this.actionIsActive('point') && this.actionIsActive('trigger') === false){
 					this._sendTeleport('gaze')
 				}
 				break
 			case 'left-press':
-				if(this.leftPoint && this.actionIsActive('left-point') && this.actionIsActive('trigger') === false){
+				if(this.leftPointInfo && this.actionIsActive('left-point') && this.actionIsActive('trigger') === false){
 					this._sendTeleport('left')
 				}
 				break
 			case 'right-press':
-				if(this.rightPoint && this.actionIsActive('right-point') && this.actionIsActive('trigger') === false){
+				if(this.rightPointInfo && this.actionIsActive('right-point') && this.actionIsActive('trigger') === false){
 					this._sendTeleport('right')
 				}
 				break

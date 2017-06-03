@@ -106,7 +106,9 @@ be.api.logout = function(){
 			credentials: 'same-origin' // So that cookies are sent and handled when received
 		}
 		fetch(url, fetchOptions).then(response => {
-			localStorage.removeItem('user')
+			if(typeof localStorage !== 'undefined'){
+				localStorage.removeItem('user')
+			}
 			be.currentUser.reset({})
 			resolve()
 		}).catch(err => {
@@ -298,38 +300,56 @@ be.schema._generateURL = function(path, attributes, fallbackAttributes={}){
 	return result;	
 }
 
-// Send a be.events.SchemaPopulated event when pages can depend on the schema (and thus be.api.*) to be loaded
-document.addEventListener("DOMContentLoaded", function(){
-	be.schema.Schema = new be.schema.SchemaModel()
-	be.schema.Schema.fetch().then(() => {
-		// Set up the be.currentUser
-		if(localStorage.user){
-			try  {
-				be.currentUser = new be.api.User(JSON.parse(localStorage.user))
-			} catch (e) {
+be.schema.fetchSchema = function(eventTarget=null){
+	return new Promise((resolve, reject) => {
+		be.schema.Schema = new be.schema.SchemaModel()
+		be.schema.Schema.fetch().then(() => {
+			// Set up the be.currentUser
+			if(typeof localStorage !== 'undefined' && localStorage.user){
+				try  {
+					be.currentUser = new be.api.User(JSON.parse(localStorage.user))
+				} catch (e) {
+					be.currentUser = new be.api.User()
+				}
+			} else {
 				be.currentUser = new be.api.User()
 			}
-		} else {
-			be.currentUser = new be.api.User()
-		}
-		be.currentUser.addListener(() => {
-			localStorage.user = JSON.stringify(be.currentUser.data);
-		}, 'reset')
+			be.currentUser.addListener(() => {
+				localStorage.user = JSON.stringify(be.currentUser.data);
+			}, 'reset')
 
-		// Ask the server for the authed user info
-		new be.api.CurrentUser().fetch().then(currentUser => {
-			be.currentUser._new = false
-			be.currentUser.reset(currentUser.data)
+			// Ask the server for the authed user info
+			new be.api.CurrentUser().fetch().then(currentUser => {
+				be.currentUser._new = false
+				be.currentUser.reset(currentUser.data)
+			}).catch((...params) => {
+				be.currentUser._new = false
+				be.currentUser.reset({})
+			})
+
+			// Announce that the schema is ready for use
+			if(eventTarget !== null){
+				eventTarget.dispatchEvent(be.events.SchemaPopulatedEvent)
+			}
+			resolve(be.schema.Schema)
 		}).catch((...params) => {
-			be.currentUser._new = false
-			be.currentUser.reset({})
+			console.error("Error fetching API schema", ...params)
+			reject(...params)
 		})
-
-		// Announce that the schema is ready for use
-		document.dispatchEvent(be.events.SchemaPopulatedEvent)
-	}).catch((...params) => {
-		console.error("Error fetching API schema", ...params)
 	})
-})
+}
+
+/*
+Send a be.events.SchemaPopulated event when pages can depend on the schema (and thus be.api.*) to be loaded
+Browser code should wait for the be.events.SchemaPopulatedEvent to be dispatched on the document.
+Web Workers should call be.schema.fetchSchema() and use the returned Promise
+*/
+if(typeof document !== 'undefined'){
+	// Running in a browser, so wait for DOM content and then pass document as the event target to fetchSchema
+	document.addEventListener("DOMContentLoaded", () => { be.schema.fetchSchema(document) })
+} else if(typeof self !== 'undefined'){
+	// Running in a web worker, so immediately pass self as the event target to fetchSchema
+	be.schema.fetchSchema(self)
+}
 
 

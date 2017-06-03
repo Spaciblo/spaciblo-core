@@ -8,6 +8,10 @@ spaciblo.client = spaciblo.client || {}
 spaciblo.client.TemplateWorker = class {
 	constructor(){
 		onmessage = this.onMessage.bind(this)
+		// If we loaded the be-api.js, listen for the schema population
+		if(typeof be === 'object' && typeof be.api === 'object'){
+			self.addEventListener("schema-populated", () => { this.handleSchemaPopulated() })
+		}
 	}
 	onMessage(ev){
 		switch(ev.data.name){
@@ -73,6 +77,7 @@ spaciblo.client.TemplateWorker = class {
 	handleInputActionEnded(action){}
 	handlePointIntersect(data){}
 	handleAvatarInfo(group){}
+	handleSchemaPopulated(){}
 
 	// TODO remove me because mouse clicks should be coming through the input manager
 	handleGroupClicked(group){}
@@ -391,12 +396,12 @@ spaciblo.client.InteractiveTemplateWorker = class extends spaciblo.client.Tracki
 				break
 			case 'left-press':
 				if(this.actionIsActive('left-point') && this.leftPointInfo !== null){
-					this.handlePressStarted(this.leftPoint.group, 'left', this.leftPointInfo.intersect)
+					this.handlePressStarted(this.leftPointInfo.group, 'left', this.leftPointInfo.intersect)
 				}
 				break
 			case 'right-press':
 				if(this.actionIsActive('right-point') && this.rightPointInfo !== null){
-					this.handlePressStarted(this.rightPoint.group, 'right', this.rightPointInfo.intersect)
+					this.handlePressStarted(this.rightPointInfo.group, 'right', this.rightPointInfo.intersect)
 				}
 				break
 		}
@@ -408,12 +413,12 @@ spaciblo.client.InteractiveTemplateWorker = class extends spaciblo.client.Tracki
 				break
 			case 'left-trigger':
 				if(this.actionIsActive('left-point') && this.leftPointInfo !== null){
-					this.handleTriggerStarted(this.leftPoint.group, 'left', this.leftPointInfo.intersect)
+					this.handleTriggerStarted(this.leftPointInfo.group, 'left', this.leftPointInfo.intersect)
 				}
 				break
 			case 'right-trigger':
 				if(this.actionIsActive('right-point') && this.rightPointInfo !== null){
-					this.handleTriggerStarted(this.rightPoint.group, 'right', this.rightPointInfo.intersect)
+					this.handleTriggerStarted(this.rightPointInfo.group, 'right', this.rightPointInfo.intersect)
 				}
 				break
 		}
