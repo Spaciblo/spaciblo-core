@@ -157,12 +157,6 @@ spaciblo.workers.TemplateWorker = k.eventMixin(class {
 			}))
 		}
 	}
-	handleTemplateGeometryLoaded(serializableGroup){
-		if(this.templateGroups.has(serializableGroup.id) === false) return
-		this._postMessage(new spaciblo.client.TemplateGeometryLoadedMessage({
-			group: serializableGroup
-		}))
-	}
 	handleTemplateUnset(groupId, templateUUID){
 		// This is called when a group in the scene graph is no longer associated with a template
 		if(this.templateGroups.has(groupId) === false) return
@@ -307,12 +301,6 @@ spaciblo.workers.Manager = k.eventMixin(class {
 	handleGroupSettingsChanged(changedKeys, group){
 		for(let [uuid, worker] of this.templateWorkers){
 			worker.handleGroupSettingsChanged(changedKeys, group)
-		}
-	}
-	handleTemplateGeometryLoaded(group){
-		let serializedGroup = group.serializeForWorker()
-		for(let [uuid, worker] of this.templateWorkers){
-			worker.handleTemplateGeometryLoaded(serializedGroup)
 		}
 	}
 	handlePointIntersectChanged(pointerName, intersect){

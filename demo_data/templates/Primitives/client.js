@@ -32,8 +32,6 @@ let PrimitivesWorker = class extends spaciblo.client.InteractiveTemplateWorker {
 		this._coneTemplate = this._templates.dataObjects.find(template => { return template.get('name') === 'Cone' }) || null
 		if(!this._cubeTemplate || !this._sphereTemplate || !this._coneTemplate){
 			console.error('Could not find one of the prim templates')
-		} else {
-			console.log('Set templates')
 		}
 	}
 	handlePressStarted(group, pointer, intersect){

@@ -37,9 +37,6 @@ spaciblo.client.TemplateWorker = class {
 			case 'template-group-settings-changed':
 				this.handleTemplateGroupSettingsChanged(ev.data.groupId, ev.data.changedKeys, ev.data.settings)
 				break
-			case 'template-geometry-loaded':
-				this.handleTemplateGeometryLoaded(ev.data.group)
-				break
 			case 'group-clicked':
 				this.handleGroupClicked(ev.data.group)
 				break
@@ -70,7 +67,6 @@ spaciblo.client.TemplateWorker = class {
 	handleGroupRemoved(groupId){}
 	handleTemplateGroupAdded(group){} 
 	handleTemplateGroupRemoved(groupId){}
-	handleTemplateGeometryLoaded(group){}
 	handleGroupSettingsChanged(groupId, changedKeys, settings) {}
 	handleTemplateGroupSettingsChanged(groupId, changedKeys, settings) {}
 	handleInputActionStarted(action){}
@@ -218,9 +214,6 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 			return
 		}
 		this._templateGroups.get(groupId).settings = settings
-	}
-	handleTemplateGeometryLoaded(group){
-		this._templateGroups.set(group.id, group) // Since this is the newest value, update _templateGroups
 	}
 	getTemplateGroup(groupId){
 		return this._templateGroups.get(groupId) || null
@@ -767,18 +760,6 @@ values:
 spaciblo.client.GroupRemovedMessage = class extends spaciblo.client.Message {
 	constructor(values={}){
 		super('group-removed', values)
-	}
-}
-
-/*
-Fired when a group using this worker's template has loaded their geometry.
-This is useful because then the group is first added (and send via a GroupAddedMessage) it has no geometry.
-values:
-	group: the group's scene graph
-*/
-spaciblo.client.TemplateGeometryLoadedMessage = class extends spaciblo.client.Message {
-	constructor(values={}){
-		super('template-geometry-loaded', values)
 	}
 }
 

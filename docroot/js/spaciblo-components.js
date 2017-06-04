@@ -378,9 +378,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.renderer = new spaciblo.three.Renderer(this.environment, this.inputManager, this.audioManager, this.workerManager, this.flocks)
 		this.el.appendChild(this.renderer.el)
 		this.renderer.addListener(this._throttledSendAvatarUpdate, spaciblo.events.AvatarPositionChanged)
-		this.renderer.addListener((eventName, group) => {
-			this.workerManager.handleTemplateGeometryLoaded(group)
-		}, spaciblo.three.events.TemplateGeometryLoaded)
 		this.renderer.addListener((eventName, changedKeys, group) => {
 			this.workerManager.handleGroupSettingsChanged(changedKeys, group)
 		}, spaciblo.three.events.GroupSettingsChanged)
@@ -458,7 +455,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	}
 	handleWorkerRequestedGroupModifications(eventName, data){
 		// Group modifications aren't replicated, they are caused locally by client workers based on settings changes and other replicated state.
-		this.renderer.handleGroupModifications(data)
+		this.renderer.handleGroupModifications(data.selectors, data.modifiers)
 	}
 	handleWorkerRequestedCreateGroup(eventName, data){
 		// Three.js (and thus the front end) calls them groups and the back-end calls them nodes.

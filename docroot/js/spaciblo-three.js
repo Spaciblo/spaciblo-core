@@ -32,8 +32,7 @@ spaciblo.three.DEFAULT_LIGHT_INTENSITY = 0.7
 spaciblo.three.DEFAULT_LIGHT_SKY_COLOR  = '#0077FF'
 spaciblo.three.DEFAULT_LIGHT_GROUND_COLOR  = '#FFFFFF'
 
-spaciblo.three.events.GLTFLoaded = 'three-gltf-loaded' 
-spaciblo.three.events.TemplateGeometryLoaded = 'three-template-geometry-loaded'
+spaciblo.three.events.TemplateLoaded = 'three-template-loaded'
 spaciblo.three.events.GroupSettingsChanged = 'three-group-settings-changed'
 
 spaciblo.three.DEFAULT_HEAD_POSITION = [0, 0.6, 0]
@@ -133,20 +132,28 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this._animate()
 	}
 
-	handleGroupModifications(data){
-		if(Array.isArray(data.selectors) === false || Array.isArray(data.modifiers) === false){
-			console.error('bad data', data)
-			return
-		}
+	handleGroupModifications(selectors, modifiers){
 		// for each selector, find its matched groups and then apply each modifer
-		for(let selector of data.selectors){
+		for(let selector of selectors){
 			let matchedGroups = this.selectGroups(selector)
-			for(let modifier of data.modifiers){
+			for(let modifier of modifiers){
 				for(let matchedGroup of matchedGroups){
+					if(modifier.requiresCopy){
+						this._ensureCopy(matchedGroup)
+					}
 					modifier.apply(matchedGroup)
 				}
 			}
 		}
+	}
+
+	_ensureCopy(group){
+		if(group.notACopy === true) return // Already split from the original
+		group.notACopy = true
+		if(group.material){
+			group.material = group.material.clone()
+		}
+		// TODO when we have the ability to change the geometry we'll need to deep clone that, too
 	}
 
 	selectGroups(selector, group=this.rootGroup, results=[]){
@@ -1046,45 +1053,91 @@ spaciblo.three.parseSettingColor = function(name, settings, defaultValue='#FFFFF
 spaciblo.three.TemplateLoader = k.eventMixin(class {
 	constructor(){
 		// Added templates move from the fetchQueue, to the loadQueue, to the loadedTemplates list
-		this.fetchQueue = [] 		// Templates whose metadata we will fetch
-		this.loadedTemplates = [] 	// Templates whose metadata is fetched
+		this._fetchQueue = [] 		// Templates whose metadata we will fetch
+		this._loadQueue = []		// Templates who metadata we've fetched and whose geometry we will load
+		this._loadedTemplates = [] 	// Templates whose metadata is fetched or that have failed
 	}
-	addTemplate(templateUUID){
+	getOrAddTemplate(templateUUID){
 		let [index, listName, array] = this._indexAndListForTemplate(templateUUID)
 		if(index !== -1){
 			return array[index]
 		}
-		// It's an unknown template, so fetch it
 		let template = new be.api.Template({ uuid: templateUUID })
-		template.loading = true
-		this.fetchQueue.push(template)
-		template.fetch().then(() =>{
-			this.fetchQueue.splice(this.fetchQueue.indexOf(template), 1)
-			template.loading = false
-			this.loadedTemplates.push(template)
-		}).catch((err) => {
-			this.fetchQueue.splice(this.fetchQueue.indexOf(template), 1)
-			template.loading = false
-			this.loadedTemplates.push(template)
-		})
+		this._addTemplateToFetchQueue(template)
 		return template
+	}
+	_addTemplateToFetchQueue(template){
+		template.loading = true
+		this._fetchQueue.push(template)
+		template.fetch().then(() =>{
+			this._fetchQueue.splice(this._fetchQueue.indexOf(template), 1)
+			if(template.get('geometry')){
+				this._addTemplateToLoadQueue(template)
+			} else {
+				this._addTemplateToLoaded(template)
+			}
+		}).catch((err) => {
+			this._fetchQueue.splice(this._fetchQueue.indexOf(template), 1)
+			this._addTemplateToLoaded(template)
+		})
+	}
+	_addTemplateToLoadQueue(template){
+		this._loadQueue.push(template)
+		const extension = template.getGeometryExtension()
+		const templateUUID = template.get('uuid')
+		if(extension === 'gltf'){
+			spaciblo.three.GLTFLoader.load(template.geometryURL()).then(gltf => {
+				template.group = gltf.scene
+				template.group.templateUUID = templateUUID
+				this._loadQueue.splice(this._loadQueue.indexOf(template), 1)
+				this._addTemplateToLoaded(template)
+			}).catch(err => {
+				console.error('Could not fetch gltf', err)
+			})
+		} else if(extension === 'obj'){
+			spaciblo.three.OBJLoader.load(template.getBaseURL(), template.get('geometry')).then(obj => {
+				template.group = obj
+				template.group.templateUUID = templateUUID
+				this._loadQueue.splice(this._loadQueue.indexOf(template), 1)
+				this._addTemplateToLoaded(template)
+			}).catch(err => {
+				console.error('Could not fetch obj', err)
+			})
+		} else {
+			console.error('Unknown extension for template geometry.', extension, template)
+			this._loadQueue.splice(this._loadQueue.indexOf(template), 1)
+			this._addTemplateToLoaded(template)
+		}
+	}
+	_addTemplateToLoaded(template){
+		template.loading = false
+		this._loadedTemplates.push(template)
+		template.trigger(spaciblo.three.events.TemplateLoaded, template)
 	}
 	_indexAndListForTemplate(templateUUID){
 		// returns [index,fetch/load/loaded,array] for a template or [-1, null, null] if it isn't known
-		for(let i = 0; i < this.fetchQueue.length; i++){
-			if(this.fetchQueue[i].get('uuid') == templateUUID){
-				return [i, 'fetch', this.fetchQueue]
+		for(let i = 0; i < this._fetchQueue.length; i++){
+			if(this._fetchQueue[i].get('uuid') === templateUUID){
+				return [i, 'fetch', this._fetchQueue]
 			}
 		}
-		for(let i = 0; i < this.loadedTemplates.length; i++){
-			if(this.loadedTemplates[i].get('uuid') == templateUUID){
-				return [i, 'loaded', this.loadedTemplates]
+		for(let i =0; i < this._loadQueue.length; i++){
+			if(this._loadQueue[i].get('uuid') === templateUUID){
+				return [i, 'loading', this._loadQueue]
+			}
+		}
+		for(let i = 0; i < this._loadedTemplates.length; i++){
+			if(this._loadedTemplates[i].get('uuid') === templateUUID){
+				return [i, 'loaded', this._loadedTemplates]
 			}
 		}
 		return [-1, null, null]
 	}
 })
 
+/*
+An extension of the Three Group with app specific information
+*/
 spaciblo.three.Group = function(workerManager){
 	THREE.Group.call(this)
 	this.workerManager = workerManager
@@ -1094,6 +1147,9 @@ spaciblo.three.Group = function(workerManager){
 	this.updateQuaternion = new THREE.Quaternion(0,0,0,1) 	// the orientation receive from the sim
 	this.rotationMotion = new THREE.Vector3(0,0,0)			// the rotation motion received from the sim
 	this.translationMotion = new THREE.Vector3(0,0,0)		// the translation motion received from the sim
+
+	this.templateGroup = null // If the template has loaded geometry, this will be set to a THREE.Group
+	this.isCopy = false // If a modifier that requires copy is applied to this group, this will be set to tru in this.ensureCopy
 
 	this.leaderGroup = null
 	this.leaderStartWorldPosition = null
@@ -1132,46 +1188,31 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 	},
 	updateTemplate: function(templateUUID, templateLoader){
 		if(typeof templateUUID === 'undefined' || templateUUID.length == 0) return
-		if(this.templateNode){
-			this.remove(this.templateNode)
-			this.workerManager.handleTemplateUnset(this.state.id, this.templateNode.templateUUID)
-			this.templateNode = null
+		if(this.templateGroup){
+			this.remove(this.templateGroup)
+			this.workerManager.handleTemplateUnset(this.state.id, this.templateGroup.templateUUID)
+			this.templateGroup = null
 		}
 		if(templateUUID == spaciblo.api.RemoveKeyIndicator){
 			// We already removed the Template and this value indicates that there is no more template.
 			return
 		}
 
-		this.template = templateLoader.addTemplate(templateUUID)
+		this.template = templateLoader.getOrAddTemplate(templateUUID)
 		this.worker = this.workerManager.getOrCreateTemplateWorker(this.template)
 
-		var loadIt = (loadingGroup) => {
-			const extension = loadingGroup.template.getGeometryExtension()
-			const templateUUID = loadingGroup.template.get('uuid')
-			if(extension === 'gltf'){
-				spaciblo.three.GLTFLoader.load(loadingGroup.template.geometryURL()).then(gltf => {
-					loadingGroup.setGLTF(gltf, templateUUID)
-				}).catch(err => {
-					console.error('Could not fetch gltf', err)
-				})
-			} else if(extension === 'obj'){
-				spaciblo.three.OBJLoader.load(loadingGroup.template.getBaseURL(), loadingGroup.template.get('geometry')).then(obj => {
-					loadingGroup.setOBJ(obj, templateUUID)
-				}).catch(err => {
-					console.error('Could not fetch obj', err)
-				})
-			} else {
-				console.error('Unknown extension for template geometry.', extension, loadingGroup.template)
-			}
-			loadingGroup.worker.handleTemplateGroupAdded(loadingGroup)
-		}
-
-		if(this.template.loading === false){
-			loadIt(this)
-		} else {
+		if(this.template.loading === true){
 			this.template.addListener(() => {
-				loadIt(this)
-			}, 'fetched', true)
+				if(this.template.group){
+					this.add(this.template.group.clone())
+				}
+				this.worker.handleTemplateGroupAdded(this)
+			}, spaciblo.three.events.TemplateLoaded, true)
+		} else {
+			if(this.template.group){
+				this.add(this.template.group.clone())
+			}
+			this.worker.handleTemplateGroupAdded(this)
 		}
 	},
 	updateSettings: function(settings){
@@ -1181,7 +1222,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			this.settings = Object.assign(this.settings, settings)
 		} else {
 			var changedKeys = [] // Newly created groups do not fire a settings change event
-			this.settings = settings
+			this.settings = Object.assign({}, settings)
 		}
 		// Delete any settings with the magic removal indicator
 		for(let setting in this.settings){
@@ -1260,19 +1301,6 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		if(changedKeys.length > 0){
 			this.renderer.trigger(spaciblo.three.events.GroupSettingsChanged, changedKeys, this)
 		}
-	},
-	setGLTF: function(gltf, templateUUID){
-		this.templateNode = gltf.scene
-		this.templateNode.templateUUID = templateUUID
-		this.add(gltf.scene)
-		this.renderer.trigger(spaciblo.three.events.TemplateGeometryLoaded, this)
-	},
-	setOBJ: function(obj, templateUUID){
-		//this._enableShadows(obj)
-		this.templateNode = obj
-		this.templateNode.templateUUID = templateUUID
-		this.add(this.templateNode)
-		this.renderer.trigger(spaciblo.three.events.TemplateGeometryLoaded, this)
 	},
 	setupParts: function(){
 		// Find the body nodes created by update additions from the simulator

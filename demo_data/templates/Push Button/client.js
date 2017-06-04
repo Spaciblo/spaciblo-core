@@ -12,9 +12,9 @@ let ButtonWorker = class extends spaciblo.client.InteractiveTemplateWorker {
 		this._initialColor = { r: 1, g: 1, b: 1 }
 	}
 
-	// When a group's geometry arrives, set it according to its settings
-	handleTemplateGeometryLoaded(group){
-		super.handleTemplateGeometryLoaded(group)
+	// When a group arrives, set it according to its settings
+	handleTemplateGroupAdded(group){
+		super.handleTemplateGroupAdded(group)
 		this._setPressed(group.id, group.settings && group.settings['pressed'] === 'true')
 	}
 
@@ -33,7 +33,7 @@ let ButtonWorker = class extends spaciblo.client.InteractiveTemplateWorker {
 				vms.selectProperty('name', 'Button_Cube.001').childOf(vms.selectId(groupId), 2)
 			],
 			modifiers: [
-				vms.modifyProperty('material.color', pressed ? this._pressedColor : this._initialColor)
+				vms.modifyProperty('material.color', pressed ? this._pressedColor : this._initialColor, true)
 			]
 		}))
 	}

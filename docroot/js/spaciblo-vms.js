@@ -97,13 +97,21 @@ vms.Modifier = class extends vms.Marshalled {
 	}
 }
 
+/*
+parameters:
+	path: a dot separated list of the property to change
+	value: a simple type or object that will be assigned to the property found by path
+	requiresCopy: if true, the matched group's material will be a copy of the material loaded with the template
+*/
 vms.ModifyProperty = class extends vms.Modifier {
-	constructor(path, value){
+	constructor(path, value, requiresCopy=false){
 		super()
 		this._class = 'ModifyProperty'
 		this._path = path
 		this._value = value
+		this._requiresCopy = requiresCopy
 	}
+	get requiresCopy(){ return this._requiresCopy }
 	apply(group){
 		let pathTokens = this._path.split('.')
 		let obj = group
@@ -125,6 +133,6 @@ vms.ModifyProperty = class extends vms.Modifier {
 		}
 	}
 }
-vms.modifyProperty = function(path, value){ return new vms.ModifyProperty(path, value) } 
+vms.modifyProperty = function(path, value, requiresCopy=false){ return new vms.ModifyProperty(path, value, requiresCopy) } 
 
 
