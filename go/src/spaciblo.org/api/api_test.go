@@ -91,7 +91,7 @@ func TestFlockAPI(t *testing.T) {
 	arr = list.Objects.([]interface{})
 	AssertEqual(t, 0, len(arr)) // There should be no members in this flock, yet
 
-	template1, err := apiDB.CreateTemplateRecord("Template 1", "test.gltf", "", "", dbInfo)
+	template1, err := apiDB.CreateTemplateRecord("Template 1", "test.gltf", "", "", "", "", dbInfo)
 	AssertNil(t, err)
 
 	data2 := &apiDB.FlockMemberRecord{TemplateUUID: template1.UUID}
@@ -197,7 +197,7 @@ func TestAvatarAPI(t *testing.T) {
 	arr = list.Objects.([]interface{})
 	AssertEqual(t, 0, len(arr))
 
-	template0, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", "", "", dbInfo)
+	template0, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", "", "", "", "", dbInfo)
 	AssertNil(t, err)
 
 	partData0 := &apiDB.AvatarPartRecord{
@@ -336,7 +336,7 @@ func TestTemplateAPI(t *testing.T) {
 	arr := list.Objects.([]interface{})
 	AssertEqual(t, 0, len(arr))
 
-	record0, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", "", "", dbInfo)
+	record0, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", "", "", "", "", dbInfo)
 	AssertNil(t, err)
 
 	list, err = client.GetList("/template/")

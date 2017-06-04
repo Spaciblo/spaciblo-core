@@ -73,8 +73,8 @@ func TestHostStartup(t *testing.T) {
 }
 
 func createSpace(avatarUUID string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, error) {
-	templateRecord0, _ := apiDB.CreateTemplateRecord("Template 0", "bogus0.obj", "", "", dbInfo)
-	templateRecord1, _ := apiDB.CreateTemplateRecord("Template 1", "bogus1.obj", "", "", dbInfo)
+	templateRecord0, _ := apiDB.CreateTemplateRecord("Template 0", "bogus0.obj", "", "", "", "", dbInfo)
+	templateRecord1, _ := apiDB.CreateTemplateRecord("Template 1", "bogus1.obj", "", "", "", "", dbInfo)
 
 	position := []float64{0, 0, 0}
 	orientation := []float64{0, 0, 0, 1}

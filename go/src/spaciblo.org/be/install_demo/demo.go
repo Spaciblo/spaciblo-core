@@ -260,7 +260,6 @@ func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.Loc
 			logger.Fatal("Store a data file %s:", err)
 			return nil, err
 		}
-
 		_, err = apiDB.CreateTemplateDataRecord(template.Id, dataInfo.Name(), key, dbInfo)
 		if err != nil {
 			logger.Fatal("Could not create a template data record %s:", err)

@@ -17,8 +17,9 @@ type TemplateDataRecord struct {
 }
 
 func CreateTemplateDataRecord(template int64, name string, key string, dbInfo *be.DBInfo) (*TemplateDataRecord, error) {
-	_, err := FindTemplateDataRecordByTemplateId(template, name, dbInfo)
+	dr, err := FindTemplateDataRecordByTemplateId(template, name, dbInfo)
 	if err == nil {
+		logger.Println(dr, err)
 		return nil, errors.New("A template already exists with that template ID and name: " + strconv.FormatInt(template, 10) + "/" + name)
 	}
 	record := &TemplateDataRecord{
@@ -73,9 +74,9 @@ func FindTemplateDataRecord(template int64, name string, dbInfo *be.DBInfo) (*Te
 	return record, nil
 }
 
-func FindTemplateDataRecordByTemplateId(id int64, name string, dbInfo *be.DBInfo) (*TemplateDataRecord, error) {
+func FindTemplateDataRecordByTemplateId(templateId int64, name string, dbInfo *be.DBInfo) (*TemplateDataRecord, error) {
 	record := new(TemplateDataRecord)
-	err := dbInfo.Map.SelectOne(record, "select * from "+TemplateDataTable+" where id=$1 and name=$2", id, name)
+	err := dbInfo.Map.SelectOne(record, "select * from "+TemplateDataTable+" where template=$1 and name=$2", templateId, name)
 	if err != nil {
 		return nil, err
 	}

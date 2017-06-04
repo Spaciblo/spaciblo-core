@@ -46,7 +46,7 @@ func TestAvatarRecords(t *testing.T) {
 	AssertNotNil(t, avatar1)
 	AssertEqual(t, "Captain Janeway", avatar1.Name)
 
-	headTemplate, err := apiDB.CreateTemplateRecord("Janeway head", "head.obj", "head", "", dbInfo)
+	headTemplate, err := apiDB.CreateTemplateRecord("Janeway head", "head.obj", "", "", "head", "", dbInfo)
 	AssertNil(t, err)
 	headPart, err := apiDB.CreateAvatarPartRecord(avatar1.Id, headTemplate.UUID, headTemplate.Name, headTemplate.Part, headTemplate.Parent, "0,1,0", "0,0,0,1", "1,1,1", dbInfo)
 	AssertNil(t, err)
@@ -65,7 +65,7 @@ func TestAvatarRecords(t *testing.T) {
 	AssertNil(t, err)
 	AssertEqual(t, []float64{0.0123, 123.321, 444}, parsedPosition)
 
-	hairTemplate, err := apiDB.CreateTemplateRecord("Janeway hair", "hair.obj", "hair", "head", dbInfo)
+	hairTemplate, err := apiDB.CreateTemplateRecord("Janeway hair", "hair.obj", "", "", "hair", "head", dbInfo)
 	AssertNil(t, err)
 	hairPart, err := apiDB.CreateAvatarPartRecord(avatar1.Id, hairTemplate.UUID, hairTemplate.Name, hairTemplate.Part, hairTemplate.Parent, "0,0.1,0", "0,0,0,1", "1,1,1", dbInfo)
 	AssertNil(t, err)
@@ -195,7 +195,7 @@ func TestTemplateRecords(t *testing.T) {
 	AssertNil(t, err)
 	AssertEqual(t, 0, len(records))
 
-	record, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", "foo", "bar", dbInfo)
+	record, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", "", "", "foo", "bar", dbInfo)
 	AssertNil(t, err)
 	record2, err := apiDB.FindTemplateRecord(record.UUID, dbInfo)
 	AssertNil(t, err)
@@ -211,7 +211,7 @@ func TestTemplateRecords(t *testing.T) {
 	AssertNil(t, err)
 	AssertEqual(t, 1, len(records))
 	AssertEqual(t, records[0].UUID, record.UUID)
-	record3, err := apiDB.CreateTemplateRecord("Template 3", "test.gltf", "", "", dbInfo)
+	record3, err := apiDB.CreateTemplateRecord("Template 3", "test.gltf", "", "", "", "", dbInfo)
 	AssertNil(t, err)
 	records, err = apiDB.FindAllTemplateRecords(dbInfo)
 	AssertNil(t, err)
