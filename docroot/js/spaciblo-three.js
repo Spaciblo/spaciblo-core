@@ -1238,9 +1238,6 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		if(typeof this.settings['light-type'] === 'string'){
 			if(this.settingsLight){
 				this.remove(this.settingsLight)
-				if(this.settingsLight.target){
-					this.remove(this.settingsLight.target)
-				}
 			}
 
 			let color = spaciblo.three.parseSettingColor('light-color', this.settings, spaciblo.three.DEFAULT_LIGHT_COLOR)
@@ -1285,6 +1282,10 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 					let skyColor = spaciblo.three.parseSettingColor('light-sky-color', this.settings, spaciblo.events.DEFAULT_LIGHT_SKY_COLOR)
 					let groundColor = spaciblo.three.parseSettingColor('light-ground-color', this.settings, spaciblo.events.DEFAULT_LIGHT_GROUND_COLOR)
 					this.settingsLight = new THREE.HemisphereLight(skyColor, groundColor, intensity)
+					break
+
+				case '':
+					this.settingsLight = null
 					break
 					
 				default:

@@ -292,10 +292,21 @@ func TestSpaceAPI(t *testing.T) {
 	AssertNil(t, err)
 	_, err = apiDB.CreateAvatarRecord("Default Avatar", dbInfo)
 	AssertNil(t, err)
+	templateRecord0, err := apiDB.CreateTemplateRecord("Template 0", "test.gltf", "", "", "", "", dbInfo)
+	AssertNil(t, err)
 
 	data0 := &apiDB.SpaceRecord{Name: "Space 0"}
 	spaceRecord0 := &apiDB.SpaceRecord{}
 	err = client.PostAndReceiveJSON("/space/", data0, spaceRecord0)
+	AssertNil(t, err)
+
+	stateNode := apiDB.NewEmptySpaceStateNode()
+	stateNode.Settings["name"] = "Space 0"
+	stateNode.Nodes = append(stateNode.Nodes, apiDB.NewEmptySpaceStateNode())
+	stateNode.Nodes[0].Settings["name"] = "Sub Space 0"
+	stateNode.Nodes[0].TemplateUUID = templateRecord0.UUID
+	spaceRecord0.State = stateNode.ToString()
+	err = apiDB.UpdateSpaceRecord(spaceRecord0, dbInfo)
 	AssertNil(t, err)
 
 	list, err = client.GetList("/space/")
@@ -304,6 +315,16 @@ func TestSpaceAPI(t *testing.T) {
 	AssertEqual(t, 1, len(arr))
 	recordMap := arr[0].(map[string]interface{})
 	AssertEqual(t, spaceRecord0.UUID, recordMap["uuid"])
+
+	spaceState0 := new(apiDB.SpaceStateNode)
+	err = client.GetJSON("/space-state/bogus", spaceState0)
+	AssertNotNil(t, err)
+	err = client.GetJSON("/space-state/"+spaceRecord0.UUID, spaceState0)
+	AssertNil(t, err)
+	AssertEqual(t, "Space 0", spaceState0.Settings["name"])
+	AssertEqual(t, "Sub Space 0", spaceState0.Nodes[0].Settings["name"])
+	AssertEqual(t, stateNode.Nodes[0].TemplateUUID, spaceState0.Nodes[0].TemplateUUID)
+	AssertEqual(t, templateRecord0.Name, spaceState0.Nodes[0].TemplateName) // the API should fill this in
 }
 
 func TestTemplateAPI(t *testing.T) {

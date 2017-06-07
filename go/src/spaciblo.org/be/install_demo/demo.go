@@ -185,13 +185,10 @@ func createSpace(directory string, name string, avatarUUID string, dbInfo *be.DB
 	}()
 	state, err := apiDB.DecodeSpaceStateNode(file)
 	if err != nil {
-		logger.Fatal("Could not parse space file: "+spaceFilePath+": ", err)
-		return nil, err
-	}
-	if err != nil {
 		logger.Fatal("Could not read JSON from space file", err)
 		return nil, err
 	}
+	state.RemoveTemplateUUIDs()
 	buff := bytes.NewBufferString("")
 	state.Encode(buff)
 

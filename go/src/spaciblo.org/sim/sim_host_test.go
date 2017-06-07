@@ -83,8 +83,8 @@ func createSpace(avatarUUID string, dbInfo *be.DBInfo) (*apiDB.SpaceRecord, erro
 	scale := []float64{0, 0, 0}
 	rootNode := apiDB.NewSpaceStateNode(position, orientation, translation, rotation, scale, templateRecord0.UUID)
 	groupNode := apiDB.NewSpaceStateNode(position, orientation, translation, rotation, scale, "")
-	rootNode.Nodes = append(rootNode.Nodes, *groupNode)
-	groupNode.Nodes = append(groupNode.Nodes, *apiDB.NewSpaceStateNode(position, orientation, translation, rotation, scale, templateRecord1.UUID))
+	rootNode.Nodes = append(rootNode.Nodes, groupNode)
+	groupNode.Nodes = append(groupNode.Nodes, apiDB.NewSpaceStateNode(position, orientation, translation, rotation, scale, templateRecord1.UUID))
 	return apiDB.CreateSpaceRecord("Space 0", rootNode.ToString(), avatarUUID, dbInfo)
 }
 

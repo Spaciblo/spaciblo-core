@@ -1,0 +1,23 @@
+{
+	"name": "Camera",
+	"parts": [
+		{
+			"name": "Head",
+			"part": "head",
+			"templateName": "Camera",
+			"position": [0, 0.6, 0]
+		},
+		{
+			"name": "Left Hand",
+			"part": "left_hand",
+			"templateName": "Empty",
+			"position": [-0.8, -0.5, -0.1]
+		},
+		{
+			"name": "Right Hand",
+			"part": "right_hand",
+			"templateName": "Empty",
+			"position": [0.8, -0.5, -0.1]
+		}
+	]
+}

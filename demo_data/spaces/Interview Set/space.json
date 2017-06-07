@@ -1,0 +1,312 @@
+{
+    "settings": {
+        "light-color": "#FFF",
+        "light-intensity": "0.4",
+        "light-type": "ambient",
+        "name": "Root Node"
+    },
+    "position": [
+        0,
+        0,
+        0
+    ],
+    "orientation": [
+        0,
+        0,
+        0,
+        1
+    ],
+    "translation": [
+        0,
+        0,
+        0
+    ],
+    "rotation": [
+        0,
+        0,
+        0
+    ],
+    "scale": [
+        1,
+        1,
+        1
+    ],
+    "nodes": [
+        {
+            "settings": {
+                "name": "Stage"
+            },
+            "position": [
+                0,
+                0,
+                -8
+            ],
+            "orientation": [
+                0,
+                0,
+                0,
+                1
+            ],
+            "translation": [
+                0,
+                0,
+                0
+            ],
+            "rotation": [
+                0,
+                0,
+                0
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "nodes": [
+                {
+                    "settings": {
+                        "name": "Platform"
+                    },
+                    "position": [
+                        0,
+                        -1.5,
+                        0
+                    ],
+                    "orientation": [
+                        0,
+                        0,
+                        0,
+                        1
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "template-name": "Platform",
+                    "template-uuid": "516c18c9-0ad9-4b2a-5d1a-f4d08c50423c"
+                },
+                {
+                    "settings": {
+                        "name": "Interview Desk"
+                    },
+                    "position": [
+                        0,
+                        0,
+                        1
+                    ],
+                    "orientation": [
+                        0,
+                        0,
+                        0,
+                        1
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "template-name": "Interview Desk",
+                    "template-uuid": "b8c4706b-5fd6-45c5-4b18-8acdccca21de"
+                },
+                {
+                    "settings": {
+                        "name": "Backdrop 1"
+                    },
+                    "position": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "orientation": [
+                        0,
+                        0,
+                        0,
+                        1
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "template-name": "Backdrop1",
+                    "template-uuid": "772c2dd0-bc1d-49c8-6c00-32fd91a3b4df"
+                },
+                {
+                    "settings": {
+                        "light-color": "#ffffff",
+                        "light-intensity": "0",
+                        "light-target": "0,-1,0",
+                        "light-type": "directional",
+                        "name": "Directional 1",
+                        "pressed": "false"
+                    },
+                    "position": [
+                        3.308837435324783,
+                        0.11672399115106236,
+                        10.082046528855914
+                    ],
+                    "orientation": [
+                        0.02609832569691297,
+                        -0.6991219197241283,
+                        -0.13147463427347117,
+                        0.7023260206683017
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "template-name": "Directional Light",
+                    "template-uuid": "2eae77ec-b78a-46ed-7cee-8dab5bcd536c"
+                },
+                {
+                    "settings": {
+                        "light-color": "#ffff00",
+                        "light-intensity": "0",
+                        "light-target": "0,-1,0",
+                        "light-type": "directional",
+                        "name": "Directional 2",
+                        "pressed": "false"
+                    },
+                    "position": [
+                        0.18355470173255597,
+                        0.3437426784607566,
+                        7.174467956528496
+                    ],
+                    "orientation": [
+                        0.017564694794308985,
+                        -0.01888181587099911,
+                        -0.0005569116860053847,
+                        0.9996672688216058
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "template-name": "Directional Light",
+                    "template-uuid": "2eae77ec-b78a-46ed-7cee-8dab5bcd536c"
+                }
+            ]
+        },
+        {
+            "settings": {
+                "light-color": "#FFF",
+                "light-intensity": "3",
+                "light-target": "-1.5,-1,0",
+                "light-type": "",
+                "name": "Temp Light"
+            },
+            "position": [
+                0,
+                0,
+                0
+            ],
+            "orientation": [
+                0,
+                0,
+                0,
+                1
+            ],
+            "translation": [
+                0,
+                0,
+                0
+            ],
+            "rotation": [
+                0,
+                0,
+                0
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ]
+        },
+        {
+            "settings": {
+                "name": "Grid"
+            },
+            "position": [
+                0,
+                -1.6,
+                8
+            ],
+            "orientation": [
+                0,
+                0,
+                0,
+                1
+            ],
+            "translation": [
+                0,
+                0,
+                0
+            ],
+            "rotation": [
+                0,
+                0,
+                0
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "template-name": "Grid",
+            "template-uuid": "f93574a0-9dbe-4294-71a8-f44fd2bfa6a8"
+        }
+    ]
+}

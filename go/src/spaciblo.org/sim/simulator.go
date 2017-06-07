@@ -630,7 +630,7 @@ func NewRootNode(initialState *apiDB.SpaceStateNode, dbInfo *be.DBInfo) (*SceneN
 		rootNode.Settings[key] = NewStringTuple(key, value)
 	}
 	for _, stateNode := range initialState.Nodes {
-		childNode, err := NewSceneNode(&stateNode, 0, dbInfo)
+		childNode, err := NewSceneNode(stateNode, 0, dbInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -728,7 +728,7 @@ func NewSceneNode(stateNode *apiDB.SpaceStateNode, leader int64, dbInfo *be.DBIn
 		sceneNode.TemplateUUID.Dirty = true
 	}
 	for _, childStateNode := range stateNode.Nodes {
-		childNode, err := NewSceneNode(&childStateNode, 0, dbInfo)
+		childNode, err := NewSceneNode(childStateNode, 0, dbInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -762,7 +762,7 @@ func (node *SceneNode) toSpaceStateNode() *apiDB.SpaceStateNode {
 		if child.Transient {
 			continue
 		}
-		stateNode.Nodes = append(stateNode.Nodes, *child.toSpaceStateNode())
+		stateNode.Nodes = append(stateNode.Nodes, child.toSpaceStateNode())
 	}
 	return stateNode
 }

@@ -102,7 +102,7 @@ type SpaceStateNode struct {
 	Scale        []float64         `json:"scale,omitempty"`         // x,y,z
 	TemplateName string            `json:"template-name,omitempty"` // Templates can be referenced by names (which are not unique) or by UUID (which are)
 	TemplateUUID string            `json:"template-uuid,omitempty"`
-	Nodes        []SpaceStateNode  `json:"nodes,omitempty"`
+	Nodes        []*SpaceStateNode `json:"nodes,omitempty"`
 }
 
 func NewEmptySpaceStateNode() *SpaceStateNode {
@@ -118,7 +118,35 @@ func NewSpaceStateNode(position []float64, orientation []float64, translation []
 		Rotation:     rotation,
 		Scale:        scale,
 		TemplateUUID: templateUUID,
-		Nodes:        []SpaceStateNode{},
+		Nodes:        []*SpaceStateNode{},
+	}
+}
+
+/*
+FillInTemplateNames traverses the tree and fill in the TemplateName using the TemplateUUID,
+usually in preparation for service via REST API.
+*/
+func (stateNode *SpaceStateNode) FillInTemplateNames(dbInfo *be.DBInfo) error {
+	if stateNode.TemplateUUID != "" {
+		templateRecord, err := FindTemplateRecord(stateNode.TemplateUUID, dbInfo)
+		if err != nil {
+			return err
+		}
+		stateNode.TemplateName = templateRecord.Name
+	}
+	for _, node := range stateNode.Nodes {
+		err := node.FillInTemplateNames(dbInfo)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (stateNode *SpaceStateNode) RemoveTemplateUUIDs() {
+	stateNode.TemplateUUID = ""
+	for _, node := range stateNode.Nodes {
+		node.RemoveTemplateUUIDs()
 	}
 }
 

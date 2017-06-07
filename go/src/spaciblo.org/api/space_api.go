@@ -22,6 +22,8 @@ var SpaceProperties = []be.Property{
 	},
 }
 
+// THIS IS WHERE I STOPPED. MAKE THESE PORTABLE AND WRITE TESTS.
+
 var SpacesProperties = be.NewAPIListProperties("space")
 
 type SpacesResource struct {

@@ -101,6 +101,7 @@ func StartAPI() error {
 func addApiResources(api *be.API) {
 	api.AddResource(NewSpaceResource(), true)
 	api.AddResource(NewSpacesResource(), true)
+	api.AddResource(NewSpaceStateResource(), true)
 	api.AddResource(NewTemplatesResource(), true)
 	api.AddResource(NewTemplateResource(), true)
 	api.AddResource(NewTemplateDataResource(), false)
