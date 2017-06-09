@@ -35,15 +35,19 @@ function hexToRGB(hex){
 
 
 /*
-A template for adjusting the directional light within a space
+A template for adjusting a spot light within a space
 */
-let DirectionalLightWorker = class extends spaciblo.client.InteractiveTemplateWorker {
+let SpotLightWorker = class extends spaciblo.client.InteractiveTemplateWorker {
 	constructor(){
 		super()
 		this._defaultLightColor = { r: 1, g: 1, b: 1 }
 		this._defaultLightIntensity = 1
 		this._defaultLightTarget = [0, -1, 0]
-		this._lightSettings = ['light-type', 'light-color', 'light-intensity', 'light-target']
+		this._defaultLightAngle = Math.PI / 6
+		this._angleStep = Math.PI / 10
+		this._defaultLightPenumbra = 0
+		this._penumbraStep = 0.1
+		this._lightSettings = ['light-type', 'light-color', 'light-intensity', 'light-target', 'light-angle', 'light-penumbra']
 		this._lightColors = [
 			{ r: 1, g: 1, b: 1 },
 			{ r: 0, g: 0, b: 1 },
@@ -104,8 +108,8 @@ let DirectionalLightWorker = class extends spaciblo.client.InteractiveTemplateWo
 		}
 
 		// Set defaults if necessary
-		if(group.settings['light-type'] != 'directional'){
-			postMessage(new spaciblo.client.RequestGroupSettingsChangeMessage({ groupId: group.id, settings:{ 'light-type': 'directional' } }))
+		if(group.settings['light-type'] != 'spot'){
+			postMessage(new spaciblo.client.RequestGroupSettingsChangeMessage({ groupId: group.id, settings:{ 'light-type': 'spot' } }))
 		}
 		if(!group.settings['light-color']){
 			postMessage(new spaciblo.client.RequestGroupSettingsChangeMessage({ groupId: group.id, settings:{ 'light-color': rgbToHex(this._defaultLightColor) } }))
@@ -118,6 +122,12 @@ let DirectionalLightWorker = class extends spaciblo.client.InteractiveTemplateWo
 		}
 		if(!group.settings['light-target']){
 			this._changeSettings(group.id, { 'light-target': this._defaultLightTarget.join(',') })
+		}
+		if(!group.settings['light-angle']){
+			this._changeSettings(group.id, { 'light-angle': this._defaultLightAngle.toString() })
+		}
+		if(!group.settings['light-penumbra']){
+			this._changeSettings(group.id, { 'light-penumbra': this._defaultLightPenumbra.toString() })
 		}
 
 		this._updateFromSettings(group)
@@ -192,6 +202,12 @@ let DirectionalLightWorker = class extends spaciblo.client.InteractiveTemplateWo
 		return results
 	}
 
+	_parseFloat(value, defaultValue){
+		const parsed = parseFloat(value)
+		if(Number.isNaN(parsed)) return defaultValue
+		return parsed
+	}
+
 	handlePressStarted(group, pointer, intersect){
 		super.handlePressStarted(group, pointer, intersect)
 		if(intersect.object.name.startsWith('Intensity')){
@@ -206,9 +222,36 @@ let DirectionalLightWorker = class extends spaciblo.client.InteractiveTemplateWo
 			}
 		} else if(intersect.object.name.startsWith('Saturation')){
 			var index = parseInt(intersect.object.name[intersect.object.name.length - 1])
-			console.log('sat color', this._saturationColors[index], rgbToHex(this._saturationColors[index]))
 			var settings = {
 				'light-color': rgbToHex(this._saturationColors[index])
+			}
+		} else if(intersect.object.name.startsWith('AngleUp')){
+			let angle = this._parseFloat(group.settings['light-angle'], this._defaultLightAngle)
+			console.log('angle up', parseFloat(group.settings['light-angle']), angle, Math.min(angle + this._angleStep, Math.PI / 2))
+			angle = Math.min(angle + this._angleStep, Math.PI / 2)
+			var settings = {
+				'light-angle': angle.toString()
+			}
+		} else if(intersect.object.name.startsWith('AngleDown')){
+			let angle = this._parseFloat(group.settings['light-angle'], this._defaultLightAngle)
+			console.log('angle down', parseFloat(group.settings['light-angle']), angle, Math.max(angle - this._angleStep, 0))
+			angle = Math.max(angle - this._angleStep, 0)
+			var settings = {
+				'light-angle': angle.toString()
+			}
+		} else if(intersect.object.name.startsWith('PenumbraUp')){
+			let penumbra = parseFloat(group.settings['light-penumbra']) || this._defaultLightPenumbra
+			penumbra = Math.min(penumbra + this._penumbraStep, 1.0)
+			console.log('penumbra up', group.settings['light-penumbra'], penumbra)
+			var settings = {
+				'light-penumbra': penumbra.toString()
+			}
+		} else if(intersect.object.name.startsWith('PenumbraDown')){
+			let penumbra = parseFloat(group.settings['light-penumbra']) || this._defaultLightPenumbra
+			penumbra = Math.max(penumbra - this._penumbraStep, 0)
+			console.log('penumbra down', group.settings['light-penumbra'], penumbra)
+			var settings = {
+				'light-penumbra': penumbra.toString()
 			}
 		} else {
 			return
@@ -216,4 +259,4 @@ let DirectionalLightWorker = class extends spaciblo.client.InteractiveTemplateWo
 		this._changeSettings(group.id, settings)
 	}
 }
-new DirectionalLightWorker()
+new SpotLightWorker()

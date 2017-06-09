@@ -467,6 +467,10 @@ spaciblo.client.LocomotionTemplateWorker = class extends spaciblo.client.Trackin
 		switch(action.name){
 			case 'rotate-left':
 			case 'rotate-right':
+			case 'rotate-up':
+			case 'rotate-down':
+			case 'roll-left':
+			case 'roll-right':
 			case 'translate-forward':
 			case 'translate-backward':
 			case 'translate-left':
@@ -534,6 +538,19 @@ spaciblo.client.LocomotionTemplateWorker = class extends spaciblo.client.Trackin
 			this._inputRotation[1] = 0
 			this._inputRotation[2] = 0
 		}
+
+		if(this.actionIsActive('rotate-down')){
+			this._inputRotation[0] = -1 * this._keyboardRotationDelta
+		} else if(this.actionIsActive('rotate-up')){
+			this._inputRotation[0] = 1 * this._keyboardRotationDelta
+		}
+
+		if(this.actionIsActive('roll-left')){
+			this._inputRotation[2] = 1 * this._keyboardRotationDelta
+		} else if(this.actionIsActive('roll-right')){
+			this._inputRotation[2] = -1 * this._keyboardRotationDelta
+		}
+
 		if(this.actionIsActive('translate-forward')){
 			this._inputTranslation[0] = 0
 			this._inputTranslation[1] = 0

@@ -103,9 +103,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 
 		// These variables are used in _animate to handle motion
 		this.cameraOrientationVector = new THREE.Vector3()	
-		this.cameraRotationQuaternion = new THREE.Quaternion()		
 		this.translationVector = new THREE.Vector3()
-		this.rotationEuler = new THREE.Euler(0,0,0,'XYZ')
+		this.rotationEuler = new THREE.Euler(0,0,0, 'YXZ')
 
 		this.defaultSky = this._createDefaultSky() 
 		this.scene.add(this.defaultSky)
@@ -725,15 +724,25 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			The hands are moved also moved using data from the WebVR frame pose.
 			*/
 
-			// Apply reversed input rotation to the pivot point
-			this.rotationEuler.fromArray([
-				this._inputRotation[0] * -delta,
-				this._inputRotation[1] * -delta,
-				this._inputRotation[2] * -delta
-			])
-			this.cameraRotationQuaternion.setFromEuler(this.rotationEuler)
-			this.pivotPoint.quaternion.multiply(this.cameraRotationQuaternion)
-			this.pivotPoint.updateMatrixWorld()
+			if(this._inputRotation[0] !== 0 || this._inputRotation[1] !== 0 || this._inputRotation[2] !== 0){
+				// get reversed input rotation
+				this.rotationEuler.fromArray([
+					this._inputRotation[0] * -delta,
+					this._inputRotation[1] * -delta,
+					this._inputRotation[2] * -delta
+				])
+				spaciblo.three.WORKING_QUAT.setFromEuler(this.rotationEuler)
+
+				// convert from avatar local to pivot local and apply to the pivot orientation
+				spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(this.pivotPoint.parent.matrixWorld)
+				spaciblo.three.WORKING_QUAT_2.multiply(spaciblo.three.WORKING_QUAT)
+				spaciblo.three.WORKING_QUAT_2.multiply(this.pivotPoint.quaternion)
+
+				// save the results for render
+				this.pivotPoint.quaternion.copy(spaciblo.three.WORKING_QUAT_2)
+				this.pivotPoint.quaternion.normalize()
+				this.pivotPoint.updateMatrixWorld()
+			}
 
 			// Apply input translation, where the translation vector is relative to avatar forward
 			this.translationVector.fromArray(this._inputTranslation)
@@ -763,9 +772,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 				this.rootGroup.position.y * -1, 
 				this.rootGroup.position.z * -1
 			)
-			spaciblo.three.WORKING_QUAT.copy(this.pivotPoint.quaternion)
-			spaciblo.three.WORKING_QUAT.inverse()
-			this.avatarGroup.quaternion.copy(spaciblo.three.WORKING_QUAT)
+			this.avatarGroup.quaternion.copy(this.pivotPoint.quaternion)
+			this.avatarGroup.quaternion.inverse()
 
 			if(this.avatarGroup.headLine){
 				this.avatarGroup.headLine.visible = this.inputManager.isActionActive('point')

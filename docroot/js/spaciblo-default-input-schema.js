@@ -44,6 +44,10 @@ spaciblo.input._defaultActions = [
 	'translate-down',
 	'rotate-left',	// counter-clockwise rotation around the Y axis, equiv to rotate-y at -1.0
 	'rotate-right', // clockwise rotation around the Y axis, equiv to rotate-y at 1.0
+	'rotate-down',	// forward rotation around the X axis, equiv to rotate-x at -1.0
+	'rotate-up',	// backward rotation around X axis, equiv to rotate-x at 1.0
+	'roll-left',	// counter-clockwise roll around the Z axis, equiv to rotate-z at 1.0
+	'roll-right',	// clockwise roll around the Z axis, equiv to rotate-z at -1.0
 	'rotate-x',		// [-1,1] rotation around the X axis 
 	'rotate-y',		// [-1,1] rotation around the Y axis
 	'rotate-z'		// [-1,1] rotation around the Z axis
@@ -158,7 +162,13 @@ spaciblo.input._defaultKeyCodeActions = [
 	[37, 'rotate-left'],
 
 	[39, 'rotate-right'],
-	[68, 'rotate-right']
+	[68, 'rotate-right'],
+
+	[88, 'rotate-down'],
+	[90, 'rotate-up'],
+
+	[67, 'roll-left'],
+	[86, 'roll-right']
 ]
 // Load the keyboard inputs into the DefaultInputSchema
 spaciblo.input._defaultKeyCodeActions.forEach((code, index) => {
