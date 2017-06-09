@@ -94,16 +94,16 @@
                         1
                     ],
                     "template-name": "Platform",
-                    "template-uuid": "516c18c9-0ad9-4b2a-5d1a-f4d08c50423c"
+                    "template-uuid": "2e3db33c-ca85-4c1b-522f-8fc4b8151464"
                 },
                 {
                     "settings": {
                         "name": "Interview Desk"
                     },
                     "position": [
+                        -0.1,
                         0,
-                        0,
-                        1
+                        1.3
                     ],
                     "orientation": [
                         0,
@@ -127,60 +127,27 @@
                         1
                     ],
                     "template-name": "Interview Desk",
-                    "template-uuid": "b8c4706b-5fd6-45c5-4b18-8acdccca21de"
-                },
-                {
-                    "settings": {
-                        "name": "Backdrop 1"
-                    },
-                    "position": [
-                        0,
-                        0,
-                        0
-                    ],
-                    "orientation": [
-                        0,
-                        0,
-                        0,
-                        1
-                    ],
-                    "translation": [
-                        0,
-                        0,
-                        0
-                    ],
-                    "rotation": [
-                        0,
-                        0,
-                        0
-                    ],
-                    "scale": [
-                        1,
-                        1,
-                        1
-                    ],
-                    "template-name": "Backdrop1",
-                    "template-uuid": "772c2dd0-bc1d-49c8-6c00-32fd91a3b4df"
+                    "template-uuid": "2afd06ca-2087-42eb-5c40-4dfc0a54b23a"
                 },
                 {
                     "settings": {
                         "light-color": "#ffffff",
-                        "light-intensity": "0",
+                        "light-intensity": "0.4444444444444444",
                         "light-target": "0,-1,0",
                         "light-type": "directional",
                         "name": "Directional 1",
                         "pressed": "false"
                     },
                     "position": [
-                        3.308837435324783,
-                        0.11672399115106236,
-                        10.082046528855914
+                        -0.04574966900215713,
+                        11.528321819024287,
+                        10.274010924635812
                     ],
                     "orientation": [
-                        0.02609832569691297,
-                        -0.6991219197241283,
-                        -0.13147463427347117,
-                        0.7023260206683017
+                        0.4074764900071684,
+                        0.08046497299933145,
+                        -0.1830641093625101,
+                        0.8910532120942942
                     ],
                     "translation": [
                         0,
@@ -198,27 +165,29 @@
                         1
                     ],
                     "template-name": "Directional Light",
-                    "template-uuid": "2eae77ec-b78a-46ed-7cee-8dab5bcd536c"
+                    "template-uuid": "d10f7973-b66f-4c96-4c9e-27e295aeedac"
                 },
                 {
                     "settings": {
-                        "light-color": "#ffff00",
-                        "light-intensity": "0",
+                        "light-angle": "0.3141592653589793",
+                        "light-color": "#7171ff",
+                        "light-intensity": "0.4444444444444444",
+                        "light-penumbra": "1",
                         "light-target": "0,-1,0",
-                        "light-type": "directional",
-                        "name": "Directional 2",
+                        "light-type": "spot",
+                        "name": "Spot 1",
                         "pressed": "false"
                     },
                     "position": [
-                        0.18355470173255597,
-                        0.3437426784607566,
-                        7.174467956528496
+                        -0.05873198053226014,
+                        10.126253765893553,
+                        9.789110968000331
                     ],
                     "orientation": [
-                        0.017564694794308985,
-                        -0.01888181587099911,
-                        -0.0005569116860053847,
-                        0.9996672688216058
+                        0.5134358186781918,
+                        -0.10757106086832048,
+                        0.04686163526758087,
+                        0.8500682994472784
                     ],
                     "translation": [
                         0,
@@ -235,8 +204,187 @@
                         1,
                         1
                     ],
-                    "template-name": "Directional Light",
-                    "template-uuid": "2eae77ec-b78a-46ed-7cee-8dab5bcd536c"
+                    "template-name": "Spot Light",
+                    "template-uuid": "1f7c5989-7965-4570-515b-62118b5cd51d"
+                },
+                {
+                    "settings": {
+                        "light-angle": "0.3141592653589793",
+                        "light-color": "#ffccff",
+                        "light-intensity": "0.4444444444444444",
+                        "light-penumbra": "0.5000000000000001",
+                        "light-target": "0,-1,0",
+                        "light-type": "spot",
+                        "name": "Spot 2",
+                        "pressed": "false"
+                    },
+                    "position": [
+                        -0.7972286412412324,
+                        10.100823797157172,
+                        9.834992570876574
+                    ],
+                    "orientation": [
+                        0.5229054400647491,
+                        0.05823550344985798,
+                        -0.10048669588302644,
+                        0.8444412061312675
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "template-name": "Spot Light",
+                    "template-uuid": "1f7c5989-7965-4570-515b-62118b5cd51d"
+                },
+                {
+                    "settings": {
+                        "name": "Catwalk"
+                    },
+                    "position": [
+                        0,
+                        9,
+                        10
+                    ],
+                    "orientation": [
+                        0,
+                        0,
+                        0,
+                        1
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "template-name": "Catwalk",
+                    "template-uuid": "65f434b3-72e4-4ba9-776f-c2baf4413788"
+                },
+                {
+                    "settings": {
+                        "light-angle": "0.3141592653589793",
+                        "light-color": "#ccccff",
+                        "light-intensity": "0.4444444444444444",
+                        "light-penumbra": "1",
+                        "light-target": "0,-1,0",
+                        "light-type": "spot",
+                        "name": "Spot 3",
+                        "pressed": "false"
+                    },
+                    "position": [
+                        0.7182807504119156,
+                        10.19107223889857,
+                        9.790532786270898
+                    ],
+                    "orientation": [
+                        0.28770421076997604,
+                        0.07174060619887339,
+                        -0.039405700945051116,
+                        0.9542152632235836
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "template-name": "Spot Light",
+                    "template-uuid": "1f7c5989-7965-4570-515b-62118b5cd51d"
+                },
+                {
+                    "settings": {
+                        "name": "Backdrop2"
+                    },
+                    "position": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "orientation": [
+                        0,
+                        0,
+                        0,
+                        1
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "template-name": "Backdrop2",
+                    "template-uuid": "11fb9c14-d6aa-4082-7793-5a770be3123c"
+                },
+                {
+                    "settings": {
+                        "name": "Spaciblo Name"
+                    },
+                    "position": [
+                        -0.1,
+                        -0.75,
+                        2.3
+                    ],
+                    "orientation": [
+                        0,
+                        0,
+                        0,
+                        1
+                    ],
+                    "translation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "rotation": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "scale": [
+                        1.3,
+                        1.3,
+                        1
+                    ],
+                    "template-name": "Spaciblo Name",
+                    "template-uuid": "4432abd5-314c-405a-4e0d-79ab1b9e1769"
                 }
             ]
         },
@@ -306,7 +454,7 @@
                 1
             ],
             "template-name": "Grid",
-            "template-uuid": "f93574a0-9dbe-4294-71a8-f44fd2bfa6a8"
+            "template-uuid": "e4eaf54c-0d79-4d8f-4b7e-36c0823c5878"
         }
     ]
 }

@@ -71,3 +71,9 @@ For a quick and dirty public server, it's easiest to use the all-in-one process 
 If you use the `run_all` make target (and thus the default ports) and want to access the service through a firewall or inside a cloud security group, you'll need to open up port 9000 (HTTPS) and 9020 (WebSocket to sim proxy).
 
 No web browser will enter VR unless the service is running over HTTPS connections, so you'll need to either use the bogus cert that is in the repo or change the TLS_CERT and TLS_KEY environment variables to point at your valid cert files.
+
+# API requests
+
+The web API requires an Accept header, like so:
+
+	curl -H "Accept: application/vnd.api+json; version=0.1.0" --insecure https://127.0.0.1:9000/api/0.1.0/SOME_ENDPOINT
