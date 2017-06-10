@@ -14,6 +14,7 @@ spaciblo.events.GamepadAdded = 'spaciblo-gamepad-added'
 spaciblo.events.GamepadRemoved = 'spaciblo-gamepad-removed'
 spaciblo.events.MuteRequested = 'spaciblo-mute-requested'
 spaciblo.events.UnmuteRequested = 'spaciblo-unmute-requested'
+spaciblo.events.CameraModeToggled = 'camera-mode-toggled'
 
 /*
 AccountPageComponent wraps all of the logic for a/index.html
@@ -234,6 +235,13 @@ spaciblo.components.SplashPageComponent = class extends k.Component {
 
 		this.spacesComponent = new spaciblo.components.SpacesComponent(dataObject)
 		this.el.appendChild(this.spacesComponent.el)
+		this.spacesComponent.addListener((eventName, cameraModeActive) => {
+			if(cameraModeActive){
+				this.topNav.el.style.display = 'none'
+			} else {
+				this.topNav.el.style.display = ''
+			}
+		}, spaciblo.events.CameraModeToggled)
 
 		this.spaceMenuComponent = new spaciblo.components.SpaceMenuComponent(dataObject)
 		this.el.appendChild(this.spaceMenuComponent.el)
@@ -300,6 +308,17 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	constructor(dataObject=null, options={}){
 		super(dataObject, options)
 		this.el.addClass('spaces-component')
+
+		this.cameraMode = false // If true, the overlay UI is hidden
+		document.addEventListener('keyup', ev => {
+			// If shift-h is released, toggle hiding the UI for camera mode
+			if(ev.shiftKey === true && ev.keyCode === 72){
+				this.cameraMode = !this.cameraMode
+				this.updateOverlays()
+				this.trigger(spaciblo.events.CameraModeToggled, this.cameraMode)
+			}
+		})
+
 		this._throttledSendAvatarUpdate = be.ui.throttle(this._sendAvatarUpdate.bind(this), 100)
 
 		this.client = null // Will be a spaciblo.api.Client when a Space is selected
@@ -410,7 +429,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	}
 	updateOverlays(){
 		// Show or hide the motion controller
-		if(this.environment.inHeadset){
+		if(this.environment.inHeadset || this.cameraMode){
 			this.touchMotionComponent.el.style.display = 'none'
 		} else if(this.environment.hasTouch && this.client !== null) {
 			this.touchMotionComponent.el.style.display = 'block'
@@ -418,14 +437,14 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		}
 
 		// Show or hide the enter VR button
-		if(this.environment.inHeadset){
+		if(this.environment.inHeadset || this.cameraMode){
 			this.vrButton.style.display = 'none'
 		} else if(this.environment.hasWebVR && this.client !== null) {
 			this.vrButton.style.display = 'inline-block'
 		}
 
 		// Show or hide the lower controls, including audio widgets
-		if(this.environment.inHeadset){
+		if(this.environment.inHeadset || this.cameraMode){
 			this.lowerControlsEl.style.display = 'none'
 		} else if(this.client !== null){
 			this.lowerControlsEl.style.display = 'block'
