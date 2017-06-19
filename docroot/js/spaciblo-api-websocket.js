@@ -21,8 +21,8 @@ spaciblo.api.RemoveKeyIndicator = '_r_e_m_o_v_e_'
 // Names of settings that represent the position/orientation/motion of a scene node
 spaciblo.api.PositioningSettingsNames = ['position', 'orientation', 'rotation', 'translation', 'scale']
 
-// Settings that are not displayed in the space editor settings
-spaciblo.api.IgnoredSettings = ['id', 'clientUUID', 'templateUUID']
+// Settings that are not displayed as raw string editable settings in the space editor settings
+spaciblo.api.IgnoredSettings = ['id', 'clientUUID', 'templateUUID', 'visible']
 
 // Names of settings that represent lighting of a scene node
 spaciblo.api.LightingSettingsNames = ['light-color', 'light-distance', 'light-intensity', 'light-target', 'light-type', 'light-decay', 'light-penumbra', 'light-angle', 'light-sky-color', 'light-ground-color']

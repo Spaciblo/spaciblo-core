@@ -22,7 +22,7 @@
 	right: 35px;
 	color: red;
 }
-.inventory-page-component .detail-component input[type=text] {
+.inventory-page-component .detail-component input[type=text], .inventory-page-component .detail-component input[type=checkbox] {
 	margin-bottom: 10px;
 	padding: 5px 3px;
 }

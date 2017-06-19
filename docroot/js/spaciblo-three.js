@@ -1242,6 +1242,9 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		if(this.settings.name){
 			this.name = this.settings.name
 		}
+		// Update visibility based on visiblity setting
+		this.visible = this.settings.visible !== 'false'
+
 		// Update the light
 		if(typeof this.settings['light-type'] === 'string'){
 			if(this.settingsLight){

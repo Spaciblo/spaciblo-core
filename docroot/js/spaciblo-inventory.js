@@ -532,11 +532,18 @@ spaciblo.components.SceneGraphNodeSettingsComponent = class extends k.Component 
 
 		this.el.appendChild(k.el.h3('Settings'))
 
+		this.visibleComponent = new spaciblo.components.SceneGraphNodeBooleanSettingComponent(this.dataObject, {
+			fieldName: 'visible',
+			defaultValue: true
+		})
+		this.visibleComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
+		this.el.appendChild(this.visibleComponent.el)
+
 		for(let key in this.dataObject.data){
 			if(spaciblo.api.IgnoredSettings.indexOf(key) != -1) continue
 			if(spaciblo.api.PositioningSettingsNames.indexOf(key) != -1) continue
 			if(spaciblo.api.LightingSettingsNames.indexOf(key) != -1) continue
-			let settingComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: key })
+			let settingComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: key })
 			settingComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 			this.settingsMap.set(key, settingComponent)
 			this.el.appendChild(settingComponent.el)
@@ -544,6 +551,7 @@ spaciblo.components.SceneGraphNodeSettingsComponent = class extends k.Component 
 	}
 	cleanup(){
 		super.cleanup()
+		this.visibleComponent.cleanup()
 		for(let [key, value] of this.settingsMap){
 			this.settingsMap.get(key).cleanup()
 		}
@@ -807,12 +815,12 @@ spaciblo.components.CommonLightSettingsComponent = class extends k.Component {
 		this.el.addClass('common-light-settings')
 
 		this.el.appendChild(k.el.h3('Color'))
-		this.colorComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-color' })
+		this.colorComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-color' })
 		this.colorComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.colorComponent.el)
 
 		this.el.appendChild(k.el.h3('Intensity'))
-		this.intensityComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-intensity' })
+		this.intensityComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-intensity' })
 		this.intensityComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.intensityComponent.el)
 	}
@@ -854,12 +862,12 @@ spaciblo.components.PointLightSettingsComponent = class extends k.Component {
 		this.el.addClass('point-light-settings')
 
 		this.el.appendChild(k.el.h3('Distance'))
-		this.distanceComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-distance' })
+		this.distanceComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-distance' })
 		this.distanceComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.distanceComponent.el)
 
 		this.el.appendChild(k.el.h3('Decay'))
-		this.decayComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-decay' })
+		this.decayComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-decay' })
 		this.decayComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.decayComponent.el)
 	}
@@ -879,22 +887,22 @@ spaciblo.components.SpotLightSettingsComponent = class extends k.Component {
 		this.el.addClass('spot-light-settings')
 
 		this.el.appendChild(k.el.h3('Distance'))
-		this.distanceComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-distance' })
+		this.distanceComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-distance' })
 		this.distanceComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.distanceComponent.el)
 
 		this.el.appendChild(k.el.h3('Decay'))
-		this.decayComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-decay' })
+		this.decayComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-decay' })
 		this.decayComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.decayComponent.el)
 
 		this.el.appendChild(k.el.h3('Angle'))
-		this.angleComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-angle' })
+		this.angleComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-angle' })
 		this.angleComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.angleComponent.el)
 
 		this.el.appendChild(k.el.h3('Penumbra'))
-		this.penumbraComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-penumbra' })
+		this.penumbraComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-penumbra' })
 		this.penumbraComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.penumbraComponent.el)
 
@@ -924,12 +932,12 @@ spaciblo.components.HemisphereLightSettingsComponent = class extends k.Component
 		this.el.addClass('hemisphere-light-settings')
 
 		this.el.appendChild(k.el.h3('Sky color'))
-		this.skyColorComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-sky-color' })
+		this.skyColorComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-sky-color' })
 		this.skyColorComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.skyColorComponent.el)
 
 		this.el.appendChild(k.el.h3('Ground color'))
-		this.groundColorComponent = new spaciblo.components.SceneNodeSettingComponent(this.dataObject, { fieldName: 'light-ground-color' })
+		this.groundColorComponent = new spaciblo.components.SceneNodeStringSettingComponent(this.dataObject, { fieldName: 'light-ground-color' })
 		this.groundColorComponent.addListener((...params) => { this.trigger(...params) }, spaciblo.events.SettingUpdated)
 		this.el.appendChild(this.groundColorComponent.el)
 	}
@@ -966,33 +974,109 @@ spaciblo.components.SceneGraphNodePositioningComponent = class extends k.Compone
 }
 
 /*
-SceneGraphNodeSettingComponent provides a key/value table row for editing 
+SceneGraphNodeSettingComponent provides a key/value UI for editing.
+This is an abstract class (see 'Not implemented' methods) used by SceneGraphNodeBooleanSettingComponent and other setting type components.
+Settings are always string/string key-value pairs so extending classes parse and normalize these string values.
+options:
+	fieldName: the dataObject field name to use for this component
 */
 spaciblo.components.SceneNodeSettingComponent = class extends k.Component {
 	constructor(dataObject, options){
 		super(dataObject, options)
-		this.lastUpdateSent = Date.now()
 		this.el.addClass('scene-node-setting-component')
+		this.lastUpdateSent = Date.now()
 		this._boundHandleModelChange = this._handleModelChange.bind(this)
-		this.keyInput = k.el.h3(this.options.fieldName).appendTo(this.el)
-		this.valueInput = k.el.input({ type: 'text' }).appendTo(this.el)
-		this.listenTo('keyup', this.valueInput, this._handleKeyUp, this)
-		this.valueInput.value = this.dataObject.get(this.options.fieldName)
+		this.keyLabel = k.el.h3(this.options.fieldName).appendTo(this.el)
 		this.dataObject.addListener(this._boundHandleModelChange, 'changed:' + this.options.fieldName)
 	}
 	cleanup(){
 		super.cleanup()
 		this.dataObject.removeListener(this._boundHandleModelChange)
 	}
-	_handleModelChange(){
-		if(this.dataObject.get(this.options.fieldName) === this.valueInput.value) return
-		if(Date.now() - this.lastUpdateSent < spaciblo.components.InputChangeDelay) return // Don't overwrite local editing
-		this.valueInput.value = this.dataObject.get(this.options.fieldName)
+	get parsedInputValue() {
+		// Extending classes should read their input UI and return a normalized value
+		// Note that settings are always strings so the return value should always be a string
+		throw 'Not implemented'
 	}
-	_handleKeyUp(ev){
-		if(this.valueInput.value === this.dataObject.get(this.options.fieldName)) return
+	setFromModelValue(){
+		// Extending classes should read the model value and update their input elements accordingly
+		// Note that settings values are always strings, so parse accordingly
+		throw 'Not implemented'
+	}
+	checkInputValue(){
+		if(this.parsedInputValue === this.dataObject.get(this.options.fieldName)) return
 		this.lastUpdateSent = Date.now()
-		this.trigger(spaciblo.events.SettingUpdated, this.dataObject.get('id'), this.options.fieldName, this.valueInput.value)
+		this.trigger(spaciblo.events.SettingUpdated, this.dataObject.get('id'), this.options.fieldName, this.parsedInputValue)
+	}
+	_handleModelChange(){
+		if(this.parsedInputValue === this.dataObject.get(this.options.fieldName)) return
+		if(Date.now() - this.lastUpdateSent < spaciblo.components.InputChangeDelay) return // Don't overwrite local editing
+		this.setFromModelValue()
+	}
+}
+
+/*
+SceneGraphNodeBooleanSettingComponent provides a checkbox for a setting whose value is either 'true' or 'false'.
+options:
+	fieldName: the dataObject field name to use for this component
+	defaultValue (false): the assumed value when the setting is empty, does not exist, or does not equal 'true' or 'false' 
+*/
+
+spaciblo.components.SceneGraphNodeBooleanSettingComponent = class extends spaciblo.components.SceneNodeSettingComponent {
+	constructor(dataObject, options){
+		super(dataObject, options)
+		if(typeof this.options.defaultValue === 'undefined'){
+			this.options.defaultValue = false
+		} else {
+			this.options.defaultValue = this.options.defaultValue === true || this.options.defaultValue === 'true'
+		}
+		this.checkbox = k.el.input({ type: 'checkbox' }).appendTo(this.el)
+		this.listenTo('change', this.checkbox, ev => {
+			this.checkInputValue()
+		})
+
+		this.setFromModelValue()
+	}
+	get parsedInputValue(){
+		// Note: settings are always strings so we return strings
+		return this.checkbox.checked ? 'true' : 'false'
+	}
+	setFromModelValue(){
+		switch(this.dataObject.get(this.options.fieldName)){
+			case 'true':
+				this.checkbox.checked = true
+				break
+			case 'false':
+				this.checkbox.checked = false
+				break
+			default:
+				this.checkbox.checked = this.options.defaultValue
+		}
+	}
+}
+
+
+/*
+SceneNodeStringSettingComponent provides a text input for editing a string component
+All settings are strings, but some of them have known values (e.g. 'visible' can be empty, 'true', or 'false').
+SceneNodeStringSettingComponent is for settings that should be editable as text.
+options:
+	fieldName: the dataObject field name to use for this component
+*/
+spaciblo.components.SceneNodeStringSettingComponent = class extends spaciblo.components.SceneNodeSettingComponent {
+	constructor(dataObject, options){
+		super(dataObject, options)
+		this.valueInput = k.el.input({ type: 'text' }).appendTo(this.el)
+		this.listenTo('keyup', this.valueInput, ev => {
+			this.checkInputValue()
+		})
+		this.setFromModelValue()
+	}
+	get parsedInputValue(){
+		return this.valueInput.value
+	}
+	setFromModelValue(){
+		this.valueInput.value = this.dataObject.get(this.options.fieldName)
 	}
 }
 
