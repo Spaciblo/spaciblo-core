@@ -114,19 +114,25 @@ vms.ModifyProperty = class extends vms.Modifier {
 	get requiresCopy(){ return this._requiresCopy }
 	apply(group){
 		let pathTokens = this._path.split('.')
+		let lastToken = pathTokens[pathTokens.length - 1]
 		let obj = group
-		for(let pathToken of pathTokens){
-			if(typeof obj[pathToken] === 'undefined'){
+		for(let i=0; i < pathTokens.length; i++){
+			if(typeof obj[pathTokens[i]] === 'undefined'){
 				console.error('no such path', this._path, group)
 				return
 			}
-			obj = obj[pathToken]
+			if(i < pathTokens.length - 1){
+				obj = obj[pathTokens[i]]
+			}
 		}
 		switch(typeof this._value){
 			case 'object':
 				for(let key of Object.keys(this._value)){
-					obj[key] = this._value[key]
+					obj[lastToken][key] = this._value[key]
 				}
+				break
+			case 'number':
+				obj[lastToken] = this._value
 				break
 			default:
 				console.error('unknown value type', typeof this._value, this._value)

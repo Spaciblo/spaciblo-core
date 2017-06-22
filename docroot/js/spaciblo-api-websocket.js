@@ -30,6 +30,11 @@ spaciblo.api.LightingSettingsNames = ['light-color', 'light-distance', 'light-in
 // Values for the lighting-type node setting
 spaciblo.api.LightingTypes = ['ambient', 'directional', 'point', 'spot', 'hemisphere']
 
+// true if the id is of the form 'abwkjh-asldkjar-eralkj' (like a flock member's UUID) instead of an integer like a numeric sim node id 
+spaciblo.api.isFlockId = function(groupId){
+	return groupId && groupId.length > 10 && groupId.includes('-')
+}
+
 /*
 Client connects to the WS service (and thus the simulation back end) via a WebSocket.
 It can request to join a space, send scene graph node updates, and send avatar movement updates.

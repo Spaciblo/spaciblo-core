@@ -112,7 +112,20 @@ func main() {
 		logger.Fatal("Could not find the paper bag avatar", err)
 	}
 
-	createUser("alice@example.com", "Alice", "Smith", true, "1234", robot.UUID, dbInfo)
+	pushButton, err := apiDB.FindTemplateRecordByField("name", "Push Button", dbInfo)
+	if err != nil {
+		logger.Fatal("Could not find the push button", err)
+	}
+
+	user, err := createUser("alice@example.com", "Alice", "Smith", true, "1234", robot.UUID, dbInfo)
+	if err != nil {
+		logger.Fatal("Could not create a user", err)
+	}
+	_, err = createFlock("default", user.UUID, []string{pushButton.UUID}, true, dbInfo)
+	if err != nil {
+		logger.Fatal("Could not create a flock", err)
+	}
+
 	createUser("bob@example.com", "Bob", "Garvey", false, "1234", paperBag.UUID, dbInfo)
 
 	spacesDir := path.Join(DEMO_DATA_DIR, DEMO_SPACES_DIR)
@@ -124,6 +137,27 @@ func main() {
 	for _, info := range spacesFileInfos {
 		createSpace(path.Join(spacesDir, info.Name()), info.Name(), defaultAvatarRecord.UUID, dbInfo)
 	}
+}
+
+func createFlock(name string, userUUID string, templates []string, active bool, dbInfo *be.DBInfo) (*apiDB.FlockRecord, error) {
+	flockRecord, err := apiDB.CreateFlockRecord(name, userUUID, dbInfo)
+	if err != nil {
+		return nil, err
+	}
+	if active {
+		flockRecord.Active = true
+		err = apiDB.UpdateFlockRecord(flockRecord, dbInfo)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, templateUUID := range templates {
+		_, err := apiDB.CreateFlockMemberRecord(flockRecord.UUID, templateUUID, dbInfo)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return flockRecord, nil
 }
 
 func createAvatar(descriptorPath string, dbInfo *be.DBInfo) (*apiDB.AvatarRecord, error) {

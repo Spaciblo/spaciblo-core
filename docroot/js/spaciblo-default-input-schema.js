@@ -35,6 +35,11 @@ spaciblo.input._defaultActions = [
 	'back',		// an indication that a previous action should be undone
 	'left-back',
 	'right-back',
+
+	// Show and hide the personal flock of things that are private to the local user
+	'show-flock',
+	'hide-flock',
+
 	// The rest are high level locomotion actions
 	'translate-forward',
 	'translate-backward',
@@ -168,7 +173,10 @@ spaciblo.input._defaultKeyCodeActions = [
 	[90, 'rotate-up'],
 
 	[67, 'roll-left'],
-	[86, 'roll-right']
+	[86, 'roll-right'],
+
+	[48, 'hide-flock'], // 0
+	[49, 'show-flock']  // 1
 ]
 // Load the keyboard inputs into the DefaultInputSchema
 spaciblo.input._defaultKeyCodeActions.forEach((code, index) => {

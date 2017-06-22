@@ -29,7 +29,7 @@ func CreateFlockMemberRecord(flockUUID string, templateUUID string, dbInfo *be.D
 		UUID:         be.UUID(),
 		FlockUUID:    flockUUID,
 		TemplateUUID: templateUUID,
-		Position:     "0,0,0",
+		Position:     "0,0.6,-1",
 		Orientation:  "0,0,0,1",
 		Translation:  "0,0,0",
 		Rotation:     "0,0,0",

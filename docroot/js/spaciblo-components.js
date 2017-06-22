@@ -463,13 +463,33 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	handleWorkerRequestedPORTSChange(eventName, data){
 		let update = Object.assign({}, data)
 		delete update['name']
-		this.client.sendUpdatesRequest([update])
+		if(spaciblo.api.isFlockId(update.id)){
+			console.error('Not yet implemented: Flock ports change', update)
+		} else {
+			this.client.sendUpdatesRequest([update])
+		}
 	}
 	handleWorkerRequestedGroupSettingsChange(eventName, data){
-		this.client.sendSettingsRequest(data.groupId, data.settings)
+		if(spaciblo.api.isFlockId(data.groupId)){
+			let group = this.renderer.getGroup(data.groupId)
+			if(group === null){
+				console.error('Worker tried to change setting on an unknown group', data)
+				return
+			}
+			group.updateSettings(data.settings)
+		} else {
+			this.client.sendSettingsRequest(data.groupId, data.settings)
+		}
 	}
 	handleWorkerRequestedFollowGroup(eventName, data){
+		if(spaciblo.api.isFlockId(data.leaderId) && spaciblo.api.isFlockId(data.followerId) === false){
+			console.error('Groups in the scene cannot follow something in the flock, yet')
+			return
+		}
 		let updateData = this.renderer.setFollowGroup(data.followerId, data.leaderId, true)
+		if(spaciblo.api.isFlockId(data.followerId) || spaciblo.api.isFlockId(data.leaderId)){
+			return
+		}
 		this.client.sendUpdatesRequest([updateData])
 	}
 	handleWorkerRequestedGroupModifications(eventName, data){
@@ -479,7 +499,11 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 	handleWorkerRequestedCreateGroup(eventName, data){
 		// Three.js (and thus the front end) calls them groups and the back-end calls them nodes.
 		// TODO make this consistent by changing the back-end to use groups.
-		this.client.sendAddNode(data.parentId, data.settings, data.position, data.orientation, data.rotation, data.translation, data.scale, data.leader)
+		if(spaciblo.api.isFlockId(data.parentId)){
+			console.error('Not implemented: Create a group with a flock group as the parent')
+		} else {
+			this.client.sendAddNode(data.parentId, data.settings, data.position, data.orientation, data.rotation, data.translation, data.scale, data.leader)
+		}
 	}
 	_sendAvatarUpdate(){
 		// You probably want to use this._throttledSendAvatarUpdate

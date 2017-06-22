@@ -219,6 +219,8 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 		return this._templateGroups.get(groupId) || null
 	}
 
+	get templateGroups(){ return this._templateGroups.values() }
+
 	handlePointIntersect(data){
 		switch(data.pointer){
 			case 'gaze':

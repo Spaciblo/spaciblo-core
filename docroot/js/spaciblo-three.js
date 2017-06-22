@@ -58,6 +58,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.workerManager = workerManager
 		this.flocks = flocks
 
+		this.flockIsVisible = false // Set by user actions from the input manager
 		this.activeFlock = null // Null until the user toggles the flock open, when this is set and members are fetched
 		this.flockIsLoaded = false
 		this.flockGroup = new THREE.Group()
@@ -79,7 +80,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			spaciblo.three.DEFAULT_HEAD_POSITION[2] * -1
 		)
 		this.scene.add(this.pivotPoint)
-		this.scene.add(this.flockGroup)
+		this.pivotPoint.add(this.flockGroup)
 
 		// _inputRotation and _inputTranslation are used to rotate and translate the local avatar
 		// They are usually set by a client worker script based on input action events
@@ -99,7 +100,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		this.vrFrameData = null
 		this.firstVRFrame = true
 
-		this.objectMap = new Map() // object id -> spaciblo.three.Group
+		// object id -> spaciblo.three.Group
+		// note, these may be groups from the simulation (in this.rootGroup) or groups from the flock (in this.flockGroup)
+		this.objectMap = new Map()
 
 		// These variables are used in _animate to handle motion
 		this.cameraOrientationVector = new THREE.Vector3()	
@@ -125,6 +128,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		//this.renderer.shadowMap.enabled = true
 		//this.renderer.shadowMap.type = THREE.PCFShadowMap
 
+		this.inputManager.addListener(this._handleInputActionStarted.bind(this), spaciblo.events.InputActionStarted)
 		this.el.addEventListener('mousemove', this._onMouseMove.bind(this), false)
 		this.el.addEventListener('click', this._onMouseClick.bind(this), false)
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
@@ -155,7 +159,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		// TODO when we have the ability to change the geometry we'll need to deep clone that, too
 	}
 
-	selectGroups(selector, group=this.rootGroup, results=[]){
+	selectGroups(selector, group=this.pivotPoint, results=[]){
 		if(selector.matches(group, this.objectMap)){
 			results.push(group)
 		}
@@ -165,13 +169,24 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		return results
 	}
 
+	_handleInputActionStarted(eventName, action){
+		switch(action.name){
+			case 'show-flock':
+				this._showFlock()
+				break
+			case 'hide-flock':
+				this._hideFlock()
+				break
+		}
+	}
+
 	get inputRotation() { return this._inputRotation }
 	set inputRotation(value){ this._inputRotation = [...value] }
 
 	get inputTranslation() { return this._inputTranslation }
 	set inputTranslation(value){ this._inputTranslation = [...value] }
 
-	getGroup(id){ // Note, this is the group's state id
+	getGroup(id){ // Note, this is the group.state.id, not the three.js group id
 		return this.objectMap.get(id) || null
 	}
 
@@ -210,22 +225,26 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			// TODO send motion vectors
 		})
 	}
-	_toggleFlock(){
+	_hideFlock(){
+		this.flockIsVisible = false
+	}
+	_showFlock(){
+		this.flockIsVisible = true
+
 		if(this.flockIsLoaded){
-			this.flockGroup.visible = !this.flockGroup.visible
+			// Flock is already loading or loaded, so nothing to do
 			return
 		}
 
 		// Is there an active flock? If not, do nothing
 		this.activeFlock = this.flocks.getActiveFlock()
 		if(this.activeFlock === null){
-			console.error('No active flock')
+			console.error('No active flock', this.flocks)
 			return
 		}
 
 		// Load the active flock
 		this.flockIsLoaded = true
-		this.flockGroup.visible = true
 		this.activeFlock.getMembers().fetch().then(() => {
 			for(let member of this.activeFlock.getMembers()){
 				this.flockGroup.add(this._createGroupFromFlockMember(member))
@@ -298,7 +317,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			orientation: [followerGroup.quaternion.x, followerGroup.quaternion.y, followerGroup.quaternion.z, followerGroup.quaternion.w],
 		}
 	}
-	_updateFollowingGroups(group=this.rootGroup){
+	_updateFollowingGroups(group=this.pivotPoint){
 		if(group === null) return
 		if(group.leaderGroup){
 			group.leaderGroupShadow.matrixWorld.decompose(spaciblo.three.WORKING_VECTOR3, spaciblo.three.WORKING_QUAT, spaciblo.three.WORKING_VECTOR3_2)
@@ -575,6 +594,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	_createGroupFromFlockMember(flockMember){
 		let group = new spaciblo.three.Group(this.workerManager)
 		group.name = 'flock member'
+		group.state = {}
+		group.state.id = flockMember.get('uuid')
+		group.settings = {}
+		this.objectMap.set(group.state.id, group)
 		group.flockMember = flockMember
 		group.renderer = this
 		group.position.set(...flockMember.getFloatArray('position', [0,0,0]))
@@ -808,6 +831,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		if(this.rootGroup){
 			this.rootGroup.interpolate(this.clock.elapsedTime)
 		}
+
+		this.flockGroup.visible = this.flockIsVisible // set by user actions from the input manager
 
 		if(this.vrDisplay){
 			this.vrDisplay.getFrameData(this.vrFrameData)
@@ -1176,6 +1201,7 @@ spaciblo.three.Group = function(workerManager){
 	this.leftLine = null
 	this.rightLine = null
 }
+
 spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototype), {
 	serializeForWorker: function(){
 		return spaciblo.three.serializeGroup(this)
