@@ -6,6 +6,7 @@ than can be applied to a Three.js scene graph
 
 var vms = vms || {};
 
+// A base class for Modifier and Selector that handles converting to and from a JSON.stringify-able data structure
 vms.Marshalled = class {
 	marshal(){
 		let result = {}
@@ -38,6 +39,10 @@ vms.unmarshal = function(data){
 	return data
 }
 
+/*
+VMS uses descendents of Selector to find groups in the scene graph.
+It then uses descendents of Modifier to modify the selected groups.
+*/
 vms.Selector = class extends vms.Marshalled {
 	constructor(){
 		super()
@@ -63,7 +68,14 @@ vms.Selector = class extends vms.Marshalled {
 	}
 }
 
+/*
+Select a group if it has a property of a certain value
+*/
 vms.SelectProperty = class extends vms.Selector {
+	/*
+	name: the attribute name of the group
+	value: the value of attribute that must be matched (currently simple equivalency)
+	*/
 	constructor(name, value){
 		super()
 		this._class = 'SelectProperty'
@@ -77,6 +89,7 @@ vms.SelectProperty = class extends vms.Selector {
 }
 vms.selectProperty = function(name, value){ return new vms.SelectProperty(name, value) }
 
+// Matches groups with a given id
 vms.SelectId = class extends vms.Selector {
 	constructor(id){
 		super()
@@ -91,6 +104,7 @@ vms.SelectId = class extends vms.Selector {
 }
 vms.selectId = function(id){ return new vms.SelectId(id) }
 
+// Once VMS selects groups to modify using a Selector, a descendent of Modifier (e.g. ModifyPropery) does the modifying
 vms.Modifier = class extends vms.Marshalled {
 	constructor(){
 		super()
@@ -98,12 +112,14 @@ vms.Modifier = class extends vms.Marshalled {
 }
 
 /*
-parameters:
+ModifyProperty is a VMS modifier that looks for a property on a selected group and modifies it to a passed value.
+*/
+vms.ModifyProperty = class extends vms.Modifier {
+	/*
 	path: a dot separated list of the property to change
 	value: a simple type or object that will be assigned to the property found by path
 	requiresCopy: if true, the matched group's material will be a copy of the material loaded with the template
-*/
-vms.ModifyProperty = class extends vms.Modifier {
+	*/
 	constructor(path, value, requiresCopy=false){
 		super()
 		this._class = 'ModifyProperty'
@@ -132,6 +148,7 @@ vms.ModifyProperty = class extends vms.Modifier {
 				}
 				break
 			case 'number':
+			case 'boolean':
 				obj[lastToken] = this._value
 				break
 			default:
