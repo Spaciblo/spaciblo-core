@@ -863,7 +863,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						this.avatarGroup.head.position.y - spaciblo.three.HEAD_TORSO_Y_DISTANCE,
 						this.avatarGroup.head.position.z
 					)
-					spaciblo.three.WORKING_EULER.setFromQuaternion(this.avatarGroup.head.quaternion)
+					spaciblo.three.WORKING_EULER.setFromQuaternion(this.avatarGroup.head.quaternion, 'YXZ')
 					spaciblo.three.WORKING_EULER.x = 0
 					spaciblo.three.WORKING_EULER.z = 0
 					this.avatarGroup.torso.quaternion.setFromEuler(spaciblo.three.WORKING_EULER)
