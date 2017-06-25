@@ -42,10 +42,16 @@ spaciblo.three.DEFAULT_FOOT_POSITION = [0, -1.4, 0]
 spaciblo.three.DEFAULT_AVATAR_HEIGHT = spaciblo.three.DEFAULT_HEAD_POSITION[1] - spaciblo.three.DEFAULT_FOOT_POSITION[1]
 spaciblo.three.DEFAULT_LEFT_HAND_POSITION = [-0.5, -0.5, 0]
 spaciblo.three.DEFAULT_RIGHT_HAND_POSITION = [0.5, -0.5, 0]
+
 spaciblo.three.HEAD_NODE_NAME = 'head'
 spaciblo.three.TORSO_NODE_NAME = 'torso'
 spaciblo.three.LEFT_HAND_NODE_NAME = 'left_hand'
 spaciblo.three.RIGHT_HAND_NODE_NAME = 'right_hand'
+spaciblo.three.MOUTH_CLOSED_NAME = 'mouth_closed'
+spaciblo.three.MOUTH_MID_NAME = 'mouth_mid'
+spaciblo.three.MOUTH_OPENED_NAME = 'mouth_opened'
+spaciblo.three.EYES_OPENED_NAME = 'eyes_opened'
+spaciblo.three.EYES_CLOSED_NAME = 'eyes_closed'
 
 /*
 Renderer holds a Three.js scene and is used by SpacesComponent to render spaces
@@ -830,6 +836,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		// Move things that need moving since their last update from the server
 		if(this.rootGroup){
 			this.rootGroup.interpolate(this.clock.elapsedTime)
+			this.rootGroup.updateAvatars(this.audioManager)
 		}
 
 		this.flockGroup.visible = this.flockIsVisible // set by user actions from the input manager
@@ -1200,6 +1207,17 @@ spaciblo.three.Group = function(workerManager){
 	// left and right lines are the rays used to point at things
 	this.leftLine = null
 	this.rightLine = null
+
+	// These are children of the head, which are populated in this.setupSubParts
+	// the mouth children are set via this.updateMouth
+	this.mouthClosed = null
+	this.mouthMid = null
+	this.mouthOpened = null
+	// the eye children are set via this.updateEyes
+	this.eyesOpened = null
+	this.eyesClosed = null
+	this.nextBlink = null
+	this.setNextBlink()
 }
 
 spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototype), {
@@ -1239,12 +1257,18 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			this.template.addListener(() => {
 				if(this.template.group){
 					this.add(this.template.group.clone())
+					if(this.name === spaciblo.three.HEAD_NODE_NAME){
+						this.setupSubParts()
+					}
 				}
 				this.worker.handleTemplateGroupAdded(this)
 			}, spaciblo.three.events.TemplateLoaded, true)
 		} else {
 			if(this.template.group){
 				this.add(this.template.group.clone())
+				if(this.name === spaciblo.three.HEAD_NODE_NAME){
+					this.setupSubParts()
+				}
 			}
 			this.worker.handleTemplateGroupAdded(this)
 		}
@@ -1394,6 +1418,56 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.rightHand.add(this.rightLine)
 		this.rightLine.visible = false // Shown when the user initiates a right-point gesture
 	},
+	setupSubParts: function(){
+		this.mouthClosed = spaciblo.three.findChildNodeByName(spaciblo.three.MOUTH_CLOSED_NAME, this, true)[0] || null
+		this.mouthMid = spaciblo.three.findChildNodeByName(spaciblo.three.MOUTH_MID_NAME, this, true)[0] || null
+		if(this.mouthMid) this.mouthMid.visible = false
+		this.mouthOpened = spaciblo.three.findChildNodeByName(spaciblo.three.MOUTH_OPENED_NAME, this, true)[0] || null
+		if(this.mouthOpened) this.mouthOpened.visible = false
+
+		this.eyesOpened = spaciblo.three.findChildNodeByName(spaciblo.three.EYES_OPENED_NAME, this, true)[0] || null
+		this.eyesClosed = spaciblo.three.findChildNodeByName(spaciblo.three.EYES_CLOSED_NAME, this, true)[0] || null
+		if(this.eyesClosed) this.eyesClosed.visible = false
+	},
+	blink(duration=50){
+		this.setNextBlink()
+		this.updateEyes(false)
+		setTimeout(() => {
+			this.updateEyes(true)
+		}, duration)
+	},
+	updateEyes(open){
+		if(this.head === null) return
+		if(this.head.eyesClosed !== null){
+			this.head.eyesClosed.visible = !open
+		}
+		if(this.head.eyesOpened !== null){
+			this.head.eyesOpened.visible = open
+		}
+	},
+	setNextBlink(){
+		this.nextBlink = new Date(new Date().getTime() + 2000 + (Math.random() * 8000))
+	},
+	shouldBlink(){
+		if(!this.nextBlink){
+			return false
+		}
+		return new Date().getTime() > this.nextBlink.getTime()
+	},
+	updateMouth(level){
+		// level will range from 0 to 1, with 1 being the loudest
+		if(this.head === null) return
+		if(this.head.mouthClosed) this.head.mouthClosed.visible = false
+		if(this.head.mouthMid) this.head.mouthMid.visible = false
+		if(this.head.mouthOpened) this.head.mouthOpened.visible = false
+		if(level < 0.1 && this.head.mouthClosed){
+			this.head.mouthClosed.visible = true
+		} else if(level < 0.5 && this.head.mouthMid){
+			this.head.mouthMid.visible = true
+		} else if(this.head.mouthOpened){
+			this.head.mouthOpened.visible = true
+		}
+	},
 	_enableShadows: function(node){
 		if(node.type === 'Mesh'){
 			node.castShadow = true
@@ -1414,6 +1488,14 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			new THREE.Vector3(0, 0, -1000)
 		)
 		return new THREE.Line(geometry, material)
+	},
+	updateAvatars: function(audioManager){
+		for(let child of this.children){
+			if(child.isAvatar && child.head && child.head.visible){
+				child.updateMouth(audioManager.getRemoteUserLevel(child.settings.clientUUID))
+				if(child.shouldBlink()) child.blink()
+			}
+		}
 	},
 	interpolate: function(elapsedTime){
 		const delta = elapsedTime - this.lastUpdate
@@ -1498,7 +1580,6 @@ spaciblo.three.serializeGroup = function(group){
 	}
 	return results
 }
-
 
 spaciblo.three.findChildNodeByName = function(name, node, deepSearch=true, results=[]){
 	if(typeof node.children === 'undefined'){

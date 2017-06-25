@@ -98,6 +98,13 @@ spaciblo.audio.SpaceManager = k.eventMixin(class {
 		remoteUser.setPosition(positionX, positionY, positionZ)
 		remoteUser.setOrientation(directionX, directionY, directionZ, upX, upY, upZ)
 	}
+	getRemoteUserLevel(clientUUID){
+		let remoteUser = this._remoteUsers.get(clientUUID)
+		if(typeof remoteUser === 'undefined'){
+			return 0
+		}
+		return remoteUser.level
+	}
 	getRemoteUser(clientUUID, addIfAbsent=false){
 		let remoteUser = this._remoteUsers.get(clientUUID)
 		if(typeof remoteUser === 'undefined'){
@@ -178,14 +185,22 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 		}
 		this._peerConnection.onicecandidate = this._handlePeerICECandidate.bind(this)
 
-		// _audioSourceNode -> _analysisNode -> _gainNode -> _pannerNode -> _destinationAudioNode
+		// _audioSourceNode -> _analysisNode -> _levelAnalysisNode -> _gainNode -> _pannerNode -> _destinationAudioNode
 
 		this._pannerNode = this._audioContext.createPanner() // This is updated with the remote user's position during each frame
 		this._pannerNode.connect(this._destinationAudioNode)
 		this._gainNode = this._audioContext.createGain() // This user's individual gain, seperate from the SpaceManager._mainGainNode
 		this._gainNode.connect(this._pannerNode)
+		this._levelAnalysisNode = this._audioContext.createAnalyser()
+		this._levelAnalysisNode.connect(this._gainNode)
 		this._analysisNode = this._audioContext.createAnalyser()
-		this._analysisNode.connect(this._gainNode)
+		this._analysisNode.connect(this._levelAnalysisNode)
+
+		// The level analysis node is only used to determine DB level, so we use the smallest allowed FFT size
+		this._levelAnalysisNode.fftSize = 32
+		this._levelAnalysisNode.smoothingTimeConstant = 0
+		this._levelBufferLength = this._levelAnalysisNode.frequencyBinCount
+		this._levelDataArray = new Uint8Array(this._levelBufferLength)
 
 		this._audioSourceNode = null // a MediaStreamAudioSourceNode created from the WebRTC track stream
 	}
@@ -227,6 +242,16 @@ spaciblo.audio.RemoteUser = k.eventMixin(class {
 		} else {
 			this._gainNode.gain.value = this._oldGain
 		}
+	}
+	get level(){
+		// returns a number in the range of 0 to 1 representing the current DB level of this remote user
+		if(this._isMuted) return 0
+		this._levelAnalysisNode.getByteFrequencyData(this._levelDataArray)
+		let sum = 0
+		for (var i = 0; i < this._levelBufferLength; i++) {
+			sum += this._levelDataArray[i] / 128.0
+		}
+		return sum / this._levelBufferLength // Value in range [0,1]
 	}
 	get clientUUID(){
 		return this._remoteClientUUID
