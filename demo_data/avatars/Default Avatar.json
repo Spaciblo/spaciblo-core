@@ -12,7 +12,7 @@
 			"part": "hat",
 			"parent": "head",
 			"templateName": "Default Hat",
-			"position": [0, 0.42, 0.03]
+			"position": [0, 0.26, 0.03]
 		},
 		{
 			"name": "Torso",
