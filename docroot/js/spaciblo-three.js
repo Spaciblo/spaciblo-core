@@ -34,6 +34,7 @@ spaciblo.three.DEFAULT_LIGHT_GROUND_COLOR  = '#FFFFFF'
 
 spaciblo.three.events.TemplateLoaded = 'three-template-loaded'
 spaciblo.three.events.GroupSettingsChanged = 'three-group-settings-changed'
+spaciblo.three.events.RequestedGroupSettingsChange = 'three-requested-group-settings-change'
 
 spaciblo.three.DEFAULT_HEAD_POSITION = [0, 0.6, 0]
 spaciblo.three.DEFAULT_TORSO_POSITION = [0, 0, 0]
@@ -876,7 +877,11 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					this.avatarGroup.torso.quaternion.setFromEuler(spaciblo.three.WORKING_EULER)
 				}
 
-				// Update the hands
+				// First, make hands locally invisible
+				if(this.avatarGroup.leftHand) this.avatarGroup.leftHand.visible = false
+				if(this.avatarGroup.rightHand) this.avatarGroup.rightHand.visible = false
+
+				// Update and make visible any gamepads that are considered hands
 				if(typeof navigator.getGamepads === 'function'){
 					let handHasPosition = false
 					for(let gamepad of navigator.getGamepads()){
@@ -903,6 +908,9 @@ spaciblo.three.Renderer = k.eventMixin(class {
 							continue
 						}
 
+						// Found a hand node, so make it locally visible (will send updates below)
+						handNode.visible = true
+
 						// Set the hand orientation
 						if(gamepad.pose.hasOrientation === true && gamepad.pose.orientation !== null){
 							// TODO figure out why Vive controller orientation is not iterable like ...gamepad.pose.orientation
@@ -928,6 +936,21 @@ spaciblo.three.Renderer = k.eventMixin(class {
 						} else {
 							handNode.hasGamepadPosition = false
 						}
+					}
+
+					if(this.avatarGroup.leftHand && this.avatarGroup.leftHand.visible !== this.avatarGroup.leftHand.isSetVisible()) {
+						this.avatarGroup.leftHand.settings.visible = String(this.avatarGroup.leftHand.visible)
+						this.trigger(spaciblo.three.events.RequestedGroupSettingsChange, {
+							groupId: this.avatarGroup.leftHand.state.id,
+							settings: { visible: String(this.avatarGroup.leftHand.visible) }
+						})
+					}
+					if(this.avatarGroup.rightHand && this.avatarGroup.rightHand.visible !== this.avatarGroup.rightHand.isSetVisible()) {
+						this.avatarGroup.rightHand.settings.visible = String(this.avatarGroup.rightHand.visible)
+						this.trigger(spaciblo.three.events.RequestedGroupSettingsChange, {
+							groupId: this.avatarGroup.rightHand.state.id,
+							settings: { visible: String(this.avatarGroup.rightHand.visible) }
+						})
 					}
 
 					// If there are no hands with position data, orient the hands group based on head position
@@ -1272,6 +1295,11 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			}
 			this.worker.handleTemplateGroupAdded(this)
 		}
+	},
+	isSetVisible: function(){
+		if(typeof this.settings !== 'object') return true
+		if(typeof this.settings['visible'] !== 'string') return true
+		return this.settings['visible'] !== 'false'
 	},
 	updateSettings: function(settings){
 		if(typeof this.settings === 'object') {

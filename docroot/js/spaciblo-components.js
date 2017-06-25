@@ -400,6 +400,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.renderer.addListener((eventName, changedKeys, group) => {
 			this.workerManager.handleGroupSettingsChanged(changedKeys, group)
 		}, spaciblo.three.events.GroupSettingsChanged)
+		this.renderer.addListener(this.handleWorkerRequestedGroupSettingsChange.bind(this), spaciblo.three.events.RequestedGroupSettingsChange)
 
 		// The worker manager needs to be able to query the scene graph, so we hand it the renderer for that purpose
 		this.workerManager.setRenderer(this.renderer)
