@@ -93,8 +93,7 @@
                         1,
                         1
                     ],
-                    "template-name": "Platform",
-                    "template-uuid": "2e3db33c-ca85-4c1b-522f-8fc4b8151464"
+                    "template-name": "Platform"
                 },
                 {
                     "settings": {
@@ -102,7 +101,7 @@
                     },
                     "position": [
                         -0.1,
-                        0,
+                        0.3,
                         1.3
                     ],
                     "orientation": [
@@ -124,10 +123,9 @@
                     "scale": [
                         1,
                         1,
-                        1
+                        0.5
                     ],
-                    "template-name": "Interview Desk",
-                    "template-uuid": "2afd06ca-2087-42eb-5c40-4dfc0a54b23a"
+                    "template-name": "Interview Desk"
                 },
                 {
                     "settings": {
@@ -164,8 +162,7 @@
                         1,
                         1
                     ],
-                    "template-name": "Directional Light",
-                    "template-uuid": "d10f7973-b66f-4c96-4c9e-27e295aeedac"
+                    "template-name": "Directional Light"
                 },
                 {
                     "settings": {
@@ -204,8 +201,7 @@
                         1,
                         1
                     ],
-                    "template-name": "Spot Light",
-                    "template-uuid": "1f7c5989-7965-4570-515b-62118b5cd51d"
+                    "template-name": "Spot Light"
                 },
                 {
                     "settings": {
@@ -244,8 +240,7 @@
                         1,
                         1
                     ],
-                    "template-name": "Spot Light",
-                    "template-uuid": "1f7c5989-7965-4570-515b-62118b5cd51d"
+                    "template-name": "Spot Light"
                 },
                 {
                     "settings": {
@@ -277,8 +272,7 @@
                         1,
                         1
                     ],
-                    "template-name": "Catwalk",
-                    "template-uuid": "65f434b3-72e4-4ba9-776f-c2baf4413788"
+                    "template-name": "Catwalk"
                 },
                 {
                     "settings": {
@@ -317,8 +311,7 @@
                         1,
                         1
                     ],
-                    "template-name": "Spot Light",
-                    "template-uuid": "1f7c5989-7965-4570-515b-62118b5cd51d"
+                    "template-name": "Spot Light"
                 },
                 {
                     "settings": {
@@ -350,8 +343,7 @@
                         1,
                         1
                     ],
-                    "template-name": "Backdrop2",
-                    "template-uuid": "11fb9c14-d6aa-4082-7793-5a770be3123c"
+                    "template-name": "Backdrop2"
                 },
                 {
                     "settings": {
@@ -359,8 +351,8 @@
                     },
                     "position": [
                         -0.1,
-                        -0.75,
-                        2.3
+                        1.3,
+                        -1
                     ],
                     "orientation": [
                         0,
@@ -379,12 +371,11 @@
                         0
                     ],
                     "scale": [
-                        1.3,
-                        1.3,
+                        2,
+                        2,
                         1
                     ],
-                    "template-name": "Spaciblo Name",
-                    "template-uuid": "4432abd5-314c-405a-4e0d-79ab1b9e1769"
+                    "template-name": "Spaciblo Name"
                 }
             ]
         },
@@ -453,8 +444,7 @@
                 1,
                 1
             ],
-            "template-name": "Grid",
-            "template-uuid": "e4eaf54c-0d79-4d8f-4b7e-36c0823c5878"
+            "template-name": "Grid"
         }
     ]
 }
