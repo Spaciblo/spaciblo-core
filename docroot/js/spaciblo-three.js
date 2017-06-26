@@ -184,6 +184,13 @@ spaciblo.three.Renderer = k.eventMixin(class {
 			case 'hide-flock':
 				this._hideFlock()
 				break
+			case 'toggle-flock':
+				if(this.flockIsVisible){
+					this._hideFlock()
+				} else {
+					this._showFlock()
+				}
+				break
 		}
 	}
 
@@ -237,6 +244,26 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 	_showFlock(){
 		this.flockIsVisible = true
+
+		// Position and rotate the flock in front of the head
+		if(this.avatarGroup && this.avatarGroup.head){
+			this.avatarGroup.head.getWorldPosition(spaciblo.three.WORKING_VECTOR3)
+			this.pivotPoint.worldToLocal(spaciblo.three.WORKING_VECTOR3)
+			this.flockGroup.position.set(
+				spaciblo.three.WORKING_VECTOR3.x,
+				spaciblo.three.WORKING_VECTOR3.y - spaciblo.three.HEAD_TORSO_Y_DISTANCE,
+				spaciblo.three.WORKING_VECTOR3.z
+			)
+
+			this.avatarGroup.head.getWorldQuaternion(spaciblo.three.WORKING_QUAT)
+			spaciblo.three.WORKING_QUAT_2.setFromRotationMatrix(this.pivotPoint.matrixWorld)
+			spaciblo.three.WORKING_QUAT_2.inverse()
+			spaciblo.three.WORKING_QUAT.multiplyQuaternions(spaciblo.three.WORKING_QUAT_2, spaciblo.three.WORKING_QUAT)
+			spaciblo.three.WORKING_EULER.setFromQuaternion(spaciblo.three.WORKING_QUAT, 'YXZ')
+			spaciblo.three.WORKING_EULER.x = 0
+			spaciblo.three.WORKING_EULER.z = 0
+			this.flockGroup.quaternion.setFromEuler(spaciblo.three.WORKING_EULER)
+		}
 
 		if(this.flockIsLoaded){
 			// Flock is already loading or loaded, so nothing to do

@@ -39,6 +39,7 @@ spaciblo.input._defaultActions = [
 	// Show and hide the personal flock of things that are private to the local user
 	'show-flock',
 	'hide-flock',
+	'toggle-flock',
 
 	// The rest are high level locomotion actions
 	'translate-forward',
@@ -91,6 +92,8 @@ spaciblo.input._defaultControllerInputs = [
 	['right', 	1, null, null,	'right-trigger'],
 	['left',	2, null, null,	'left-grip'],
 	['right', 	2, null, null,	'right-grip'],
+	['left',	3, null, null,	'toggle-flock'],
+	['right', 	3, null, null,	'toggle-flock'],
 	['left',	null, null, 0,	'left-glide-x'],
 	['right', 	null, null, 0,	'right-glide-x'],
 	['left',	null, null, 1,	'left-glide-y'],
