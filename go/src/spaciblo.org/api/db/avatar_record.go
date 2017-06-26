@@ -2,11 +2,8 @@ package db
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"spaciblo.org/be"
-	"strconv"
-	"strings"
 )
 
 const AvatarTable = "avatars"
@@ -31,27 +28,27 @@ type AvatarPartRecord struct {
 }
 
 func (record *AvatarPartRecord) ParsePosition() ([]float64, error) {
-	return decodeFloatArrayString(record.Position, 3, []float64{0, 0, 0})
+	return DecodeFloatArrayString(record.Position, 3, []float64{0, 0, 0})
 }
 
 func (record *AvatarPartRecord) SetPosition(x float64, y float64, z float64) {
-	record.Position = encodeFloatArrayString([]float64{x, y, z})
+	record.Position = EncodeFloatArrayString([]float64{x, y, z})
 }
 
 func (record *AvatarPartRecord) ParseOrientation() ([]float64, error) {
-	return decodeFloatArrayString(record.Orientation, 4, []float64{0, 0, 0, 1})
+	return DecodeFloatArrayString(record.Orientation, 4, []float64{0, 0, 0, 1})
 }
 
 func (record *AvatarPartRecord) SetOrientation(x float64, y float64, z float64, w float64) {
-	record.Orientation = encodeFloatArrayString([]float64{x, y, z, w})
+	record.Orientation = EncodeFloatArrayString([]float64{x, y, z, w})
 }
 
 func (record *AvatarPartRecord) ParseScale() ([]float64, error) {
-	return decodeFloatArrayString(record.Scale, 3, []float64{1, 1, 1})
+	return DecodeFloatArrayString(record.Scale, 3, []float64{1, 1, 1})
 }
 
 func (record *AvatarPartRecord) SetScale(x float64, y float64, z float64) {
-	record.Scale = encodeFloatArrayString([]float64{x, y, z})
+	record.Scale = EncodeFloatArrayString([]float64{x, y, z})
 }
 
 func CreateAvatarPartRecord(avatar int64, templateUUID string, name string, part string, parent string, position string, orientation string, scale string, dbInfo *be.DBInfo) (*AvatarPartRecord, error) {
@@ -250,39 +247,6 @@ func FindAvatarRecordByField(fieldName string, value string, dbInfo *be.DBInfo) 
 		return nil, err
 	}
 	return record, nil
-}
-
-/*
-Convert []float{0, 1.5, 2} to "0,1.5,2"
-*/
-func encodeFloatArrayString(floatArray []float64) string {
-	tokens := []string{}
-	for _, flt := range floatArray {
-		tokens = append(tokens, strconv.FormatFloat(flt, 'f', -1, 64))
-	}
-	return strings.Join(tokens, ",")
-}
-
-/*
-Convert "0.5,1,0" to []float64{0.5,1,0}
-*/
-func decodeFloatArrayString(arrayString string, expectedCount int, defaultValue []float64) ([]float64, error) {
-	if arrayString == "" {
-		return defaultValue, nil
-	}
-	tokens := strings.Split(arrayString, ",")
-	if len(tokens) != expectedCount {
-		return nil, errors.New("Unexpected array string length")
-	}
-	results := []float64{}
-	for _, token := range tokens {
-		flt, err := strconv.ParseFloat(token, 64)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, flt)
-	}
-	return results, nil
 }
 
 /*

@@ -488,7 +488,13 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 			return
 		}
 		let updateData = this.renderer.setFollowGroup(data.followerId, data.leaderId, true)
-		if(spaciblo.api.isFlockId(data.followerId) || spaciblo.api.isFlockId(data.leaderId)){
+		if(spaciblo.api.isFlockId(data.followerId)){
+			if(data.leaderId === null){
+				updateData.uuid = updateData.id
+				delete updateData.leader
+				delete updateData.id
+				this.client.sendFlockMemberUpdateRequest(updateData)
+			}
 			return
 		}
 		this.client.sendUpdatesRequest([updateData])

@@ -638,7 +638,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		group.updatePosition.set(...flockMember.getFloatArray('position', [0,0,0]))
 		group.quaternion.set(...flockMember.getFloatArray('orientation', [0,0,0,1]))
 		group.updateQuaternion.set(...flockMember.getFloatArray('orientation', [0,0,0,1]))
-		group.rotation.set(...flockMember.getFloatArray('rotation', [0,0,0]))
+		group.rotationMotion.set(...flockMember.getFloatArray('rotation', [0,0,0]))
 		group.translationMotion.set(...flockMember.getFloatArray('translation', [0,0,0]))
 		group.scale.set(...flockMember.getFloatArray('scale', [1,1,1]))
 		group.updateTemplate(flockMember.get('templateUUID'), this.templateLoader)

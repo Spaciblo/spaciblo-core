@@ -5,9 +5,12 @@ import (
 
 	"golang.org/x/net/context"
 	simRPC "spaciblo.org/sim/rpc"
+
+	apiDB "spaciblo.org/api/db"
+	"spaciblo.org/be"
 )
 
-func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID string, spaceUUID string, simHostClient simRPC.SimHostClient) ([]string, ClientMessage, error) {
+func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID string, spaceUUID string, simHostClient simRPC.SimHostClient, dbInfo *be.DBInfo) ([]string, ClientMessage, error) {
 	switch clientMessage.MessageType() {
 	case PingType:
 		ping := clientMessage.(*PingMessage)
@@ -137,6 +140,36 @@ func RouteClientMessage(clientMessage ClientMessage, clientUUID string, userUUID
 		}
 		_, err := simHostClient.HandleUpdateRequest(context.Background(), updateRPM)
 		return nil, nil, err
+	case FlockMemberUpdateRequestType:
+		updateRequest := clientMessage.(*FlockMemberUpdateRequestMessage)
+		for _, memberUpdate := range updateRequest.FlockMemberUpdateMessages {
+			member, err := apiDB.FindFlockMemberRecord(memberUpdate.UUID, dbInfo)
+			if err != nil {
+				logger.Println("Error finding flock member", err)
+				continue
+			}
+			flock, err := apiDB.FindFlockRecord(member.FlockUUID, dbInfo)
+			if err != nil {
+				logger.Println("Error finding flock", err)
+				continue
+			}
+			if userUUID != flock.UserUUID {
+				logger.Println("User tried to change a flock that is not theirs", err)
+				continue
+			}
+			if len(memberUpdate.Position) == 3 {
+				member.Position = apiDB.EncodeFloatArrayString(memberUpdate.Position)
+			}
+			if len(memberUpdate.Orientation) == 4 {
+				member.Orientation = apiDB.EncodeFloatArrayString(memberUpdate.Orientation)
+			}
+			err = apiDB.UpdateFlockMemberRecord(member, dbInfo)
+			if err != nil {
+				logger.Println("Failed to update a flock member", err)
+				continue
+			}
+		}
+		return nil, nil, nil
 	case RelaySDPType:
 		message := clientMessage.(*RelaySDPMessage)
 		response := &SDPMessage{

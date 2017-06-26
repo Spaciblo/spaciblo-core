@@ -19,6 +19,7 @@ const SpaceUpdateType = "Space-Update"
 const UpdateRequestType = "Update-Request"
 const AddNodeRequestType = "Add-Node-Request"
 const RemoveNodeRequestType = "Remove-Node-Request"
+const FlockMemberUpdateRequestType = "Flock-Member-Update-Request"
 const RelaySDPType = "Relay-SDP"
 const SDPType = "SDP"
 const RelayICEType = "Relay-ICE"
@@ -139,6 +140,23 @@ func NewSpaceUpdateMessage(spaceUUID string, frame int64) *SpaceUpdateMessage {
 		[]*AdditionMessage{},
 		[]int64{},
 	}
+}
+
+// Information about a flock member change
+type FlockMemberUpdateMessage struct {
+	UUID         string    `json:"uuid"`
+	TemplateUUID string    `json:"templateUUID"`
+	Position     []float64 `json:"position"`
+	Orientation  []float64 `json:"orientation"`
+	Rotation     []float64 `json:"rotation"`
+	Translation  []float64 `json:"translation"`
+	Scale        []float64 `json:"scale"`
+}
+
+// Sent by a client to request changes to flock members
+type FlockMemberUpdateRequestMessage struct {
+	TypedMessage
+	FlockMemberUpdateMessages []*FlockMemberUpdateMessage `json:"flockMemberUpdates"`
 }
 
 // Information about a node change
@@ -282,6 +300,8 @@ func ParseMessageJson(rawMessage string) (ClientMessage, error) {
 		parsedMessage = new(RemoveNodeRequestMessage)
 	case UpdateRequestType:
 		parsedMessage = new(UpdateRequestMessage)
+	case FlockMemberUpdateRequestType:
+		parsedMessage = new(FlockMemberUpdateRequestMessage)
 	case RelaySDPType:
 		parsedMessage = new(RelaySDPMessage)
 	case SDPType:

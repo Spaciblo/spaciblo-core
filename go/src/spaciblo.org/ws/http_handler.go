@@ -154,7 +154,7 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		handler.RemoveWebSocketConnection(wsConnection)
 		conn.Close()
 		wsConnection.Stop <- true // Stops HandleOutgoing go routine
-		RouteClientMessage(NewClientDisconnectedMessage(), wsConnection.ClientUUID, wsConnection.UserUUID, wsConnection.SpaceUUID, simHostClient)
+		RouteClientMessage(NewClientDisconnectedMessage(), wsConnection.ClientUUID, wsConnection.UserUUID, wsConnection.SpaceUUID, simHostClient, handler.DBInfo)
 	}()
 
 	// Send the initial Connect message
@@ -181,7 +181,7 @@ func (handler WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		}
 
 		// Route
-		clientUUIDs, responseMessage, err := RouteClientMessage(typedMessage, wsConnection.ClientUUID, wsConnection.UserUUID, wsConnection.SpaceUUID, simHostClient)
+		clientUUIDs, responseMessage, err := RouteClientMessage(typedMessage, wsConnection.ClientUUID, wsConnection.UserUUID, wsConnection.SpaceUUID, simHostClient, handler.DBInfo)
 		if err != nil {
 			logger.Printf("Error routing client message: %s", err)
 		}
