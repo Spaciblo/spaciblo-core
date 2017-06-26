@@ -110,7 +110,7 @@ func TestFlockAPI(t *testing.T) {
 	AssertNil(t, err)
 	AssertEqual(t, flockMemberRecord1.UUID, flockMemberRecord2.UUID)
 	AssertEqual(t, flockMemberRecord1.TemplateUUID, flockMemberRecord2.TemplateUUID)
-	AssertEqual(t, "0,0,0", flockMemberRecord2.Position)
+	AssertEqual(t, "0,0.6,-1", flockMemberRecord2.Position)
 
 	// Update the flock member
 	flockMemberRecord2.Position = "1,2,3"
