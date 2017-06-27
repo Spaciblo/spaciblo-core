@@ -415,7 +415,6 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		this.touchMotionComponent.addListener(this.handleEndTouch.bind(this), spaciblo.events.EndTouch)
 
 		this.updateSize()
-
 		window.addEventListener('resize', () => { this.updateSize() })
 		this.renderer.addListener(this.handleExitedVR.bind(this), spaciblo.events.RendererExitedVR)
 		spaciblo.getVRDisplays().then(this.handleVRDisplays.bind(this))

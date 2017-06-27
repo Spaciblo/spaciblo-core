@@ -1292,7 +1292,9 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		if(typeof templateUUID === 'undefined' || templateUUID.length == 0) return
 		if(this.templateGroup){
 			this.remove(this.templateGroup)
-			this.workerManager.handleTemplateUnset(this.state.id, this.templateGroup.templateUUID)
+			if(this.workerManager){
+				this.workerManager.handleTemplateUnset(this.state.id, this.templateGroup.templateUUID)
+			}
 			this.templateGroup = null
 		}
 		if(templateUUID == spaciblo.api.RemoveKeyIndicator){
@@ -1301,7 +1303,9 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		}
 
 		this.template = templateLoader.getOrAddTemplate(templateUUID)
-		this.worker = this.workerManager.getOrCreateTemplateWorker(this.template)
+		if(this.workerManager){
+			this.worker = this.workerManager.getOrCreateTemplateWorker(this.template)
+		}
 
 		if(this.template.loading === true){
 			this.template.addListener(() => {
@@ -1311,7 +1315,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 						this.setupSubParts()
 					}
 				}
-				this.worker.handleTemplateGroupAdded(this)
+				if(this.worker) this.worker.handleTemplateGroupAdded(this)
 			}, spaciblo.three.events.TemplateLoaded, true)
 		} else {
 			if(this.template.group){
@@ -1320,7 +1324,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 					this.setupSubParts()
 				}
 			}
-			this.worker.handleTemplateGroupAdded(this)
+			if(this.worker) this.worker.handleTemplateGroupAdded(this)
 		}
 	},
 	isSetVisible: function(){
@@ -1590,6 +1594,111 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 				child.interpolate(elapsedTime)
 			}
 		}
+	}
+})
+
+/*
+Renders a single template instead of an entire space
+*/
+spaciblo.three.TemplateRenderer = k.eventMixin(class {
+	constructor(dataObject){
+		this.cleanedUp = false
+		this.boundingBox = null
+		this.dataObject = dataObject
+		this.rootGroup = new spaciblo.three.Group()
+		this.rootGroup.position.set(0, 0, -10)
+		this.templateLoader = new spaciblo.three.TemplateLoader()
+
+		this.ambientLight = new THREE.AmbientLight(0xffffff, 1)
+		this.directionalLight = new THREE.DirectionalLight(0xffffff, 0.6)
+		this.directionalLightDirection = [-0.5, 1, -0.5]
+		this.directionalLight.target.position.set(...this.directionalLightDirection)
+		this.directionalLight.add(this.directionalLight.target)
+
+		this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 10000)
+
+		this.scene = new THREE.Scene()
+		this.scene.add(this.ambientLight)
+		this.scene.add(this.directionalLight)
+		this.scene.add(this.rootGroup)
+		this.width = 0
+		this.height = 0
+
+		this.renderer = new THREE.WebGLRenderer({
+			antialias: true
+		})
+		this.renderer.setPixelRatio(window.devicePixelRatio)
+		this.renderer.domElement.setAttribute('class', 'three-js-template-renderer')
+		this.renderer.setClearColor(spaciblo.three.DEFAULT_BACKGROUND_COLOR)
+		this.orbitControls = new THREE.OrbitControls(this.camera, this.renderer.domElement)
+		this.orbitControls.enableZoom = false
+
+		this.rootGroup.updateTemplate(this.dataObject.get('uuid'), this.templateLoader)
+		this.initializePosition()
+
+		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
+		this._animate()
+	}
+	get el(){
+		return this.renderer.domElement
+	}
+	initializePosition(){
+		this.findBoundingBox().then(() => {
+			if(this.boundingBox === null) return
+			this.boundingBox.getSize(spaciblo.three.WORKING_VECTOR3)
+			let maxDimension = Math.max(...spaciblo.three.WORKING_VECTOR3.toArray())
+			this.boundingBox.getCenter(spaciblo.three.WORKING_VECTOR3_2)
+			this.rootGroup.position.set(spaciblo.three.WORKING_VECTOR3_2.x * -0.5, spaciblo.three.WORKING_VECTOR3_2.y * -0.5, spaciblo.three.WORKING_VECTOR3_2.z * -0.5)
+			this.camera.position.set(0, 0, Math.max(maxDimension * 2, 1))
+		})
+	}
+	findBoundingBox(){
+		return new Promise((resolve, reject) => {
+			if(this.rootGroup.template.loading === true){
+				this.rootGroup.template.addListener(() => {
+					if(this.rootGroup.template.group){
+						this.boundingBox = new THREE.Box3().setFromObject(this.rootGroup.template.group)
+					} else {
+						this.boundingBox = null
+					}
+					resolve()
+				}, spaciblo.three.events.TemplateLoaded, true)
+			} else {
+				if(this.rootGroup.template.group){
+					this.boundingBox = new THREE.Box3().setFromObject(this.rootGroup.template.group)
+				} else {
+					this.boundingBox = null
+				}
+				resolve()
+			}
+		})
+	}
+	setSize(width, height){
+		this.width = width
+		this.height = height
+		this.renderer.setPixelRatio(window.devicePixelRatio)
+		this.camera.aspect = this.width / this.height
+		this.camera.updateProjectionMatrix()
+		this.renderer.setSize(this.width, this.height, false)
+	}
+	cleanup(){
+		this.cleanedUp = true
+	}
+	_animate(){
+		if(this.cleanedUp) return
+		requestAnimationFrame(this._boundAnimate)
+
+		this.rootGroup.updateMatrixWorld(true)
+		this.renderer.autoClear = true
+		this.scene.matrixAutoUpdate = true
+		THREE.GLTFLoader.Shaders.update(this.scene, this.camera)
+		this.orbitControls.update()
+
+		spaciblo.three.WORKING_QUAT.copy(this.scene.quaternion)
+		spaciblo.input.throttledConsoleLog('wuat', this.scene)
+		spaciblo.three.WORKING_QUAT.inverse()
+		this.directionalLight.quaternion.copy(spaciblo.three.WORKING_QUAT)
+		this.renderer.render(this.scene, this.camera)
 	}
 })
 

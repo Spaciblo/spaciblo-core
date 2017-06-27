@@ -31,6 +31,16 @@
 	margin-top: 30px;
 }
 
+.template-detail-component .three-js-template-renderer {
+	margin-top: 30px;
+	width: 100%;
+	height: 400px;
+}
+
+.three-js-template-renderer canvas {
+	width: 100%;
+}
+
 .template-detail-component input[type=text] {
 	width: 250px;
 }

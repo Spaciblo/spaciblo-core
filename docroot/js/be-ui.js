@@ -370,6 +370,9 @@ be.ui.ListAndDetailComponent = class extends k.Component {
 			this._removeDetailComponent()
 		}, 'deleted', true)
 		this.rightCol.appendChild(this.detailComponent.el)
+		if(typeof this.detailComponent.handleAddedToDOM === 'function'){
+			this.detailComponent.handleAddedToDOM()
+		}
 	}
 }
 

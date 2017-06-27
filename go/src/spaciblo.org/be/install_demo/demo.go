@@ -112,16 +112,16 @@ func main() {
 		logger.Fatal("Could not find the paper bag avatar", err)
 	}
 
-	pushButton, err := apiDB.FindTemplateRecordByField("name", "Push Button", dbInfo)
+	cueCard, err := apiDB.FindTemplateRecordByField("name", "Cue Card", dbInfo)
 	if err != nil {
-		logger.Fatal("Could not find the push button", err)
+		logger.Fatal("Could not find the cue card", err)
 	}
 
 	user, err := createUser("alice@example.com", "Alice", "Smith", true, "1234", robot.UUID, dbInfo)
 	if err != nil {
 		logger.Fatal("Could not create a user", err)
 	}
-	_, err = createFlock("default", user.UUID, []string{pushButton.UUID}, true, dbInfo)
+	_, err = createFlock("default", user.UUID, []string{cueCard.UUID}, true, dbInfo)
 	if err != nil {
 		logger.Fatal("Could not create a flock", err)
 	}

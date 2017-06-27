@@ -175,6 +175,10 @@ button:active {
 	font-size: 16px;
 	font-weight: 300;
 }
+.list-and-detail-component .list-column {
+	overflow: auto;
+	max-height: 80vh;
+}
 .list-and-detail-component .list-component .item-component:hover, 
 .list-and-detail-component .list-component .item-component.selected {
 	border: solid 1px #EFEFEF;

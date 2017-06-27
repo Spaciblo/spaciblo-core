@@ -1,0 +1,29 @@
+{
+	"name": "Coney",
+	"parts": [
+		{
+			"name": "Head",
+			"part": "head",
+			"templateName": "Coney Head",
+			"position": [0, 0.6, 0]
+		},
+		{
+			"name": "Torso",
+			"part": "torso",
+			"templateName": "Coney Torso",
+			"position": [0, 0, 0]
+		},
+		{
+			"name": "Left Hand",
+			"part": "left_hand",
+			"templateName": "Coney Left Hand",
+			"position": [-0.5, -0.5, 0]
+		},
+		{
+			"name": "Right Hand",
+			"part": "right_hand",
+			"templateName": "Coney Right Hand",
+			"position": [0.5, -0.5, 0]
+		}
+	]
+}

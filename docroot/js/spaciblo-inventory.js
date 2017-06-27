@@ -1361,11 +1361,13 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 		this.el.addClass('detail-component')
 		if(dataObject === null) throw 'TemplateDetailComponent requires a Template dataObject'
 
-		this.templateDataTextEditor = null
-
 		this.row = k.el.div({ class: 'row' }).appendTo(this.el)
 		this.leftCol = k.el.div({ class: 'col-3' }).appendTo(this.row)
 		this.rightCol = k.el.div({ class: 'col-9' }).appendTo(this.row)
+
+		this.templateDataTextEditor = null
+		this.templateRenderer = new spaciblo.three.TemplateRenderer(this.dataObject)
+		this.rightCol.appendChild(this.templateRenderer.el)
 
 		k.el.h3('Name').appendTo(this.leftCol)
 		this.nameInput = new be.ui.TextInputComponent(dataObject, 'name', { autosave: true })
@@ -1431,9 +1433,19 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 
 		this.deleteLink = k.el.button({ class: 'small-button delete-button' }, 'Delete').appendTo(this.el)
 		this.listenTo('click', this.deleteLink, this._handleDeleteClick, this)
+
+		setTimeout(this.updateSize.bind(this), 0)
+		window.addEventListener('resize', () => { this.updateSize() })
+	}
+	handleAddedToDOM(){
+		this.updateSize()
+	}
+	updateSize(){
+		this.templateRenderer.setSize(this.rightCol.offsetWidth, 400)
 	}
 	cleanup(){
 		super.cleanup()
+		this.templateRenderer.cleanup()
 		this.nameInput.cleanup()
 		this.geometryInput.cleanup()
 		this.parentInput.cleanup()
