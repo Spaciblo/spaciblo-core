@@ -1156,6 +1156,23 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 		this._addTemplateToFetchQueue(template)
 		return template
 	}
+	removeTemplate(templateUUID){
+		let [index, listName, array] = this._indexAndListForTemplate(templateUUID)
+		if(index == -1) return
+		switch(listName){
+			case 'fetch':
+				this._fetchQueue.splice(index, 1)
+				break
+			case 'loading':
+				this._loadQueue.splice(index, 1)
+				break
+			case 'loaded':
+				this._loadedTemplates.splice(index, 1)
+				break
+			default:
+				console.error('unknown list name', listName)
+		}
+	}
 	_addTemplateToFetchQueue(template){
 		template.loading = true
 		this._fetchQueue.push(template)
@@ -1642,6 +1659,11 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 	get el(){
 		return this.renderer.domElement
 	}
+	reloadTemplate(){
+		this.rootGroup.updateTemplate(spaciblo.api.RemoveKeyIndicator, this.templateLoader)
+		this.templateLoader.removeTemplate(this.dataObject.get('uuid'))
+		this.rootGroup.updateTemplate(this.dataObject.get('uuid'), this.templateLoader)
+	}
 	initializePosition(){
 		this.findBoundingBox().then(() => {
 			if(this.boundingBox === null) return
@@ -1687,17 +1709,11 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 	_animate(){
 		if(this.cleanedUp) return
 		requestAnimationFrame(this._boundAnimate)
-
 		this.rootGroup.updateMatrixWorld(true)
 		this.renderer.autoClear = true
 		this.scene.matrixAutoUpdate = true
 		THREE.GLTFLoader.Shaders.update(this.scene, this.camera)
 		this.orbitControls.update()
-
-		spaciblo.three.WORKING_QUAT.copy(this.scene.quaternion)
-		spaciblo.input.throttledConsoleLog('wuat', this.scene)
-		spaciblo.three.WORKING_QUAT.inverse()
-		this.directionalLight.quaternion.copy(spaciblo.three.WORKING_QUAT)
 		this.renderer.render(this.scene, this.camera)
 	}
 })

@@ -28,8 +28,11 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 
 		this.router = new k.Router()
 		this.router.addRoute(/^$/, 'templates')
+		this.router.addRoute(/^templates\/([0-9\-a-z]+)$/, 'template')
 		this.router.addRoute(/^spaces$/, 'spaces')
+		this.router.addRoute(/^spaces\/([0-9\-a-z]+)$/, 'space')
 		this.router.addRoute(/^avatars$/, 'avatars')
+		this.router.addRoute(/^avatars\/([0-9\-a-z]+)$/, 'avatar')
 
 		this.topRow = k.el.div({ class: 'top-row' }).appendTo(this.el)
 		this.buttonGroup = k.el.div({ class: 'button-group' }).appendTo(this.topRow)
@@ -43,14 +46,23 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 		this.templates = new be.api.Templates()
 		this.templatesEditorComponent = new spaciblo.components.TemplatesEditorComponent(this.templates)
 		this.el.appendChild(this.templatesEditorComponent.el)
+		this.templatesEditorComponent.addListener((eventName, dataObject, ladComponent, detailComponent) => {
+			window.history.pushState({}, "Template", "#templates/" + dataObject.get('uuid'))
+		}, be.events.ItemSelected)
 
 		this.spaces = new be.api.Spaces()
 		this.spacesEditorComponent = new spaciblo.components.SpacesEditorComponent(this.spaces)
 		this.el.appendChild(this.spacesEditorComponent.el)
+		this.spacesEditorComponent.addListener((eventName, dataObject, ladComponent, detailComponent) => {
+			window.history.pushState({}, "Space", "#spaces/" + dataObject.get('uuid'))
+		}, be.events.ItemSelected)
 
 		this.avatars = new be.api.Avatars()
 		this.avatarsEditorComponent = new spaciblo.components.AvatarsEditorComponent(this.avatars)
 		this.el.appendChild(this.avatarsEditorComponent.el)
+		this.avatarsEditorComponent.addListener((eventName, dataObject, ladComponent, detailComponent) => {
+			window.history.pushState({}, "Avatar", "#avatars/" + dataObject.get('uuid'))
+		}, be.events.ItemSelected)
 
 		this.router.addListener(this._handleRoutes.bind(this))
 		this.router.start()
@@ -68,39 +80,90 @@ spaciblo.components.InventoryPageComponent = class extends k.Component {
 			case 'templates':
 				this._showTemplates()
 				break;
+			case 'template':
+				this._showTemplates(params[0])
+				break
 			case 'spaces':
 				this._showSpaces()
 				break
+			case 'space':
+				this._showSpaces(params[0])
+				break
 			case 'avatars':
 				this._showAvatars()
+				break
+			case 'avatar':
+				this._showAvatars(params[0])
 				break
 			default:
 				console.error('Unknown route', eventName, ...params)
 				this._showTemplates()
 		}
 	}
-	_showTemplates(){
+	_showTemplates(uuid=null){
 		this._clearDisplay()
 		this.templatesEditorComponent.el.style.display = 'block'
 		this.templatesButton.addClass('selected')
 		if(this.templates.isNew){
-			this.templates.fetch()
+			this.templates.fetch().then(() => {
+				if(uuid !== null){
+					let template = this.templates.firstByField('uuid', uuid)
+					if(template){
+						this.templatesEditorComponent.setSelected(template)
+					}
+				}
+			})
+		} else {
+			if(uuid !== null){
+				let template = this.templates.firstByField('uuid', uuid)
+				if(template){
+					this.templatesEditorComponent.setSelected(template)
+				}
+			}
 		}
 	}
-	_showSpaces(){
+	_showSpaces(uuid=null){
 		this._clearDisplay()
 		this.spacesEditorComponent.el.style.display = 'block'
 		this.spacesButton.addClass('selected')
 		if(this.spaces.isNew){
-			this.spaces.fetch()
+			this.spaces.fetch().then(() => {
+				if(uuid !== null){
+					let space = this.spaces.firstByField('uuid', uuid)
+					if(space){
+						this.spacesEditorComponent.setSelected(space)
+					}
+				}
+			})
+		} else {
+			if(uuid !== null){
+				let space = this.spaces.firstByField('uuid', uuid)
+				if(space){
+					this.spacesEditorComponent.setSelected(space)
+				}
+			}
 		}
 	}
-	_showAvatars(){
+	_showAvatars(uuid=null){
 		this._clearDisplay()
 		this.avatarsEditorComponent.el.style.display = 'block'
 		this.avatarsButton.addClass('selected')
 		if(this.avatars.isNew){
-			this.avatars.fetch()
+			this.avatars.fetch().then(() => {
+				if(uuid !== null){
+					let avatar = this.avatars.firstByField('uuid', uuid)
+					if(avatar){
+						this.avatarsEditorComponent.setSelected(avatar)
+					}
+				}
+			})
+		} else {
+			if(uuid !== null){
+				let avatar = this.avatars.firstByField('uuid', uuid)
+				if(avatar){
+					this.avatarsEditorComponent.setSelected(avatar)
+				}
+			}
 		}
 	}
 }
@@ -1381,9 +1444,11 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 		this.clientScriptInput = new be.ui.TextInputComponent(dataObject, 'clientScript', { autosave: true })
 		this.leftCol.appendChild(this.clientScriptInput.el)
 
+		/*
 		k.el.h3('Sim Script (TODO)').appendTo(this.leftCol)
 		this.simScriptInput = new be.ui.TextInputComponent(dataObject, 'simScript', { autosave: true })
 		this.leftCol.appendChild(this.simScriptInput.el)
+		*/
 
 		k.el.h3('Parent').appendTo(this.leftCol)
 		this.parentInput = new be.ui.TextInputComponent(dataObject, 'parent', { autosave: true })
@@ -1484,12 +1549,14 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 				fileCount -= 1
 				if(fileCount == 0){
 					this.templateDataList.fetch()
+					this.templateRenderer.reloadTemplate()
 				}
 			}).catch((...params) => {
 				console.error('Error', ...params)
 				fileCount -= 1
 				if(fileCount == 0){
 					this.templateDataList.fetch()
+					this.templateRenderer.reloadTemplate()
 				}
 			})
 		}

@@ -12,6 +12,7 @@ be.events.LoginSuccessful = 'be-login-successful'
 be.events.Resetting = 'be-resetting'
 be.events.Reset = 'be-reset'
 be.events.FilesDropped = 'be-files-dropped'
+be.events.ItemSelected = 'be-item-selected'
 
 /*
 ToggleComponent shows a triangle up or down which when clicked changes direction and triggers the 'toggled' event
@@ -318,12 +319,12 @@ be.ui.ListAndDetailComponent = class extends k.Component {
 		if(this.dataObject.isNew){
 			this.dataObject.addListener(() => {
 				if(this.dataObject.length > 0){
-					this._setSelected(this.dataObject.at(0))
+					this.setSelected(this.dataObject.at(0))
 				}
 			}, 'fetched', true)
 		} else {
 			if(this.dataObject.length > 0){
-				this._setSelected(this.dataObject.at(0))
+				this.setSelected(this.dataObject.at(0))
 			}
 		}
 	}
@@ -340,13 +341,13 @@ be.ui.ListAndDetailComponent = class extends k.Component {
 		let item = this.createNewItem()
 		item.save().then(() => {
 			this.dataObject.add(item)
-			this._setSelected(item)
+			this.setSelected(item)
 		}).catch((...params) => {
 			console.error('Error creating item', ...params)
 		})
 	}
 	_handleItemClick(dataObject){
-		this._setSelected(dataObject)
+		this.setSelected(dataObject)
 	}
 	_removeDetailComponent(){
 		if(this.detailComponent !== null){
@@ -355,7 +356,7 @@ be.ui.ListAndDetailComponent = class extends k.Component {
 			this.detailComponent = null
 		}
 	}
-	_setSelected(dataObject){
+	setSelected(dataObject){
 		this._removeDetailComponent()
 		for(let li of this.listComponent.el.querySelectorAll('.item-component')){
 			if(li.component.dataObject === dataObject){
@@ -373,6 +374,7 @@ be.ui.ListAndDetailComponent = class extends k.Component {
 		if(typeof this.detailComponent.handleAddedToDOM === 'function'){
 			this.detailComponent.handleAddedToDOM()
 		}
+		this.trigger(be.events.ItemSelected, dataObject, this, this.detailComponent)
 	}
 }
 
