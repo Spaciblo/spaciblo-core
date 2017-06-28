@@ -1504,6 +1504,8 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.eyesOpened = spaciblo.three.findChildNodeByName(spaciblo.three.EYES_OPENED_NAME, this, true)[0] || null
 		this.eyesClosed = spaciblo.three.findChildNodeByName(spaciblo.three.EYES_CLOSED_NAME, this, true)[0] || null
 		if(this.eyesClosed) this.eyesClosed.visible = false
+
+		console.log('sub parts', this.mouthClosed, this.mouthMid, this.mouthOpened, this.eyesOpened, this.eyesClosed)
 	},
 	blink(duration=50){
 		this.setNextBlink()
@@ -1534,6 +1536,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		// level will range from 0 to 1, with 1 being the loudest
 		if(this.head === null) return
 		if(this.head.mouthClosed) this.head.mouthClosed.visible = false
+		spaciblo.input.throttledConsoleLog('mid', this.head.mouthMid)
 		if(this.head.mouthMid) this.head.mouthMid.visible = false
 		if(this.head.mouthOpened) this.head.mouthOpened.visible = false
 		if(level < 0.1 && this.head.mouthClosed){
