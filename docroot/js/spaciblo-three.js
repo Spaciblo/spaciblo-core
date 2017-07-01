@@ -886,11 +886,10 @@ spaciblo.three.Renderer = k.eventMixin(class {
 					)
 					this.avatarGroup.headLine.position.set(
 						this.avatarGroup.head.position.x,
-						this.avatarGroup.head.position.y - 0.5,
+						this.avatarGroup.head.position.y,
 						this.avatarGroup.head.position.z
 					)
 				}
-
 				// Update the torso by positioning and orienting it underneath the head
 				if(this.avatarGroup.torso !== null){
 					this.avatarGroup.torso.position.set(
@@ -1083,7 +1082,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		spaciblo.three.WORKING_VECTOR3_3.applyMatrix4(matrix)
 		spaciblo.three.WORKING_VECTOR3_3.normalize()
 
-		// Restore the zeroed elements of the head's world matrix
+		// Restore the zeroed elements of the world matrix
 		matrix.elements[12] = mx
 		matrix.elements[13] = my
 		matrix.elements[14] = mz
@@ -1140,6 +1139,10 @@ spaciblo.three.parseSettingColor = function(name, settings, defaultValue='#FFFFF
 	return settings[name]
 }
 
+/*
+When Templates are requested by the renderer, the TemplateLoader handles requesting them from the service and loading their geometry assets.
+When a Template is completely loaded, a spaciblo.three.events.TemplateLoaded is triggered on the Template (not the TemplateLoader).
+*/
 spaciblo.three.TemplateLoader = k.eventMixin(class {
 	constructor(){
 		// Added templates move from the fetchQueue, to the loadQueue, to the loadedTemplates list
@@ -1243,7 +1246,7 @@ spaciblo.three.TemplateLoader = k.eventMixin(class {
 })
 
 /*
-An extension of the Three Group with app specific information
+An extension of the Three.Group with app specific information
 */
 spaciblo.three.Group = function(workerManager){
 	THREE.Group.call(this)
@@ -1467,9 +1470,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 
 		if(this.isLocalAvatar){
 			this.head.visible = false
-			if(this.torso){
-				this.torso.visible = false
-			}
+			if(this.torso) this.torso.visible = false
 		}
 
 		this.headLine = new THREE.Group()
@@ -1478,13 +1479,13 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.headLine.visible = false // Shown when the user initiates a point gesture
 		this.add(this.headLine)
 		this.gazeCursor = new THREE.Mesh(
-			new THREE.PlaneGeometry(0.02, 0.02),
+			new THREE.PlaneGeometry(0.03, 0.03),
 			new THREE.MeshBasicMaterial({
 				map: THREE.ImageUtils.loadTexture( 'images/crosshairs.png' ),
 				transparent: true,
 			})
 		)
-		this.gazeCursor.position.set(0, 0, -0.51)
+		this.gazeCursor.position.set(0, 0, -0.6)
 		this.headLine.add(this.gazeCursor)
 
 		this.leftLine = this._makePointerLine()
@@ -1495,6 +1496,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.rightLine.visible = false // Shown when the user initiates a right-point gesture
 	},
 	setupSubParts: function(){
+		// After an Avatar's geometry is loaded, find the sub groups for mouth and eyes
 		this.mouthClosed = spaciblo.three.findChildNodeByName(spaciblo.three.MOUTH_CLOSED_NAME, this, true)[0] || null
 		this.mouthMid = spaciblo.three.findChildNodeByName(spaciblo.three.MOUTH_MID_NAME, this, true)[0] || null
 		if(this.mouthMid) this.mouthMid.visible = false
@@ -1504,8 +1506,6 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		this.eyesOpened = spaciblo.three.findChildNodeByName(spaciblo.three.EYES_OPENED_NAME, this, true)[0] || null
 		this.eyesClosed = spaciblo.three.findChildNodeByName(spaciblo.three.EYES_CLOSED_NAME, this, true)[0] || null
 		if(this.eyesClosed) this.eyesClosed.visible = false
-
-		console.log('sub parts', this.mouthClosed, this.mouthMid, this.mouthOpened, this.eyesOpened, this.eyesClosed)
 	},
 	blink(duration=50){
 		this.setNextBlink()
@@ -1536,7 +1536,6 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 		// level will range from 0 to 1, with 1 being the loudest
 		if(this.head === null) return
 		if(this.head.mouthClosed) this.head.mouthClosed.visible = false
-		spaciblo.input.throttledConsoleLog('mid', this.head.mouthMid)
 		if(this.head.mouthMid) this.head.mouthMid.visible = false
 		if(this.head.mouthOpened) this.head.mouthOpened.visible = false
 		if(level < 0.1 && this.head.mouthClosed){

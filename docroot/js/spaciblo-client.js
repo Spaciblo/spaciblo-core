@@ -112,11 +112,13 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 		this._groups = new Map()		// id -> groups as they are added and removed from the scene
 		this._templateGroups = new Map() // id -> groups that use this template worker as they are added and removed
 		this._templateUUID = null 		// The template UUID that this worker is supporting
+
 		this._activeActions = new Set() // Active actions like 'point', 'left-point', 'translate-forward' 
+		this._avatarGroup = null		// The group for the local user's avatar
+
 		this._gazePointInfo = null			// The pointing data when the user is gazing at a group in the scene
 		this._leftPointInfo = null			// The pointing data when the user is left pointing at a group
 		this._rightPointInfo = null			// The pointing data when the user is right pointing at a group
-		this._avatarGroup = null		// The group for the local user's avatar
 	}
 	init(data){
 		this._templateUUID = data.templateUUID
