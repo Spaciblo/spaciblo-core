@@ -12,7 +12,7 @@ spaciblo.events.TemplateDataItemSelected = 'spaciblo-template-data-item-selected
 
 /* 
 The number of miliseconds after input to ignore model updates so that
-we don't overrite local edits with updates
+we don't override local edits with updates
 */
 spaciblo.components.InputChangeDelay = 2000
 
