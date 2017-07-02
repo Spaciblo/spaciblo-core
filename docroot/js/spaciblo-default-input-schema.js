@@ -130,7 +130,6 @@ spaciblo.input._smallerControllerInputs = [
 for(let input of spaciblo.input._smallerControllerInputs){
 	spaciblo.input._generateGamepadInput(spaciblo.input.DefaultInputSchema, spaciblo.input.DAYDREAM_CONTROLLER_ID_REGEX, input)
 }
-console.log('Oi oi oi')
 for(let input of spaciblo.input._smallerControllerInputs){
 	spaciblo.input._generateGamepadInput(spaciblo.input.DefaultInputSchema, spaciblo.input.GEAR_VR_CONTROLLER_ID_REGEX, input)
 }

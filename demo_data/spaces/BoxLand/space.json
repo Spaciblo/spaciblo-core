@@ -47,6 +47,9 @@
 			]
 		},
 		{
+			"settings": {
+				"name": "Grid"
+			},
 			"template-name": "Grid",
 			"position": [0, -1.4, 0],
 			"scale": [1.5, 1, 1.5]

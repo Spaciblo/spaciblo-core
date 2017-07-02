@@ -105,10 +105,7 @@ let DirectionalLightWorker = class extends spaciblo.client.InteractiveTemplateWo
 
 		// Set defaults if necessary
 		if(group.settings['light-type'] != 'directional'){
-			postMessage(new spaciblo.client.RequestGroupSettingsChangeMessage({ groupId: group.id, settings:{ 'light-type': 'directional' } }))
-		}
-		if(!group.settings['light-color']){
-			postMessage(new spaciblo.client.RequestGroupSettingsChangeMessage({ groupId: group.id, settings:{ 'light-color': rgbToHex(this._defaultLightColor) } }))
+			this._changeSettings(group.id, { 'light-type': 'directional' })
 		}
 		if(!group.settings['light-color']){
 			this._changeSettings(group.id, { 'light-color': rgbToHex(this._defaultLightColor) })
@@ -166,7 +163,6 @@ let DirectionalLightWorker = class extends spaciblo.client.InteractiveTemplateWo
 				]
 			}))
 		}
-
 	}
 
 	_changeSettings(groupId, settings){
@@ -206,7 +202,6 @@ let DirectionalLightWorker = class extends spaciblo.client.InteractiveTemplateWo
 			}
 		} else if(intersect.object.name.startsWith('Saturation')){
 			var index = parseInt(intersect.object.name[intersect.object.name.length - 1])
-			console.log('sat color', this._saturationColors[index], rgbToHex(this._saturationColors[index]))
 			var settings = {
 				'light-color': rgbToHex(this._saturationColors[index])
 			}
