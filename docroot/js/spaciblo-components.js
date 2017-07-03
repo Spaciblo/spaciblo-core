@@ -257,6 +257,7 @@ spaciblo.components.SplashPageComponent = class extends k.Component {
 				break
 			default:
 				this.spaceMenuComponent.el.style.display = 'block';
+				this.spacesComponent.handleSpaceRoute(null)
 				break
 		}
 	}
@@ -579,10 +580,18 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		}
 	}
 	handleSpaceRoute(spaceUUID){
+		if(spaceUUID === null){
+			if(this.client !== null){
+				// We don't yet support opening a second space, so just reload from the root
+				document.location.href = '/'
+			}
+			return
+		}
 		let doIt = () => {
 			let space = this.dataObject.firstByField('uuid', spaceUUID)
 			if(space === null){
 				console.error('No space for UUID', spaceUUID)
+				document.location.href = '/'
 				return
 			}
 			this.showSpace(space)
@@ -594,7 +603,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 		}
 	}
 	showSpace(space){
-		if(this.client != null){
+		if(this.client !== null){
 			console.error("Oops, can't open a second space, yet")
 			return
 		}
