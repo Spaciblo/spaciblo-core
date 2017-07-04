@@ -1,5 +1,6 @@
 {
     "settings": {
+        "background-color": "#44DDFF",
         "light-color": "#FFF",
         "light-intensity": "0.4",
         "light-type": "ambient",
