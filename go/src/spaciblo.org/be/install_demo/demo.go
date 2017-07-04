@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 
 	apiDB "spaciblo.org/api/db"
 	"spaciblo.org/be"
@@ -117,11 +118,16 @@ func main() {
 		logger.Fatal("Could not find the cue card", err)
 	}
 
+	digitalClock, err := apiDB.FindTemplateRecordByField("name", "Digital Clock", dbInfo)
+	if err != nil {
+		logger.Fatal("Could not find the digital clock", err)
+	}
+
 	user, err := createUser("alice@example.com", "Alice", "Smith", true, "1234", robot.UUID, dbInfo)
 	if err != nil {
 		logger.Fatal("Could not create a user", err)
 	}
-	_, err = createFlock("default", user.UUID, []string{cueCard.UUID}, true, dbInfo)
+	_, err = createFlock("default", user.UUID, []string{cueCard.UUID, digitalClock.UUID}, true, dbInfo)
 	if err != nil {
 		logger.Fatal("Could not create a flock", err)
 	}
@@ -151,8 +157,16 @@ func createFlock(name string, userUUID string, templates []string, active bool, 
 			return nil, err
 		}
 	}
+	xDelta := 0.6
+	x := float64(len(templates)) * xDelta / -2.0
 	for _, templateUUID := range templates {
-		_, err := apiDB.CreateFlockMemberRecord(flockRecord.UUID, templateUUID, dbInfo)
+		flockMemberRecord, err := apiDB.CreateFlockMemberRecord(flockRecord.UUID, templateUUID, dbInfo)
+		if err != nil {
+			return nil, err
+		}
+		flockMemberRecord.Position = strconv.FormatFloat(x, 'f', -1, 32) + ",0.6,-1"
+		x += xDelta
+		err = apiDB.UpdateFlockMemberRecord(flockMemberRecord, dbInfo)
 		if err != nil {
 			return nil, err
 		}

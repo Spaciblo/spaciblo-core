@@ -17,7 +17,7 @@ type FlockMemberRecord struct {
 	UUID         string `json:"uuid" db:"u_u_i_d"`
 	FlockUUID    string `json:"flockUUID" db:"flock_uuid"`
 	TemplateUUID string `json:"templateUUID" db:"template_uuid"`
-	Position     string `json:"position" db:"position"`       // "0,0,0"
+	Position     string `json:"position" db:"position"`       // "0,0.6,-1"
 	Orientation  string `json:"orientation" db:"orientation"` // "0,0,0,1"
 	Translation  string `json:"translation" db:"translation"` // "0,0,0"
 	Rotation     string `json:"rotation" db:"rotation"`       // "0,0,0"
