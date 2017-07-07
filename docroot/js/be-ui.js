@@ -393,6 +393,7 @@ be.ui.TopNavComponent = class extends k.Component {
 
 		this.rightLinks = k.el.ul(
 			{ class: 'right-links'},
+			k.el.li(k.el.a({ href: '/h/' }, 'help')),
 			k.el.li(k.el.a({ href: '/a/' }, 'account'))
 		).appendTo(this.nav)
 

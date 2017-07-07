@@ -1,0 +1,26 @@
+:root {
+	--link-color: #4444FF;
+}
+
+.help-section {
+	max-width: 40em;
+	font-size: 16px;
+	line-height: 1.4em;
+	letter-spacing: 0.03em;
+}
+
+.help-section h1, .help-section h2, .help-section h3 {
+	margin-bottom: 10px;
+}
+
+.help-section h2 {
+	padding-top: 15px;
+}
+
+.help-section h3 {
+	padding-top: 10px;
+}
+
+.help-section p { margin-bottom: 15px; }
+
+.help-section p a { color: var(--link-color); } 
