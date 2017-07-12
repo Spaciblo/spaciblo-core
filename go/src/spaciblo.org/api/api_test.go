@@ -3,6 +3,7 @@ package api
 import (
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	apiDB "spaciblo.org/api/db"
@@ -387,6 +388,30 @@ func TestTemplateAPI(t *testing.T) {
 	AssertNil(t, err)
 
 	reader, err := client.GetFile("/template/" + record0.UUID + "/data/" + record0.Geometry)
+	AssertNil(t, err)
+	AssertNotNil(t, reader)
+
+	user1, err := be.CreateUser("bob@example.com", "Bob", "Example", true, "", dbInfo)
+	AssertNil(t, err)
+	_, err = be.CreatePassword("1234", user1.Id, dbInfo)
+	AssertNil(t, err)
+	err = client.Authenticate("bob@example.com", "1234")
+	AssertNil(t, err)
+
+	// Test that we can read and write template images
+	_, err = client.GetFile("/template/" + record0.UUID + "/image")
+	AssertNotNil(t, err) // Should 404 because the template has no image
+
+	jpegFile, err := os.Open(path.Join(apiDB.TEST_DATA_DIR, "base64jpeg.txt"))
+	AssertNil(t, err)
+	base64jpeg, err := ioutil.ReadAll(jpegFile)
+	AssertNil(t, err)
+	ip := &TemplateImagePost{
+		Image: string(base64jpeg),
+	}
+	_, err = client.PutJSON("/template/"+record0.UUID+"/image", ip)
+	AssertNil(t, err)
+	reader, err = client.GetFile("/template/" + record0.UUID + "/image")
 	AssertNil(t, err)
 	AssertNotNil(t, reader)
 }

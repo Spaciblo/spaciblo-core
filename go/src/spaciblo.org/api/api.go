@@ -104,6 +104,7 @@ func addApiResources(api *be.API) {
 	api.AddResource(NewSpaceStateResource(), true)
 	api.AddResource(NewTemplatesResource(), true)
 	api.AddResource(NewTemplateResource(), true)
+	api.AddResource(NewTemplateImageResource(), false)
 	api.AddResource(NewTemplateDataResource(), false)
 	api.AddResource(NewTemplateDataListResource(), true)
 	api.AddResource(NewAvatarsResource(), true)

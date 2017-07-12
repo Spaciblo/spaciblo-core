@@ -1634,7 +1634,7 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 		this.directionalLight.target.position.set(...this.directionalLightDirection)
 		this.directionalLight.add(this.directionalLight.target)
 
-		this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 10000)
+		this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 10000)
 
 		this.scene = new THREE.Scene()
 		this.scene.add(this.ambientLight)
@@ -1650,7 +1650,7 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 		this.renderer.domElement.setAttribute('class', 'three-js-template-renderer')
 		this.renderer.setClearColor(spaciblo.three.DEFAULT_BACKGROUND_COLOR)
 		this.orbitControls = new THREE.OrbitControls(this.camera, this.renderer.domElement)
-		this.orbitControls.enableZoom = false
+		this.orbitControls.enableZoom = true
 
 		this.rootGroup.updateTemplate(this.dataObject.get('uuid'), this.templateLoader)
 		this.initializePosition()
@@ -1658,8 +1658,16 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 		this._boundAnimate = this._animate.bind(this) // Since we use this in every frame, bind it once
 		this._animate()
 	}
+	cleanup(){
+		this.cleanedUp = true
+	}
 	get el(){
 		return this.renderer.domElement
+	}
+	getCanvasImage(mimeType='image/jpeg'){
+		// Returns the Base64 encoded image data for the renderer's canvas using the mimeType image encoding
+		this._animate() // render immediately before, otherwise we get a blank image
+		return this.el.toDataURL(mimeType)
 	}
 	reloadTemplate(){
 		this.rootGroup.updateTemplate(spaciblo.api.RemoveKeyIndicator, this.templateLoader)
@@ -1676,6 +1684,14 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 			this.camera.position.set(0, 0, Math.max(maxDimension * 2, 1))
 		})
 	}
+	_hideSubParts(){
+		let mouthOpened = spaciblo.three.findChildNodeByName(spaciblo.three.MOUTH_OPENED_NAME, this.rootGroup, true)[0] || null
+		if(mouthOpened) mouthOpened.visible = false
+		let mouthMid = spaciblo.three.findChildNodeByName(spaciblo.three.MOUTH_MID_NAME, this.rootGroup, true)[0] || null
+		if(mouthMid) mouthMid.visible = false
+		let eyesClosed = spaciblo.three.findChildNodeByName(spaciblo.three.EYES_CLOSED_NAME, this.rootGroup, true)[0] || null
+		if(eyesClosed) eyesClosed.visible = false
+	}
 	findBoundingBox(){
 		return new Promise((resolve, reject) => {
 			if(this.rootGroup.template.loading === true){
@@ -1685,6 +1701,7 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 					} else {
 						this.boundingBox = null
 					}
+					this._hideSubParts()
 					resolve()
 				}, spaciblo.three.events.TemplateLoaded, true)
 			} else {
@@ -1693,6 +1710,7 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 				} else {
 					this.boundingBox = null
 				}
+				this._hideSubParts()
 				resolve()
 			}
 		})
@@ -1704,9 +1722,6 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 		this.camera.aspect = this.width / this.height
 		this.camera.updateProjectionMatrix()
 		this.renderer.setSize(this.width, this.height, false)
-	}
-	cleanup(){
-		this.cleanedUp = true
 	}
 	_animate(){
 		if(this.cleanedUp) return

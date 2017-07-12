@@ -15,6 +15,7 @@ type TemplateRecord struct {
 	SimScript    string `json:"simScript" db:"sim_script"`       // A script to run in the sim TODO add scripting to the sim
 	Part         string `json:"part" db:"part"`                  // The default AvatarPartRecord.Part name (if any)
 	Parent       string `json:"parent" db:"parent"`              // The default AvatarPartRecord.Parent name (if any)
+	Image        string `json:"image" db:"image"`                // The FS key for a representative image depicting this template
 }
 
 func CreateTemplateRecord(name string, geometry string, clientScript string, simScript string, part string, parent string, dbInfo *be.DBInfo) (*TemplateRecord, error) {
@@ -49,9 +50,16 @@ func DeleteTemplateRecord(templateRecord *TemplateRecord, fileStorage be.FileSto
 		}
 		fileStorage.Delete(dataRecord.Key, "")
 	}
+	imageKey := templateRecord.Image
 	_, err = dbInfo.Map.Delete(templateRecord)
 	if err != nil {
 		return err
+	}
+	if imageKey != "" {
+		err = fileStorage.Delete(imageKey, "")
+		if err != nil {
+			logger.Print("Could not delete template image: " + err.Error())
+		}
 	}
 	return nil
 }

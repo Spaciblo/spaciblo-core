@@ -64,7 +64,7 @@ type LoginData struct {
 }
 
 /*
-CurrentUserImageResource returns a image the authenticated request.User has a non-empty `image` field
+CurrentUserImageResource returns a image if the authenticated request.User has a non-empty `image` field
 */
 type CurrentUserImageResource struct{}
 

@@ -27,6 +27,28 @@
 	padding: 5px 3px;
 }
 
+.list-and-detail-component li.template-item-component {
+	padding: 0;
+}
+.template-item-component .template-image {
+	min-height: 150px;
+	min-width: 150px;
+	background-color: grey;
+}
+.template-item-component .template-image img {
+	width: 100%;
+}
+.template-item-component .name {
+	padding: 20px 30px 15px 20px;
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	color: black;
+	text-shadow: 1px 1px #AAA;
+	line-height: 1.2em;
+	overflow: hidden;
+}
+
 .template-detail-component .template-data-text-editor {
 	margin-top: 30px;
 }

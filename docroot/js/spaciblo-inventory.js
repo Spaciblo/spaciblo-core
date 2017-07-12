@@ -1409,7 +1409,11 @@ spaciblo.components.TemplateItemComponent = class extends k.Component {
 		if(dataObject === null){
 			throw 'TemplateItemComponent requires a Template dataObject'
 		}
-		this.nameEl = k.el.div().appendTo(this.el)
+
+		this.templateImageComponent = new spaciblo.components.TemplateImage(dataObject)
+		this.el.appendChild(this.templateImageComponent.el)
+
+		this.nameEl = k.el.div({ class: 'name' }).appendTo(this.el)
 		this.bindText('name', this.nameEl)
 	}
 }
@@ -1431,6 +1435,21 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 		this.templateDataTextEditor = null
 		this.templateRenderer = new spaciblo.three.TemplateRenderer(this.dataObject)
 		this.rightCol.appendChild(this.templateRenderer.el)
+
+		this.snapTemplateButton = k.el.button('Snap').appendTo(this.rightCol)
+		this.snapTemplateButton.addEventListener('click', ev => {
+			let imageData = this.templateRenderer.getCanvasImage()
+			let templateImage = new be.api.TemplateImage({ image: imageData }, { uuid: this.dataObject.get('uuid') })
+			templateImage._new = false
+			templateImage.save().then(resultData => {
+				console.log('saved', resultData)
+				if(resultData.data && resultData.data.image){
+					this.dataObject.set('image', resultData.data.image)
+				}
+			}).catch((...params) => {
+				console.error('error saving', ...params)
+			})
+		})
 
 		k.el.h3('Name').appendTo(this.leftCol)
 		this.nameInput = new be.ui.TextInputComponent(dataObject, 'name', { autosave: true })
@@ -1559,6 +1578,37 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 					this.templateRenderer.reloadTemplate()
 				}
 			})
+		}
+	}
+}
+
+/*
+Watches a Template's 'image' field and displays an img element if it is set
+*/
+spaciblo.components.TemplateImage = class extends k.Component {
+	constructor(dataObject, options={}){
+		super(dataObject, options)
+		this.el.addClass('template-image')
+
+		this.image = k.el.img().appendTo(this.el)
+		this._updateImage()
+
+		this.dataObject.addListener(() => {
+			this._updateImage()
+		}, 'changed:image')
+	}
+	_updateImage(){
+		if(this.dataObject.get('image')){
+			this.templateImage = new be.api.TemplateImage({}, { uuid: this.dataObject.get('uuid') })
+			if(this.image.src) {
+				this.image.src = this.templateImage.url + '?cache-buster=' + Math.random()
+			} else {
+				this.image.src = this.templateImage.url
+			}
+			this.image.style.display = ''
+		} else {
+			this.templateImage = null
+			this.image.style.display = 'none'
 		}
 	}
 }

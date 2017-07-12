@@ -260,6 +260,7 @@ func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.Loc
 	var sourceInfo os.FileInfo
 	var clientScriptName = ""
 	var simScriptName = ""
+	var thumbnailName = ""
 	for _, dataInfo := range dataFileInfos {
 		if dataInfo.Name() == name+".gltf" {
 			sourceInfo = dataInfo
@@ -277,6 +278,9 @@ func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.Loc
 			simScriptName = dataInfo.Name()
 			continue
 		}
+		if dataInfo.Name() == "thumbnail.jpg" {
+			thumbnailName = "thumbnail.jpg"
+		}
 	}
 	if sourceInfo == nil {
 		logger.Fatal("Could not find a geometry file for name")
@@ -290,7 +294,29 @@ func createTemplate(directory string, name string, dbInfo *be.DBInfo, fs *be.Loc
 		return nil, err
 	}
 
+	if thumbnailName != "" {
+		fileData, err := os.Open(path.Join(directory, thumbnailName))
+		if err != nil {
+			logger.Println("Could not open thumbnail", err)
+		} else {
+			thumbnailKey, err := fs.Put("template_image.jpg", fileData)
+			if err != nil {
+				logger.Println("Could not store the thumbnail file", err)
+			} else {
+				template.Image = thumbnailKey
+				err = apiDB.UpdateTemplateRecord(template, dbInfo)
+				if err != nil {
+					logger.Println("Could not update the template", err)
+				}
+			}
+		}
+	}
+
 	for _, dataInfo := range dataFileInfos {
+		if dataInfo.Name() == thumbnailName || dataInfo.Name() == ".DS_Store" {
+			continue
+		}
+
 		logger.Printf("\t\tData %s", dataInfo.Name())
 
 		dataPath := path.Join(directory, dataInfo.Name())
