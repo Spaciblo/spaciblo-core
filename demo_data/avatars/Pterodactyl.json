@@ -1,0 +1,29 @@
+{
+	"name": "Pterodactyl",
+	"parts": [
+		{
+			"name": "Head",
+			"part": "head",
+			"templateName": "Pterodactyl Head",
+			"position": [0, 0.6, 0]
+		},
+		{
+			"name": "Torso",
+			"part": "torso",
+			"templateName": "Pterodactyl Torso",
+			"position": [0, 0, 0]
+		},
+		{
+			"name": "Left Hand",
+			"part": "left_hand",
+			"templateName": "Pterodactyl Hand",
+			"position": [-0.5, -0.5, -0.1]
+		},
+		{
+			"name": "Right Hand",
+			"part": "right_hand",
+			"templateName": "Pterodactyl Hand",
+			"position": [0.5, -0.5, -0.1]
+		}
+	]
+}

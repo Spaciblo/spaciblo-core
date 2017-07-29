@@ -132,8 +132,8 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		})
 		this.renderer.domElement.setAttribute('class', 'three-js-spaces-renderer spaces-renderer')
 		this.renderer.setClearColor(spaciblo.three.DEFAULT_BACKGROUND_COLOR)
-		//this.renderer.shadowMap.enabled = true
-		//this.renderer.shadowMap.type = THREE.PCFShadowMap
+		this.renderer.shadowMap.enabled = true
+		this.renderer.shadowMap.type = THREE.PCFShadowMap
 
 		this.inputManager.addListener(this._handleInputActionStarted.bind(this), spaciblo.events.InputActionStarted)
 		this.el.addEventListener('mousemove', this._onMouseMove.bind(this), false)
@@ -1331,6 +1331,7 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 			this.template.addListener(() => {
 				if(this.template.group){
 					this.add(this.template.group.clone())
+					this._enableShadows(this)
 					if(this.name === spaciblo.three.HEAD_NODE_NAME){
 						this.setupSubParts()
 					}
@@ -1396,10 +1397,10 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 					this.settingsLight.target.position.set(...target)
 					this.settingsLight.add(this.settingsLight.target)
 					//this.settingsLight.castShadow = true
-					//this.settingsLight.shadow.mapSize.width = 512
-					//this.settingsLight.shadow.mapSize.height = 512
+					//this.settingsLight.shadow.mapSize.width = 1024
+					//this.settingsLight.shadow.mapSize.height = 1024
 					//this.settingsLight.shadow.camera.zoom = 0.3
-					//this.settingsLight.shadow.bias = 0.0001
+					//this.settingsLight.shadow.bias = 0.00001
 					break
 
 				case 'point':
@@ -1416,6 +1417,10 @@ spaciblo.three.Group.prototype = Object.assign(Object.create(THREE.Group.prototy
 					this.settingsLight = new THREE.SpotLight(color, intensity, distance, angle, penumbra, decay)
 					this.settingsLight.target.position.set(...target)
 					this.settingsLight.add(this.settingsLight.target)
+					this.settingsLight.castShadow = true
+					this.settingsLight.shadow.mapSize.width = 1024
+					this.settingsLight.shadow.mapSize.height = 1024
+					this.settingsLight.shadow.bias = 0.0001
 					break
 
 				case 'hemisphere':
