@@ -1635,7 +1635,7 @@ spaciblo.three.TemplateRenderer = k.eventMixin(class {
 
 		this.ambientLight = new THREE.AmbientLight(0xffffff, 1)
 		this.directionalLight = new THREE.DirectionalLight(0xffffff, 0.6)
-		this.directionalLightDirection = [-0.5, 1, -0.5]
+		this.directionalLightDirection = [0.5, -1, 0.5]
 		this.directionalLight.target.position.set(...this.directionalLightDirection)
 		this.directionalLight.add(this.directionalLight.target)
 

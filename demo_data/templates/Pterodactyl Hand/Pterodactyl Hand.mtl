@@ -1,4 +1,4 @@
-# Blender MTL File: 'Pterodactyl Hand With Wing.blend'
+# Blender MTL File: 'Pterodactyl Hand.blend'
 # Material Count: 2
 
 newmtl black
@@ -14,7 +14,7 @@ illum 2
 newmtl dinoskin
 Ns 0.000000
 Ka 1.000000 1.000000 1.000000
-Kd 0.336000 0.240000 0.184000
+Kd 0.560000 0.640000 0.160000
 Ks 0.000000 0.000000 0.000000
 Ke 0.000000 0.000000 0.000000
 Ni 1.000000

@@ -113,6 +113,11 @@ func main() {
 		logger.Fatal("Could not find the paper bag avatar", err)
 	}
 
+	camera, err := apiDB.FindAvatarRecordByField("name", "Camera", dbInfo)
+	if err != nil {
+		logger.Fatal("Could not find the camera avatar", err)
+	}
+
 	cueCard, err := apiDB.FindTemplateRecordByField("name", "Cue Card", dbInfo)
 	if err != nil {
 		logger.Fatal("Could not find the cue card", err)
@@ -132,7 +137,17 @@ func main() {
 		logger.Fatal("Could not create a flock", err)
 	}
 
-	createUser("bob@example.com", "Bob", "Garvey", false, "1234", paperBag.UUID, dbInfo)
+	user, err = createUser("bob@example.com", "Bob", "Garvey", false, "1234", paperBag.UUID, dbInfo)
+	_, err = createFlock("default", user.UUID, []string{cueCard.UUID, digitalClock.UUID}, true, dbInfo)
+	if err != nil {
+		logger.Fatal("Could not create a flock", err)
+	}
+
+	user, err = createUser("camera@example.com", "Camera", "Flowers", true, "1234", camera.UUID, dbInfo)
+	_, err = createFlock("default", user.UUID, []string{cueCard.UUID, digitalClock.UUID}, true, dbInfo)
+	if err != nil {
+		logger.Fatal("Could not create a flock", err)
+	}
 
 	spacesDir := path.Join(DEMO_DATA_DIR, DEMO_SPACES_DIR)
 	spacesFileInfos, err := ioutil.ReadDir(spacesDir)
