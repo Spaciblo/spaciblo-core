@@ -572,6 +572,7 @@ spaciblo.components.SpacesComponent = class extends k.Component {
 				this.environment.inWebVR = true
 				this.environment.inHeadset = true
 				this.renderer.setVRDisplay(this.vrDisplay)
+				this.updateSize()
 			}).catch(e => {
 				this.environment.inWebVR = false
 				this.environment.inHeadset = false
