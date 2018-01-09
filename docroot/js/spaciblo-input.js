@@ -301,7 +301,7 @@ spaciblo.input.InputManager = k.eventMixin(class {
 			}
 			// Collect actions for each non-zero axis
 			for(let i=0; i < gamepad.axes.length; i++){
-				if(gamepad.axes[i] < 0.1 && gamepad.axes[i] > -0.1) continue
+				if(gamepad.axes[i] < 0.15 && gamepad.axes[i] > -0.15) continue
 				const action = this._inputSchema.getControllerInputAction(new spaciblo.input.ControllerInput(
 					idRegex, gamepad.hand, null, null, i
 				))

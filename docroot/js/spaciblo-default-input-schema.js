@@ -71,6 +71,7 @@ spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX = /Oculus Touch \((Left|Right)\)
 spaciblo.input.GEAR_VR_TOUCHPAD_ID_REGEX = /Gear VR Touchpad/
 spaciblo.input.GEAR_VR_CONTROLLER_ID_REGEX = /Gear VR Controller/
 spaciblo.input.OCULUS_REMOTE_ID_REGEX = /Oculus Remote/
+spaciblo.input.WINDOWS_MIXED_REALITY_CONTROLLER = /Spatial Controller \(Spatial Interaction Source\) /
 spaciblo.input.UNKNOWN_CONTROLLER_ID_REGEX = /unknown/
 
 // All of the known controllers
@@ -81,6 +82,7 @@ spaciblo.input.CONTROLLER_ID_REGEXES = [
 	spaciblo.input.GEAR_VR_CONTROLLER_ID_REGEX,
 	spaciblo.input.OPENVR_CONTROLLER_ID_REGEX,
 	spaciblo.input.OCULUS_TOUCH_CONTROLLER_ID_REGEX,
+	spaciblo.input.WINDOWS_MIXED_REALITY_CONTROLLER,
 	spaciblo.input.OCULUS_REMOTE_ID_REGEX
 ]
 
@@ -112,6 +114,29 @@ for(let input of spaciblo.input._defaultControllerInputs){
 }
 for(let input of spaciblo.input._defaultControllerInputs){
 	spaciblo.input._generateGamepadInput(spaciblo.input.DefaultInputSchema, spaciblo.input.OPENVR_CONTROLLER_ID_REGEX, input)
+}
+
+//	hand, button, touch, axis, action
+
+// The Windows MR Controllers via the Steam bridge are a bit... different
+spaciblo.input._windowsMixedRealityControllerInputs = [
+	['left',	null, 4, null,	'left-point'],
+	['right',	null, 4, null,	'right-point'],
+	['left',	4, null, null,	'left-press'],
+	['right', 	4, null, null,	'right-press'],
+	['left',	1, null, null,	'left-trigger'],
+	['right', 	1, null, null,	'right-trigger'],
+	['left',	2, null, null,	'left-grip'],
+	['right', 	2, null, null,	'right-grip'],
+	['left',	3, null, null,	'toggle-flock'],
+	['right', 	3, null, null,	'toggle-flock'],
+	['left',	null, null, 2,	'left-glide-x'],
+	['right', 	null, null, 2,	'right-glide-x'],
+	['left',	null, null, 3,	'left-glide-y'],
+	['right', 	null, null, 3,	'right-glide-y']
+]
+for(let input of spaciblo.input._windowsMixedRealityControllerInputs){
+	spaciblo.input._generateGamepadInput(spaciblo.input.DefaultInputSchema, spaciblo.input.WINDOWS_MIXED_REALITY_CONTROLLER, input)
 }
 
 // This is the layout for smaller controllers with handedness like the Daydream 3dof controller and the Gear VR controller
