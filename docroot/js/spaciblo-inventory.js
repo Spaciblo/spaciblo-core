@@ -4,6 +4,8 @@ var spaciblo = spaciblo || {}
 spaciblo.events = spaciblo.events || {}
 spaciblo.components = spaciblo.components || {}
 
+spaciblo.components.IMAGE_VIEWER_TEMPLATE_NAME = 'Image Viewer'
+
 spaciblo.events.SettingUpdated = 'spaciblo-setting-updated'
 spaciblo.events.NodeUpdated = 'spaciblo-node-updated'
 spaciblo.events.TemplatePicked = 'spaciblo-template-picked'
@@ -267,6 +269,7 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 		super(dataObject, options)
 		if(dataObject === null) throw 'SceneGraphTree requires a Space dataObject'
 		this._boundHandleClientMessages = this._handleClientMessages.bind(this)
+		this._imageViewerTemplate = null
 		this.objectMap = new Map() // node id -> spaciblo.components.SceneGraphNode
 		this.client = new spaciblo.api.Client()
 		this.receivedFirstUpdate = false
@@ -275,6 +278,22 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 		this.selectedNode = null
 		this._addedToParent = null
 		this.client.addListener(this._boundHandleClientMessages, spaciblo.events.ClientMessageReceived)
+
+		// Find the Image Viewer template
+		new be.api.Templates().fetch().then((templates) => {
+			for(let template of templates){
+				if(template.get('name') !== spaciblo.components.IMAGE_VIEWER_TEMPLATE_NAME){
+					continue
+				}
+				this._imageViewerTemplate = template
+				break
+			}
+			if(this._imageViewerTemplate === null){
+				console.error('Could not find template named', spaciblo.components.IMAGE_VIEWER_TEMPLATE_NAME)
+			}
+		}).catch((...params) => {
+			console.error('error fetching image viewer template', ...params)
+		})
 	}
 	openClient(){
 		this.client.open().then(() => {
@@ -362,6 +381,9 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 				this.rootNode.addListener((...params) => {
 					this._handleAddNodeClick(...params)
 				}, 'add-node-click')
+				this.rootNode.addListener((...params) => {
+					this._handleAddFilesRequest(...params)
+				}, 'add-files-request')
 				this.el.appendChild(node.el)
 			} else {
 				parent.addChild(node)
@@ -411,6 +433,62 @@ spaciblo.components.SceneGraphTree = class extends k.Component {
 		this.selectedNode = node
 		this.selectedNode.el.addClass('selected')
 		this.trigger('node-selected', node, true)
+	}
+	_handleAddFilesRequest(eventName, node, files){
+		if(this._imageViewerTemplate === null){
+			console.error('Image viewer template could not be found')
+			return
+		}
+
+		// Find all of the images in `files`
+		let images = []
+		for(let file of files){
+			if(file.type !== 'image/png' && file.type !== 'image/jpg'){
+				console.error('ignoring file', file)
+				continue
+			}
+			images.push(file)
+		}
+
+		// createNodes will be called when all of the images have been uploaded as resources to the image viewer template
+		let addedImages = []
+		let createNodes = () => {
+			// For each added image, create an instance of the Image Viewer template and set it up to show the image
+			for(let imageFile of addedImages){
+				let image = new Image()
+				image.onload = () => {
+					if(image.width === 0 || image.height === 0){
+						console.error('invalid image', imageFile.name)
+						return
+					}
+					let scale = [1, image.height / image.width, 1]
+					this.client.sendAddNode(node.dataObject.get('id'), {
+						name: imageFile.name,
+						templateUUID: this._imageViewerTemplate.get('uuid'),
+						fileName: imageFile.name
+					}, [0,0,0], [0,0,0,1], [0,0,0], [0,0,0], scale)
+				}
+				image.src = URL.createObjectURL(imageFile)
+			}
+		}
+
+		// Upload all images as resources to the image viewer template
+		let fileCount = images.length
+		for(let file of images){
+			be.api.TemplateData.postFile(this._imageViewerTemplate.get('uuid'), file).then((...params) => {
+				addedImages.push(file)
+				fileCount -= 1
+				if(fileCount == 0){
+					createNodes()
+				}
+			}).catch((...params) => {
+				console.error('Error', ...params)
+				fileCount -= 1
+				if(fileCount == 0){
+					createNodes()
+				}
+			})
+		}
 	}
 }
 
@@ -481,6 +559,31 @@ spaciblo.components.SceneGraphNode = class extends k.Component {
 
 		this.dataObject.addListener(this._boundHandleModelChange, 'changed:name')
 		this.dataObject.addListener(this._boundHandleModelChange, 'changed:clientUUID')
+
+		this.el.addEventListener('dragover', ev => { this._handleDragOver(ev) }, false)
+		this.el.addEventListener('dragexit', ev => { this._handleDragExit(ev) }, false)
+		this.el.addEventListener('drop', ev => { this._handleDrop(ev) }, false)
+	}
+	_handleNewFiles(files){
+		this.trigger('add-files-request', this, files)
+	}
+	_handleDragOver(ev){
+		ev.stopPropagation()
+		ev.preventDefault()
+		ev.dataTransfer.dropEffect = 'copy';
+		this.el.addClass('file-hover')
+	}
+	_handleDragExit(ev){
+		ev.stopPropagation();
+		ev.preventDefault();
+		this.el.removeClass('file-hover')
+	}
+	_handleDrop(ev){
+		ev.stopPropagation();
+		ev.preventDefault();
+		this.el.removeClass('file-hover')
+		if(ev.dataTransfer.files.length == 0) return
+		this._handleNewFiles(ev.dataTransfer.files)
 	}
 	cleanup(){
 		super.cleanup()
@@ -512,6 +615,9 @@ spaciblo.components.SceneGraphNode = class extends k.Component {
 		childNode.addListener((...params) => {
 			this.trigger(...params) // Relay up the chain
 		}, 'add-node-click')
+		childNode.addListener((...params) => {
+			this.trigger(...params) // Relay up the chain
+		}, 'add-files-request')
 		childNode.parent = this
 	}
 	removeChild(childNode){
@@ -1442,7 +1548,6 @@ spaciblo.components.TemplateDetailComponent = class extends k.Component {
 			let templateImage = new be.api.TemplateImage({ image: imageData }, { uuid: this.dataObject.get('uuid') })
 			templateImage._new = false
 			templateImage.save().then(resultData => {
-				console.log('saved', resultData)
 				if(resultData.data && resultData.data.image){
 					this.dataObject.set('image', resultData.data.image)
 				}

@@ -182,7 +182,7 @@ spaciblo.input.InputAction = class {
 // Maps key codes and ControllerChords to Actions
 spaciblo.input.InputSchema = class {
 	constructor(){
-		this._keyCodeActions = new Map() // key code int -> Action
+		this._keyCodeActions = new Map() // key code int -> { action: Action, value: null | value }
 		this._controllerInputs = new Set()
 		this._actions = new Map() // name to InputAction
 	}
@@ -192,12 +192,18 @@ spaciblo.input.InputSchema = class {
 	getAction(name){
 		return this._actions[name]
 	}
-	addKeyCodeAction(keyCode, action){
+	addKeyCodeAction(keyCode, action, value=null){
 		if(action == false) throw 'Can not add a key code with no action'
-		this._keyCodeActions.set(keyCode, action)
+		this._keyCodeActions.set(keyCode, {
+			action: action,
+			value: value
+		})
 	}
 	getKeyCodeAction(keyCode){
-		return this._keyCodeActions.get(keyCode) || null
+		const actionInfo = this._keyCodeActions.get(keyCode)
+		if(!actionInfo) return null
+		actionInfo.action.value = actionInfo.value
+		return actionInfo.action
 	}
 	addControllerInput(controllerInput){
 		if(controllerInput.action == false) throw 'Can not add a controller input with no action'

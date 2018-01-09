@@ -158,12 +158,7 @@ spaciblo.three.Renderer = k.eventMixin(class {
 	}
 
 	_ensureCopy(group){
-		if(group.notACopy === true) return // Already split from the original
-		group.notACopy = true
-		if(group.material){
-			group.material = group.material.clone()
-		}
-		// TODO when we have the ability to change the geometry we'll need to deep clone that, too
+		spaciblo.three.ensureCopy(group)
 	}
 
 	selectGroups(selector, group=this.pivotPoint, results=[]){
@@ -1102,6 +1097,16 @@ spaciblo.three.Renderer = k.eventMixin(class {
 		return this.renderer.domElement
 	}
 })
+
+spaciblo.three.ensureCopy = function(group){
+	if(group.notACopy === true) return // Already split from the original
+	group.notACopy = true
+	if(group.material){
+		group.material = group.material.clone()
+		group.material.needsUpdate = true
+	}
+	// TODO when we have the ability to change the geometry we'll need to deep clone that, too
+}
 
 // Helper functions for converting update.settings strings into native types
 spaciblo.three.parseSettingFloat = function(name, settings, defaultValue=0){

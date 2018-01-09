@@ -1,0 +1,15 @@
+# Blender v2.78 (sub 0) OBJ File: 'Image Viewer.blend'
+# www.blender.org
+mtllib Image Viewer.mtl
+o Plane
+v -1.000000 -1.000000 -0.000000
+v 1.000000 -1.000000 -0.000000
+v -1.000000 1.000000 0.000000
+v 1.000000 1.000000 0.000000
+vt 0.0001 0.0001
+vt 0.9999 0.0001
+vt 0.9999 0.9999
+vt 0.0001 0.9999
+usemtl None
+s off
+f 1/1 2/2 4/3 3/4

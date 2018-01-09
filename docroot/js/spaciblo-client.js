@@ -188,7 +188,11 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 	}
 
 	handleGroupInfo(group){
-		this._groups.set(group.id, group) // Update with the newer info
+		// Update with the newer info
+		this._groups.set(group.id, group)
+		if(this._templateGroups.has(group.id)){
+			this._templateGroups.set(group.id, group)
+		}
 	}
 	handleGroupAdded(group){
 		this._groups.set(group.id, group)
@@ -253,6 +257,11 @@ spaciblo.client.TrackingTemplateWorker = class extends spaciblo.client.TemplateW
 	get gazePointInfo(){ return this._gazePointInfo }
 	get leftPointInfo(){ return this._leftPointInfo }
 	get rightPointInfo(){ return this._rightPointInfo }
+	get firstGazePointInfo() {
+		if(this._gazePointInfo) return this._gazePointInfo
+		if(this._leftPointInfo) return this._leftPointInfo
+		return this._rightPointInfo || null
+	}
 }
 
 /*

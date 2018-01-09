@@ -158,7 +158,6 @@ spaciblo.api.Client = k.eventMixin(class {
 		/*
 		update must be a map like { uuid: <flockMemberUUID>, <key>:<value> }
 		*/
-		console.log('flock member update', update)
 		this.socket.send(JSON.stringify({
 			type: 'Flock-Member-Update-Request',
 			flockMemberUpdates: [update]

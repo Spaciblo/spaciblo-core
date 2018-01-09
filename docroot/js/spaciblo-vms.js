@@ -158,4 +158,47 @@ vms.ModifyProperty = class extends vms.Modifier {
 }
 vms.modifyProperty = function(path, value, requiresCopy=false){ return new vms.ModifyProperty(path, value, requiresCopy) } 
 
+/*
+ModifyMaterialMap is a VMS modifier that updates a Material.map value.
+*/
+vms.ModifyMaterialMap = class extends vms.Modifier {
+	/*
+	value: an image path
+	*/
+	constructor(value, transparent=false, requiresCopy=false){
+		super()
+		this._class = 'ModifyMaterialMap'
+		this._value = value
+		this._transparent = transparent
+		this._requiresCopy = requiresCopy
+	}
+	get requiresCopy(){ return this._requiresCopy }
+	apply(group){
+		let obj = group
+		while(!obj.material && obj.children.length > 0){
+			obj = obj.children[0]
+		}
+		if(!obj.material){
+			console.error('ModifyMatertialMap failed to find a material', group)
+			return
+		}
+		if(this.requiresCopy){
+			vms.ensureCopy(obj)
+		}
+		obj.material.map = THREE.ImageUtils.loadTexture(this._value)
+		obj.material.transparent = this._transparent
+		obj.material.needsUpdate = true;
+	}
+}
+vms.modifyMaterialMap = function(value, transparent=false, requiresCopy=false){ return new vms.ModifyMaterialMap(value, transparent, requiresCopy) } 
+
+vms.ensureCopy = function(group){
+	if(group.notACopy === true) return // Already split from the original
+	group.notACopy = true
+	if(group.material){
+		group.material = group.material.clone()
+		group.material.needsUpdate = true
+	}
+	// TODO when we have the ability to change the geometry we'll need to deep clone that, too
+}
 

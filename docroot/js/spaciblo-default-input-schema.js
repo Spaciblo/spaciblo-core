@@ -167,29 +167,32 @@ spaciblo.input._defaultKeyCodeActions = [
 	[80, 'press'],		// p
 	[84, 'trigger'],	// t
 
-	[38, 'translate-forward'],
-	[87, 'translate-forward'],
+	[38, 'translate-forward'], // ArrowUp
+	[87, 'translate-forward'], // w
 
-	[40, 'translate-backward'],
-	[83, 'translate-backward'],
+	[40, 'translate-backward'], // ArrowDown
+	[83, 'translate-backward'], // s
 
-	[69, 'translate-left'],
-	[81, 'translate-right'],
+	[69, 'translate-left'],		// e
+	[81, 'translate-right'],	// q
 
-	[82, 'translate-up'],
-	[70, 'translate-down'],
+	[82, 'translate-up'],	// r
+	[70, 'translate-down'],	// f
 
-	[65, 'rotate-left'],
-	[37, 'rotate-left'],
+	[37, 'rotate-left'],	// ArrowLeft
+	[65, 'rotate-left'],	// a
 
-	[39, 'rotate-right'],
-	[68, 'rotate-right'],
+	[39, 'rotate-right'],	// ArrowRight
+	[68, 'rotate-right'],	// d
 
-	[88, 'rotate-down'],
-	[90, 'rotate-up'],
+	[88, 'rotate-down'],	// 88
+	[90, 'rotate-up'],		// 90
 
-	[67, 'roll-left'],
-	[86, 'roll-right'],
+	[67, 'roll-left'],	// c
+	[86, 'roll-right'],	// v
+
+	[61, 'glide-y', 0.1],	// =
+	[173, 'glide-y', -0.1],	// - 
 
 	[48, 'hide-flock'], // 0
 	[49, 'show-flock']  // 1
